@@ -97,6 +97,7 @@ fun CaptureScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DestinationSection(
     selectedDestination: String,

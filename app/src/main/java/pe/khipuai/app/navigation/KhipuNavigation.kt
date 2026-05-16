@@ -9,6 +9,7 @@ import pe.khipuai.app.ui.screens.auth.LoginScreen
 import pe.khipuai.app.ui.screens.auth.RegisterScreen
 import pe.khipuai.app.ui.screens.home.HomeScreen
 import pe.khipuai.app.ui.screens.capture.CaptureScreen
+import pe.khipuai.app.ui.screens.planner.PlannerScreen
 
 @Composable
 fun KhipuNavigation(
@@ -50,7 +51,7 @@ fun KhipuNavigation(
                     when (tabIndex) {
                         0 -> { /* Already on Home */ }
                         1 -> navController.navigate(Screen.Capture.route)
-                        2 -> { /* TODO: Navigate to Planner */ }
+                        2 -> navController.navigate(Screen.Planner.route)
                         3 -> { /* TODO: Navigate to Maps */ }
                         4 -> { /* TODO: Navigate to Profile */ }
                     }
@@ -64,7 +65,21 @@ fun KhipuNavigation(
                     when (tabIndex) {
                         0 -> navController.navigate(Screen.Home.route)
                         1 -> { /* Already on Capture */ }
-                        2 -> { /* TODO: Navigate to Planner */ }
+                        2 -> navController.navigate(Screen.Planner.route)
+                        3 -> { /* TODO: Navigate to Maps */ }
+                        4 -> { /* TODO: Navigate to Profile */ }
+                    }
+                }
+            )
+        }
+        
+        composable(Screen.Planner.route) {
+            PlannerScreen(
+                onNavigateToTab = { tabIndex ->
+                    when (tabIndex) {
+                        0 -> navController.navigate(Screen.Home.route)
+                        1 -> navController.navigate(Screen.Capture.route)
+                        2 -> { /* Already on Planner */ }
                         3 -> { /* TODO: Navigate to Maps */ }
                         4 -> { /* TODO: Navigate to Profile */ }
                     }
@@ -79,4 +94,5 @@ sealed class Screen(val route: String) {
     object Register : Screen("register")
     object Home : Screen("home")
     object Capture : Screen("capture")
+    object Planner : Screen("planner")
 }
