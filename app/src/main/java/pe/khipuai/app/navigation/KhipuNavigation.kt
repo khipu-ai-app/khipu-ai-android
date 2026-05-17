@@ -12,6 +12,7 @@ import pe.khipuai.app.ui.screens.capture.CaptureScreen
 import pe.khipuai.app.ui.screens.planner.PlannerScreen
 import pe.khipuai.app.ui.screens.maps.MapsScreen
 import pe.khipuai.app.ui.screens.profile.ProfileScreen
+import pe.khipuai.app.ui.screens.processing.ProcessingScreen
 
 @Composable
 fun KhipuNavigation(
@@ -71,6 +72,9 @@ fun KhipuNavigation(
                         3 -> navController.navigate(Screen.Maps.route)
                         4 -> navController.navigate(Screen.Profile.route)
                     }
+                },
+                onNavigateToProcessing = {
+                    navController.navigate(Screen.Processing.route)
                 }
             )
         }
@@ -116,6 +120,16 @@ fun KhipuNavigation(
                 }
             )
         }
+        
+        composable(Screen.Processing.route) {
+            ProcessingScreen(
+                onProcessingComplete = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Capture.route) { inclusive = true }
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -127,4 +141,5 @@ sealed class Screen(val route: String) {
     object Planner : Screen("planner")
     object Maps : Screen("maps")
     object Profile : Screen("profile")
+    object Processing : Screen("processing")
 }

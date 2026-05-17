@@ -23,6 +23,7 @@ import pe.khipuai.app.ui.components.BottomNavigationBar
 @Composable
 fun CaptureScreen(
     onNavigateToTab: (Int) -> Unit,
+    onNavigateToProcessing: () -> Unit = {},
     viewModel: CaptureViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -87,7 +88,10 @@ fun CaptureScreen(
             
             // Capture options
             CaptureOptions(
-                onCameraClick = { viewModel.openCamera() },
+                onCameraClick = { 
+                    viewModel.openCamera()
+                    onNavigateToProcessing()
+                },
                 onUploadClick = { viewModel.uploadFile() },
                 onPdfModeClick = { viewModel.togglePdfMode() }
             )
