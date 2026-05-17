@@ -10,6 +10,7 @@ import pe.khipuai.app.ui.screens.auth.RegisterScreen
 import pe.khipuai.app.ui.screens.home.HomeScreen
 import pe.khipuai.app.ui.screens.capture.CaptureScreen
 import pe.khipuai.app.ui.screens.planner.PlannerScreen
+import pe.khipuai.app.ui.screens.maps.MapsScreen
 
 @Composable
 fun KhipuNavigation(
@@ -52,7 +53,7 @@ fun KhipuNavigation(
                         0 -> { /* Already on Home */ }
                         1 -> navController.navigate(Screen.Capture.route)
                         2 -> navController.navigate(Screen.Planner.route)
-                        3 -> { /* TODO: Navigate to Maps */ }
+                        3 -> navController.navigate(Screen.Maps.route)
                         4 -> { /* TODO: Navigate to Profile */ }
                     }
                 }
@@ -66,7 +67,7 @@ fun KhipuNavigation(
                         0 -> navController.navigate(Screen.Home.route)
                         1 -> { /* Already on Capture */ }
                         2 -> navController.navigate(Screen.Planner.route)
-                        3 -> { /* TODO: Navigate to Maps */ }
+                        3 -> navController.navigate(Screen.Maps.route)
                         4 -> { /* TODO: Navigate to Profile */ }
                     }
                 }
@@ -80,7 +81,21 @@ fun KhipuNavigation(
                         0 -> navController.navigate(Screen.Home.route)
                         1 -> navController.navigate(Screen.Capture.route)
                         2 -> { /* Already on Planner */ }
-                        3 -> { /* TODO: Navigate to Maps */ }
+                        3 -> navController.navigate(Screen.Maps.route)
+                        4 -> { /* TODO: Navigate to Profile */ }
+                    }
+                }
+            )
+        }
+        
+        composable(Screen.Maps.route) {
+            MapsScreen(
+                onNavigateToTab = { tabIndex ->
+                    when (tabIndex) {
+                        0 -> navController.navigate(Screen.Home.route)
+                        1 -> navController.navigate(Screen.Capture.route)
+                        2 -> navController.navigate(Screen.Planner.route)
+                        3 -> { /* Already on Maps */ }
                         4 -> { /* TODO: Navigate to Profile */ }
                     }
                 }
@@ -95,4 +110,5 @@ sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Capture : Screen("capture")
     object Planner : Screen("planner")
+    object Maps : Screen("maps")
 }
