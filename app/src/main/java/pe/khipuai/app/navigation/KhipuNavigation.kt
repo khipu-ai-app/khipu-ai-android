@@ -11,6 +11,7 @@ import pe.khipuai.app.ui.screens.home.HomeScreen
 import pe.khipuai.app.ui.screens.capture.CaptureScreen
 import pe.khipuai.app.ui.screens.planner.PlannerScreen
 import pe.khipuai.app.ui.screens.maps.MapsScreen
+import pe.khipuai.app.ui.screens.profile.ProfileScreen
 
 @Composable
 fun KhipuNavigation(
@@ -54,7 +55,7 @@ fun KhipuNavigation(
                         1 -> navController.navigate(Screen.Capture.route)
                         2 -> navController.navigate(Screen.Planner.route)
                         3 -> navController.navigate(Screen.Maps.route)
-                        4 -> { /* TODO: Navigate to Profile */ }
+                        4 -> navController.navigate(Screen.Profile.route)
                     }
                 }
             )
@@ -68,7 +69,7 @@ fun KhipuNavigation(
                         1 -> { /* Already on Capture */ }
                         2 -> navController.navigate(Screen.Planner.route)
                         3 -> navController.navigate(Screen.Maps.route)
-                        4 -> { /* TODO: Navigate to Profile */ }
+                        4 -> navController.navigate(Screen.Profile.route)
                     }
                 }
             )
@@ -82,7 +83,7 @@ fun KhipuNavigation(
                         1 -> navController.navigate(Screen.Capture.route)
                         2 -> { /* Already on Planner */ }
                         3 -> navController.navigate(Screen.Maps.route)
-                        4 -> { /* TODO: Navigate to Profile */ }
+                        4 -> navController.navigate(Screen.Profile.route)
                     }
                 }
             )
@@ -96,7 +97,21 @@ fun KhipuNavigation(
                         1 -> navController.navigate(Screen.Capture.route)
                         2 -> navController.navigate(Screen.Planner.route)
                         3 -> { /* Already on Maps */ }
-                        4 -> { /* TODO: Navigate to Profile */ }
+                        4 -> navController.navigate(Screen.Profile.route)
+                    }
+                }
+            )
+        }
+        
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                onNavigateToTab = { tabIndex ->
+                    when (tabIndex) {
+                        0 -> navController.navigate(Screen.Home.route)
+                        1 -> navController.navigate(Screen.Capture.route)
+                        2 -> navController.navigate(Screen.Planner.route)
+                        3 -> navController.navigate(Screen.Maps.route)
+                        4 -> { /* Already on Profile */ }
                     }
                 }
             )
@@ -111,4 +126,5 @@ sealed class Screen(val route: String) {
     object Capture : Screen("capture")
     object Planner : Screen("planner")
     object Maps : Screen("maps")
+    object Profile : Screen("profile")
 }
