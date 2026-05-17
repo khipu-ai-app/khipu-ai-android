@@ -78,7 +78,7 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* TODO: Add new content */ },
+                onClick = { onNavigateToTab(1) }, // Navigate to Capture screen
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
@@ -228,10 +228,7 @@ private fun GreetingSection() {
             
             Spacer(modifier = Modifier.width(8.dp))
             
-            Text(
-                text = "👋",
-                fontSize = 24.sp
-            )
+
         }
     }
 }
@@ -283,7 +280,7 @@ private fun DailyGoalCard(
                 )
                 
                 Text(
-                    text = "🔥 Racha de $streak días",
+                    text = "Racha de $streak días",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
