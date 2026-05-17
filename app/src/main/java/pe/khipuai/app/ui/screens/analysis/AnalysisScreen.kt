@@ -28,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun AnalysisScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToStudyGuide: () -> Unit,
     viewModel: AnalysisViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -291,7 +292,7 @@ fun AnalysisScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Button(
-                        onClick = { /* TODO: Generate study guide */ },
+                        onClick = onNavigateToStudyGuide,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
