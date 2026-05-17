@@ -25,6 +25,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun ProcessingScreen(
     onProcessingComplete: () -> Unit,
+    onNavigateToAnalysis: () -> Unit = {},
     viewModel: ProcessingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -46,13 +47,17 @@ fun ProcessingScreen(
     ) {
         Spacer(modifier = Modifier.height(60.dp))
         
-        // Title
-        Text(
-            text = "Khipu AI",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
+        // Title - Clickable
+        TextButton(
+            onClick = onNavigateToAnalysis
+        ) {
+            Text(
+                text = "Khipu AI",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
         
         Spacer(modifier = Modifier.height(60.dp))
         
