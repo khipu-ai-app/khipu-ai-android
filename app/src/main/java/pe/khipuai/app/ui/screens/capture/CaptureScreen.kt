@@ -1,5 +1,10 @@
 package pe.khipuai.app.ui.screens.capture
 
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -14,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -28,7 +34,38 @@ fun CaptureScreen(
     viewModel: CaptureViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+    val context = LocalContext.current
+
+    // 📸 CONTRACT 1: Selector Nativo de Imágenes (Photo Picker)
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { safeUri ->
+            // Convertimos el Uri de la galería en un archivo físico en la caché
+            val file = uriToFile(context, safeUri, ".jpg")
+            if (file != null) {
+                viewModel.processAndUploadImage(file) { id ->
+                    if (id != null) onNavigateToProcessing(id)
+                }
+            }
+        }
+    }
+
+    // 📄 CONTRACT 2: Selector Nativo de Documentos (PDF)
+    val pdfPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { safeUri ->
+            // Convertimos el Uri del explorador en un archivo físico en la caché
+            val file = uriToFile(context, safeUri, ".pdf")
+            if (file != null) {
+                viewModel.processAndUploadDocument(file, "application/pdf") { id ->
+                    if (id != null) onNavigateToProcessing(id)
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -78,36 +115,33 @@ fun CaptureScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Destination section
             DestinationSection(
                 selectedDestination = uiState.selectedDestination,
                 onDestinationChange = viewModel::updateDestination
             )
-            
+
             Spacer(modifier = Modifier.height(48.dp))
-            
-            // Capture options
+
+            // Capture options vinculadas a los contratos de Android
             CaptureOptions(
                 onCameraClick = {
-                    // 🧪 BYPASS DE PRUEBA RÁPIDA: Creamos un puntero de archivo simulado temporal
-                    // para verificar la conectividad de la red sin configurar CameraX todavía
-                    val dummyFile = File("/sdcard/Download/apunte_prueba.jpg")
-
-                    viewModel.processAndUploadImage(dummyFile) { id ->
-                        // Si el servidor local nos acepta el archivo, saltamos con su ID al cargador
-                        if (id != null) onNavigateToProcessing(id)
-                    }
+                    // Lanza el photo picker restringido solo a imágenes
+                    imagePickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
                 },
                 onUploadClick = {
-                    val dummyPdf = File("/sdcard/Download/clase_algebra.pdf")
-                    viewModel.processAndUploadDocument(dummyPdf, "application/pdf") { id ->
-                        if (id != null) onNavigateToProcessing(id)
-                    }
+                    // Lanza el selector de archivos pidiendo explícitamente PDFs
+                    pdfPickerLauncher.launch(arrayOf("application/pdf"))
                 },
-                onPdfModeClick = { /* Lógica PDF mode */ }
+                onPdfModeClick = {
+                    // Modo PDF secundario mapeado también al contract de documentos
+                    pdfPickerLauncher.launch(arrayOf("application/pdf"))
+                }
             )
-            
+
             Spacer(modifier = Modifier.weight(1f))
         }
     }
@@ -129,12 +163,11 @@ private fun DestinationSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
-        
+
         Spacer(modifier = Modifier.height(12.dp))
-        
-        // Dropdown for destination
+
         var expanded by remember { mutableStateOf(false) }
-        
+
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = !expanded }
@@ -162,7 +195,7 @@ private fun DestinationSection(
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
-            
+
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
@@ -170,7 +203,7 @@ private fun DestinationSection(
                 listOf(
                     "Autoclasificar con IA",
                     "Matemáticas",
-                    "Historia", 
+                    "Historia",
                     "Psicología",
                     "Física",
                     "Química"
@@ -199,7 +232,6 @@ private fun CaptureOptions(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Upload file option
         CaptureOptionButton(
             icon = Icons.Default.Upload,
             label = "Subir Archivo",
@@ -207,8 +239,7 @@ private fun CaptureOptions(
             backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
             iconColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
-        // Main camera button
+
         Box(
             modifier = Modifier
                 .size(120.dp)
@@ -228,8 +259,7 @@ private fun CaptureOptions(
                 )
             }
         }
-        
-        // PDF mode option
+
         CaptureOptionButton(
             icon = Icons.Default.PictureAsPdf,
             label = "Modo PDF",
@@ -270,14 +300,36 @@ private fun CaptureOptionButton(
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+/**
+ * Abre un InputStream desde el ContentResolver de Android, clona los bytes en un archivo
+ * temporal dentro del directorio de caché de la app y devuelve el puntero File.
+ */
+private fun uriToFile(context: Context, uri: Uri, extensionSuffix: String): File? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        // Creamos un archivo temporal único dentro del almacenamiento de caché privado de la app
+        val tempFile = File(
+            context.cacheDir,
+            "khipu_ingest_${System.currentTimeMillis()}$extensionSuffix"
+        )
+        tempFile.outputStream().use { outputStream ->
+            inputStream.copyTo(outputStream)
+        }
+        tempFile
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }
