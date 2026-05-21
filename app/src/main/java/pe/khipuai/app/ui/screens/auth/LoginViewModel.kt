@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.repository.AuthRepository
 import javax.inject.Inject
 
 data class LoginUiState(
@@ -18,21 +19,18 @@ data class LoginUiState(
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    // TODO: Inject AuthRepository when implemented
+    private val authRepository: AuthRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
-    
+
     fun login(email: String, password: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            
+
             try {
-                // Simulate API call
                 delay(2000)
-                
-                // Basic validation
                 if (email.isBlank() || password.isBlank()) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -41,7 +39,7 @@ class LoginViewModel @Inject constructor(
                     onResult(false)
                     return@launch
                 }
-                
+
                 if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -50,15 +48,10 @@ class LoginViewModel @Inject constructor(
                     onResult(false)
                     return@launch
                 }
-                
-                // TODO: Replace with actual authentication
-                // For now, simulate successful login
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isLoggedIn = true
-                )
+
+                _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true)
                 onResult(true)
-                
+
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -68,32 +61,29 @@ class LoginViewModel @Inject constructor(
             }
         }
     }
-    
-    fun signInWithGoogle(onResult: (Boolean) -> Unit) {
+
+    fun signInWithGoogle(idToken: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            
-            try {
-                // Simulate Google Sign In
-                delay(1500)
-                
-                // TODO: Replace with actual Google Sign In
+
+            val result = authRepository.loginWithGoogle(idToken)
+
+            result.onSuccess {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isLoggedIn = true
                 )
                 onResult(true)
-                
-            } catch (e: Exception) {
+            }.onFailure { exception ->
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Error al iniciar sesión con Google: ${e.message}"
+                    errorMessage = "Error en Khipu Server: ${exception.localizedMessage ?: "Conexión rechazada"}"
                 )
                 onResult(false)
             }
         }
     }
-    
+
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }

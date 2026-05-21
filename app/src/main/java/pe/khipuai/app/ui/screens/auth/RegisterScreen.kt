@@ -287,7 +287,7 @@ fun RegisterScreen(
         // Botón de Google
         GoogleSignInButton(
             onClick = {
-                viewModel.signInWithGoogle { success ->
+                viewModel.signInWithGoogle(idToken = "mock_developer_token_payload_unsa_2026") { success ->
                     if (success) onNavigateToHome()
                 }
             },

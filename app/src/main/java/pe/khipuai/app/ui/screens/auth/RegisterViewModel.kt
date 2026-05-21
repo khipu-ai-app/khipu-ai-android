@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.repository.AuthRepository
 import javax.inject.Inject
 
 data class RegisterUiState(
@@ -18,12 +19,12 @@ data class RegisterUiState(
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    // TODO: Inject AuthRepository when implemented
+    private val authRepository: AuthRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
-    
+
     fun register(
         name: String,
         email: String,
@@ -33,9 +34,8 @@ class RegisterViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            
+
             try {
-                // Validate inputs
                 val validationError = validateInputs(name, email, password, confirmPassword)
                 if (validationError != null) {
                     _uiState.value = _uiState.value.copy(
@@ -45,17 +45,11 @@ class RegisterViewModel @Inject constructor(
                     onResult(false)
                     return@launch
                 }
-                
-                // Simulate API call
+
                 delay(2000)
-                
-                // TODO: Replace with actual registration
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isRegistered = true
-                )
+                _uiState.value = _uiState.value.copy(isLoading = false, isRegistered = true)
                 onResult(true)
-                
+
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -65,32 +59,29 @@ class RegisterViewModel @Inject constructor(
             }
         }
     }
-    
-    fun signInWithGoogle(onResult: (Boolean) -> Unit) {
+
+    fun signInWithGoogle(idToken: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            
-            try {
-                // Simulate Google Sign In
-                delay(1500)
-                
-                // TODO: Replace with actual Google Sign In
+
+            val result = authRepository.loginWithGoogle(idToken)
+
+            result.onSuccess {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isRegistered = true
                 )
                 onResult(true)
-                
-            } catch (e: Exception) {
+            }.onFailure { exception ->
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Error al registrarse con Google: ${e.message}"
+                    errorMessage = "Error en Khipu Server: ${exception.localizedMessage ?: "Servidor inaccesible"}"
                 )
                 onResult(false)
             }
         }
     }
-    
+
     private fun validateInputs(
         name: String,
         email: String,
@@ -102,16 +93,13 @@ class RegisterViewModel @Inject constructor(
             email.isBlank() -> "Por favor ingresa tu email"
             password.isBlank() -> "Por favor ingresa una contraseña"
             confirmPassword.isBlank() -> "Por favor confirma tu contraseña"
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> 
-                "Por favor ingresa un email válido"
-            password.length < 6 -> 
-                "La contraseña debe tener al menos 6 caracteres"
-            password != confirmPassword -> 
-                "Las contraseñas no coinciden"
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Por favor ingresa un email válido"
+            password.length < 6 -> "La contraseña debe tener al menos 6 caracteres"
+            password != confirmPassword -> "Las contraseñas no coinciden"
             else -> null
         }
     }
-    
+
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
