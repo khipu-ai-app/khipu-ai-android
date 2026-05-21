@@ -18,12 +18,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import pe.khipuai.app.ui.components.BottomNavigationBar
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CaptureScreen(
     onNavigateToTab: (Int) -> Unit,
-    onNavigateToProcessing: () -> Unit = {},
+    onNavigateToProcessing: (String) -> Unit = {},
     viewModel: CaptureViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -88,12 +89,23 @@ fun CaptureScreen(
             
             // Capture options
             CaptureOptions(
-                onCameraClick = { 
-                    viewModel.openCamera()
-                    onNavigateToProcessing()
+                onCameraClick = {
+                    // 🧪 BYPASS DE PRUEBA RÁPIDA: Creamos un puntero de archivo simulado temporal
+                    // para verificar la conectividad de la red sin configurar CameraX todavía
+                    val dummyFile = File("/sdcard/Download/apunte_prueba.jpg")
+
+                    viewModel.processAndUploadImage(dummyFile) { id ->
+                        // Si el servidor local nos acepta el archivo, saltamos con su ID al cargador
+                        if (id != null) onNavigateToProcessing(id)
+                    }
                 },
-                onUploadClick = { viewModel.uploadFile() },
-                onPdfModeClick = { viewModel.togglePdfMode() }
+                onUploadClick = {
+                    val dummyPdf = File("/sdcard/Download/clase_algebra.pdf")
+                    viewModel.processAndUploadDocument(dummyPdf, "application/pdf") { id ->
+                        if (id != null) onNavigateToProcessing(id)
+                    }
+                },
+                onPdfModeClick = { /* Lógica PDF mode */ }
             )
             
             Spacer(modifier = Modifier.weight(1f))
