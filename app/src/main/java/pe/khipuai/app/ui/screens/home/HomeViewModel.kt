@@ -1,10 +1,14 @@
 package pe.khipuai.app.ui.screens.home
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import pe.khipuai.app.data.repository.CourseRepository
+import pe.khipuai.app.data.repository.NoteRepository
 import javax.inject.Inject
 
 data class HomeUiState(
@@ -39,69 +43,61 @@ enum class FileType {
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    // TODO: Inject repositories when implemented
+    private val courseRepository: CourseRepository,
+    private val noteRepository: NoteRepository
 ) : ViewModel() {
-    
-    private val _uiState = MutableStateFlow(
-        HomeUiState(
-            courses = getSampleCourses(),
-            recentFiles = getSampleRecentFiles()
-        )
-    )
+
+    private val _uiState = MutableStateFlow(HomeUiState(isLoading = true))
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-    
-    private fun getSampleCourses(): List<Course> {
-        return listOf(
-            Course(
-                id = "1",
-                name = "Matemáticas",
-                progress = 0.45f,
-                filesCount = 12,
-                color = "#4B00B2",
-                icon = "calculate"
-            ),
-            Course(
-                id = "2",
-                name = "Historia",
-                progress = 0.80f,
-                filesCount = 8,
-                color = "#2E7D32",
-                icon = "book"
-            ),
-            Course(
-                id = "3",
-                name = "Psicología",
-                progress = 0.15f,
-                filesCount = 24,
-                color = "#D32F2F",
-                icon = "psychology"
-            )
-        )
+
+    init {
+        loadDashboardContent()
     }
-    
-    private fun getSampleRecentFiles(): List<RecentFile> {
-        return listOf(
-            RecentFile(
-                id = "1",
-                title = "Apuntes_Revoluci...",
-                subject = "Historia",
-                timeAgo = "Añadido hace 2h",
-                type = FileType.DOCUMENT
-            ),
-            RecentFile(
-                id = "2",
-                title = "Esquema_Derivad...",
-                subject = "Matemáticas",
-                timeAgo = "Añadido ayer",
-                type = FileType.DOCUMENT
-            ),
-            RecentFile(
-                id = "3",
-                title = "Clase_Psicoanalisi...",
-                subject = "Psicología",
-                timeAgo = "Hace 3 días",
-                type = FileType.AUDIO
-            )
-        )
+
+    fun loadDashboardContent() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                val coursesResult = courseRepository.fetchMyCourses()
+                val notesResult = noteRepository.fetchMyNotes()
+
+                var fetchedCourses = emptyList<Course>()
+                var fetchedFiles = emptyList<RecentFile>()
+
+                coursesResult.onSuccess { list ->
+                    fetchedCourses = list.map { dto ->
+                        Course(
+                            id = dto.id,
+                            name = dto.name,
+                            progress = 0.0f,
+                            filesCount = 0,
+                            color = dto.color.ifBlank { "#4B00B2" },
+                            icon = "calculate"
+                        )
+                    }
+                }
+
+                notesResult.onSuccess { list ->
+                    fetchedFiles = list.map { dto ->
+                        RecentFile(
+                            id = dto.id,
+                            title = dto.title,
+                            subject = "General",
+                            timeAgo = "Añadido recientemente",
+                            type = FileType.DOCUMENT
+                        )
+                    }
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    courses = fetchedCourses,
+                    recentFiles = fetchedFiles,
+                    isLoading = false
+                )
+
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
     }
 }

@@ -1,23 +1,19 @@
 package pe.khipuai.app.ui.screens.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -32,8 +28,9 @@ fun HomeScreen(
     onNavigateToTab: (Int) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    // Corregido: Se añaden los métodos delegados correctos mediante los imports de Compose runtime
     val uiState by viewModel.uiState.collectAsState()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -78,7 +75,7 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onNavigateToTab(1) }, // Navigate to Capture screen
+                onClick = { onNavigateToTab(1) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
@@ -99,21 +96,18 @@ fun HomeScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
-            // Saludo y resumen
+
             item {
                 GreetingSection()
             }
-            
-            // Meta diaria
+
             item {
                 DailyGoalCard(
-                    progress = 0.75f,
-                    streak = 5
+                    progress = uiState.dailyProgress,
+                    streak = uiState.streak
                 )
             }
-            
-            // Sugerencia inteligente
+
             item {
                 SuggestionCard(
                     title = "Hoy Khipu recomienda repasar: Teoría de Cuerdas",
@@ -122,8 +116,7 @@ fun HomeScreen(
                     onStartReview = { /* TODO: Start review */ }
                 )
             }
-            
-            // Tus Cursos
+
             item {
                 SectionHeader(
                     title = "Tus Cursos",
@@ -131,36 +124,36 @@ fun HomeScreen(
                     onActionClick = { /* TODO: View all courses */ }
                 )
             }
-            
+
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CourseCard(
-                        name = "Matemáticas",
-                        progress = 0.45f,
-                        filesCount = 12,
-                        icon = Icons.Default.Calculate,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    
-                    CourseCard(
-                        name = "Historia",
-                        progress = 0.80f,
-                        filesCount = 8,
-                        icon = Icons.Default.MenuBook,
-                        color = Color(0xFF2E7D32)
-                    )
-                    
-                    CourseCard(
-                        name = "Psicología",
-                        progress = 0.15f,
-                        filesCount = 24,
-                        icon = Icons.Default.Psychology,
-                        color = Color(0xFFD32F2F)
-                    )
+                    if (uiState.courses.isEmpty() && !uiState.isLoading) {
+                        Text(
+                            text = "No tienes cursos creados. ¡Sube un apunte para empezar!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        uiState.courses.forEach { course ->
+                            val composeColor = try {
+                                Color(android.graphics.Color.parseColor(course.color))
+                            } catch (_: Exception) {
+                                MaterialTheme.colorScheme.primary
+                            }
+
+                            CourseCard(
+                                name = course.name,
+                                progress = course.progress,
+                                filesCount = course.filesCount,
+                                icon = Icons.Default.MenuBook,
+                                color = composeColor
+                            )
+                        }
+                    }
                 }
             }
-            
-            // Archivos Recientes
+
             item {
                 Text(
                     text = "Archivos Recientes",
@@ -169,35 +162,30 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
-            
+
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RecentFileItem(
-                        title = "Apuntes_Revoluci...",
-                        subject = "Historia",
-                        timeAgo = "Añadido hace 2h",
-                        icon = Icons.Default.Description,
-                        color = Color(0xFF2E7D32)
-                    )
-                    
-                    RecentFileItem(
-                        title = "Esquema_Derivad...",
-                        subject = "Matemáticas",
-                        timeAgo = "Añadido ayer",
-                        icon = Icons.Default.Description,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    
-                    RecentFileItem(
-                        title = "Clase_Psicoanalisi...",
-                        subject = "Psicología",
-                        timeAgo = "Hace 3 días",
-                        icon = Icons.Default.Mic,
-                        color = Color(0xFF7B1FA2)
-                    )
+                    if (uiState.recentFiles.isEmpty() && !uiState.isLoading) {
+                        Text(
+                            text = "Aún no hay documentos digitalizados.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        uiState.recentFiles.forEach { file ->
+                            RecentFileItem(
+                                title = file.title,
+                                subject = file.subject,
+                                timeAgo = file.timeAgo,
+                                icon = if (file.type == FileType.AUDIO) Icons.Default.Mic else Icons.Default.Description,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
                 }
             }
-            
+
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -213,22 +201,15 @@ private fun GreetingSection() {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
         Spacer(modifier = Modifier.height(4.dp))
-        
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Hola, Estudiante",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            
             Spacer(modifier = Modifier.width(8.dp))
-            
-
         }
     }
 }
@@ -249,7 +230,6 @@ private fun DailyGoalCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Progress circle
             Box(
                 modifier = Modifier.size(48.dp),
                 contentAlignment = Alignment.Center
@@ -268,9 +248,9 @@ private fun DailyGoalCard(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Meta diaria",
@@ -278,7 +258,6 @@ private fun DailyGoalCard(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                
                 Text(
                     text = "Racha de $streak días",
                     style = MaterialTheme.typography.bodyMedium,
@@ -306,7 +285,6 @@ private fun SectionHeader(
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
         )
-        
         TextButton(onClick = onActionClick) {
             Text(
                 text = actionText,
