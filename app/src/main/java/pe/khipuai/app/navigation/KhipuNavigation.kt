@@ -145,22 +145,22 @@ fun KhipuNavigation(
         composable(
             route = "${Screen.Analysis.route}/{noteId}",
             arguments = listOf(navArgument("noteId") { type = NavType.StringType })
-        ) {
+        ) { backStackEntry ->
+            val noteId = backStackEntry.arguments?.getString("noteId") ?: ""
             AnalysisScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
+                onNavigateBack = { navController.popBackStack() },
                 onNavigateToStudyGuide = {
-                    navController.navigate(Screen.StudyGuide.route)
+                    navController.navigate("${Screen.StudyGuide.route}/$noteId")
                 }
             )
         }
 
-        composable(Screen.StudyGuide.route) {
+        composable(
+            route = "${Screen.StudyGuide.route}/{noteId}",
+            arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+        ) {
             StudyGuideScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

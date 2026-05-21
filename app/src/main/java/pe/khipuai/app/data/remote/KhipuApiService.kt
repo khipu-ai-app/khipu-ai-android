@@ -30,4 +30,9 @@ interface KhipuApiService {
     suspend fun getNoteDetail(
         @Path("note_id") noteId: String
     ): NoteDetailResponse
+
+    @GET("v1/notes/{note_id}/study-guide")
+    suspend fun getStudyGuide(
+        @Path("note_id") noteId: String
+    ): StudyGuideResponse
 }
