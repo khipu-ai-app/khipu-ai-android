@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.repository.PlannerRepository
 import javax.inject.Inject
 
 data class PlannerUiState(
@@ -41,24 +42,64 @@ enum class StudyBlockType {
 
 @HiltViewModel
 class PlannerViewModel @Inject constructor(
-    // TODO: Inject PlannerRepository when implemented
+    private val plannerRepository: PlannerRepository
 ) : ViewModel() {
-    
-    private val _uiState = MutableStateFlow(
-        PlannerUiState(
-            studyBlocks = getSampleStudyBlocks()
-        )
-    )
+
+    private val _uiState = MutableStateFlow(PlannerUiState(isLoading = true))
     val uiState: StateFlow<PlannerUiState> = _uiState.asStateFlow()
-    
+
+    init {
+        loadRemotePlanner()
+    }
+
+    fun loadRemotePlanner() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+            plannerRepository.fetchDailyAgenda()
+                .onSuccess { networkBlocks ->
+                    // 🧠 MAPEO INTELIGENTE: Traducimos contratos de red a objetos gráficos de Compose
+                    val mappedBlocks = networkBlocks.map { blockDto ->
+                        StudyBlock(
+                            id = blockDto.id,
+                            time = blockDto.time,
+                            duration = blockDto.duration,
+                            subject = blockDto.subject,
+                            tasks = blockDto.tasks.map { Task(it.id, it.title, it.isCompleted) },
+                            isAISuggestion = blockDto.isAISuggestion,
+                            mentalLoadLevel = blockDto.mentalLoadLevel,
+                            mentalLoadColor = safeParseColor(blockDto.mentalLoadColor),
+                            color = safeParseColor(blockDto.color),
+                            type = when (blockDto.type) {
+                                "FOCUS" -> StudyBlockType.FOCUS
+                                "BREAK" -> StudyBlockType.BREAK
+                                else -> StudyBlockType.REVIEW
+                            }
+                        )
+                    }
+                    _uiState.value = _uiState.value.copy(studyBlocks = mappedBlocks, isLoading = false)
+                }
+                .onFailure { exception ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Error al sincronizar tu agenda con la IA: ${exception.localizedMessage}"
+                    )
+                }
+        }
+    }
+
     fun toggleTask(blockId: String, taskId: String) {
         viewModelScope.launch {
             val currentBlocks = _uiState.value.studyBlocks
+            var targetIsCompleted = false
+
+            // 1. Clonación y actualización optimista en memoria local para dar respuesta instantánea en la UI
             val updatedBlocks = currentBlocks.map { block ->
                 if (block.id == blockId) {
                     val updatedTasks = block.tasks.map { task ->
                         if (task.id == taskId) {
-                            task.copy(isCompleted = !task.isCompleted)
+                            targetIsCompleted = !task.isCompleted
+                            task.copy(isCompleted = targetIsCompleted)
                         } else {
                             task
                         }
@@ -68,71 +109,24 @@ class PlannerViewModel @Inject constructor(
                     block
                 }
             }
-            
             _uiState.value = _uiState.value.copy(studyBlocks = updatedBlocks)
+
+            // 2. Persistencia en caliente en la base de datos relacional de Docker
+            plannerRepository.updateTaskCompletion(blockId, taskId, targetIsCompleted)
+                .onFailure {
+                    // Fallback: Si el servidor falla, revertimos el check para no engañar al estudiante
+                    loadRemotePlanner()
+                }
         }
     }
-    
-    private fun getSampleStudyBlocks(): List<StudyBlock> {
-        return listOf(
-            StudyBlock(
-                id = "1",
-                time = "00",
-                duration = "2h Enfoque",
-                subject = "Anatomía: Sistema Nervioso",
-                tasks = listOf(
-                    Task(
-                        id = "1-1",
-                        title = "Repasar Flashcards de Anatomía (Tronco Encefálico)",
-                        isCompleted = false
-                    ),
-                    Task(
-                        id = "1-2",
-                        title = "Leer resumen del Capítulo 4",
-                        isCompleted = false
-                    )
-                ),
-                isAISuggestion = true,
-                mentalLoadLevel = "Alta",
-                mentalLoadColor = Color(0xFF7B1FA2),
-                color = Color(0xFF7B1FA2),
-                type = StudyBlockType.FOCUS
-            ),
-            StudyBlock(
-                id = "2",
-                time = "00",
-                duration = "Descanso Recomendado (30 min)",
-                subject = "",
-                tasks = emptyList(),
-                isAISuggestion = false,
-                mentalLoadLevel = "",
-                mentalLoadColor = Color.Gray,
-                color = Color.Gray,
-                type = StudyBlockType.BREAK
-            ),
-            StudyBlock(
-                id = "3",
-                time = "30",
-                duration = "1.5h Enfoque",
-                subject = "Microeconomía: Curvas de Demanda",
-                tasks = listOf(
-                    Task(
-                        id = "3-1",
-                        title = "Leer resumen de Microeconomía",
-                        isCompleted = true
-                    ),
-                    Task(
-                        id = "3-2",
-                        title = "Resolver set de problemas 2",
-                        isCompleted = false
-                    )
-                ),
-                isAISuggestion = false,
-                mentalLoadLevel = "Media",
-                mentalLoadColor = Color(0xFF2E7D32),
-                color = Color(0xFF1976D2),
-                type = StudyBlockType.REVIEW
-            )
-        )
+
+    // Helper seguro para evitar caídas si el Hex del backend viene corrupto o vacío
+    private fun safeParseColor(hexString: String): Color {
+        return try {
+            if (hexString.isBlank()) return Color.Gray
+            Color(android.graphics.Color.parseColor(hexString))
+        } catch (_: Exception) {
+            Color(0xFF1976D2) // Azul corporativo por defecto
+        }
     }
 }

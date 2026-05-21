@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,8 +28,9 @@ fun PlannerScreen(
     onNavigateToTab: (Int) -> Unit,
     viewModel: PlannerViewModel = hiltViewModel()
 ) {
+
     val uiState by viewModel.uiState.collectAsState()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -36,19 +38,20 @@ fun PlannerScreen(
                     Text(
                         text = "Khipu AI",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontWeight = FontWeight.Bold
                     )
                 },
+
                 navigationIcon = {
-                    // Profile picture placeholder
                     Box(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary),
+
                         contentAlignment = Alignment.Center
                     ) {
+
                         Text(
                             text = "U",
                             color = MaterialTheme.colorScheme.onPrimary,
@@ -57,56 +60,100 @@ fun PlannerScreen(
                         )
                     }
                 },
+
                 actions = {
-                    IconButton(onClick = { /* TODO: Notifications */ }) {
+                    IconButton(onClick = { /* Notifications */ }) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notificaciones",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            contentDescription = "Notificaciones"
                         )
                     }
                 },
+
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
+
         bottomBar = {
             BottomNavigationBar(
-                selectedTab = 2, // Planner tab
+                selectedTab = 2,
                 onTabSelected = onNavigateToTab
             )
         }
+
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            
-            // Header section
-            item {
-                DailyAgendaHeader()
-            }
-            
-            // Study blocks
-            items(uiState.studyBlocks) { block ->
-                StudyBlockCard(
-                    block = block,
-                    onTaskToggle = { taskId ->
-                        viewModel.toggleTask(block.id, taskId)
-                    },
-                    onMenuClick = { /* TODO: Show menu */ }
+
+        // Inyección de estados asíncronos sobre la maqueta base
+        if (uiState.isLoading) {
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+
+                contentAlignment = Alignment.Center
+            ) {
+
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
-            
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
+
+        } else if (uiState.errorMessage != null) {
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(24.dp),
+
+                contentAlignment = Alignment.Center
+            ) {
+
+                Text(
+                    text = uiState.errorMessage ?: "Error",
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+        } else {
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp),
+
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                item {
+                    DailyAgendaHeader()
+                }
+
+                items(uiState.studyBlocks) { block ->
+
+                    StudyBlockCard(
+                        block = block,
+
+                        onTaskToggle = { taskId ->
+                            viewModel.toggleTask(block.id, taskId)
+                        },
+
+                        onMenuClick = { /* Show menu */ }
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
     }
@@ -114,39 +161,51 @@ fun PlannerScreen(
 
 @Composable
 private fun DailyAgendaHeader() {
+
     Column {
+
         Row(
             modifier = Modifier.fillMaxWidth(),
+
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+
             Text(
                 text = "Tu Agenda Diaria",
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                fontWeight = FontWeight.Bold
             )
-            
+
             Surface(
                 color = Color(0xFFE8F5E8),
                 shape = RoundedCornerShape(16.dp)
             ) {
+
                 Text(
                     text = "🔋 CARGA ÓPTIMA",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+
+                    modifier = Modifier.padding(
+                        horizontal = 12.dp,
+                        vertical = 6.dp
+                    ),
+
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF2E7D32)
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "2 bloques de enfoque profundo sugeridos hoy basados en tus próximas fechas de examen.",
+
             style = MaterialTheme.typography.bodyMedium,
+
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+
             lineHeight = 20.sp
         )
     }
@@ -158,120 +217,150 @@ private fun StudyBlockCard(
     onTaskToggle: (String) -> Unit,
     onMenuClick: () -> Unit
 ) {
+
     Card(
         modifier = Modifier.fillMaxWidth(),
+
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        ),
+
         shape = RoundedCornerShape(16.dp)
     ) {
+
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Header with time and menu
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
+
                 horizontalArrangement = Arrangement.SpaceBetween,
+
                 verticalAlignment = Alignment.Top
             ) {
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Time indicator
+
                     Box(
                         modifier = Modifier
                             .size(12.dp)
                             .clip(CircleShape)
-                            .background(block.color),
+                            .background(block.color)
                     )
-                    
+
                     Spacer(modifier = Modifier.width(8.dp))
-                    
+
                     Text(
                         text = block.time,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
+
                     Spacer(modifier = Modifier.width(12.dp))
-                    
-                    // AI suggestion badge
+
                     if (block.isAISuggestion) {
+
                         Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                            color = MaterialTheme.colorScheme
+                                .primaryContainer
+                                .copy(alpha = 0.3f),
+
                             shape = RoundedCornerShape(8.dp)
                         ) {
+
                             Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(
+                                    horizontal = 8.dp,
+                                    vertical = 4.dp
+                                ),
+
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = "IA",
                                     tint = MaterialTheme.colorScheme.primary,
+
                                     modifier = Modifier.size(12.dp)
                                 )
+
                                 Spacer(modifier = Modifier.width(4.dp))
+
                                 Text(
                                     text = "Sugerencia IA",
+
                                     style = MaterialTheme.typography.labelSmall,
+
                                     color = MaterialTheme.colorScheme.primary,
+
                                     fontWeight = FontWeight.Medium
                                 )
                             }
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.width(8.dp))
-                    
+
                     Text(
                         text = block.duration,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
+
                 IconButton(
                     onClick = onMenuClick,
                     modifier = Modifier.size(24.dp)
                 ) {
+
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "Más opciones",
+
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+
                         modifier = Modifier.size(16.dp)
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
-            // Subject title
+
             Text(
                 text = block.subject,
+
                 style = MaterialTheme.typography.titleMedium,
+
                 fontWeight = FontWeight.SemiBold,
+
                 color = MaterialTheme.colorScheme.onSurface
             )
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
-            // Tasks
+
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+
                 block.tasks.forEach { task ->
+
                     TaskItem(
                         task = task,
                         onToggle = { onTaskToggle(task.id) }
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
-            // Mental load indicator
+
             MentalLoadIndicator(
                 label = "Carga Mental Sugerida",
                 level = block.mentalLoadLevel,
@@ -286,32 +375,39 @@ private fun TaskItem(
     task: Task,
     onToggle: () -> Unit
 ) {
+
     Row(
         verticalAlignment = Alignment.CenterVertically
     ) {
+
         Checkbox(
             checked = task.isCompleted,
+
             onCheckedChange = { onToggle() },
+
             colors = CheckboxDefaults.colors(
                 checkedColor = MaterialTheme.colorScheme.primary
             )
         )
-        
+
         Spacer(modifier = Modifier.width(8.dp))
-        
+
         Text(
             text = task.title,
+
             style = MaterialTheme.typography.bodyMedium,
-            color = if (task.isCompleted) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            textDecoration = if (task.isCompleted) {
-                TextDecoration.LineThrough
-            } else {
-                TextDecoration.None
-            }
+
+            color =
+                if (task.isCompleted)
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                else
+                    MaterialTheme.colorScheme.onSurface,
+
+            textDecoration =
+                if (task.isCompleted)
+                    TextDecoration.LineThrough
+                else
+                    TextDecoration.None
         )
     }
 }
@@ -322,48 +418,69 @@ private fun MentalLoadIndicator(
     level: String,
     color: Color
 ) {
+
+    if (level.isBlank()) return
+
+    // Si es un bloque de descanso vacío, ocultamos el indicador elegantemente
+
     Row(
         modifier = Modifier.fillMaxWidth(),
+
         horizontalArrangement = Arrangement.SpaceBetween,
+
         verticalAlignment = Alignment.CenterVertically
     ) {
+
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
+
             Icon(
                 imageVector = Icons.Default.Psychology,
                 contentDescription = "Carga mental",
+
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
+
                 modifier = Modifier.size(16.dp)
             )
-            
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             Text(
                 text = label,
+
                 style = MaterialTheme.typography.bodySmall,
+
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        
+
         Surface(
             color = color.copy(alpha = 0.2f),
             shape = RoundedCornerShape(12.dp)
         ) {
+
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier.padding(
+                    horizontal = 12.dp,
+                    vertical = 4.dp
+                ),
+
                 verticalAlignment = Alignment.CenterVertically
             ) {
+
                 Text(
                     text = level,
+
                     style = MaterialTheme.typography.labelSmall,
+
                     fontWeight = FontWeight.Bold,
+
                     color = color
                 )
-                
+
                 Spacer(modifier = Modifier.width(8.dp))
-                
-                // Progress bar
+
                 Box(
                     modifier = Modifier
                         .width(40.dp)
@@ -371,6 +488,7 @@ private fun MentalLoadIndicator(
                         .clip(RoundedCornerShape(2.dp))
                         .background(color.copy(alpha = 0.3f))
                 ) {
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(

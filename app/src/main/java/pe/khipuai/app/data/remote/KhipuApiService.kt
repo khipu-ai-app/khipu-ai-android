@@ -35,4 +35,14 @@ interface KhipuApiService {
     suspend fun getStudyGuide(
         @Path("note_id") noteId: String
     ): StudyGuideResponse
+
+    @GET("v1/planner/today")
+    suspend fun getTodayPlanner(): List<StudyBlockResponse>
+
+    @PUT("v1/planner/blocks/{block_id}/tasks/{task_id}/toggle")
+    suspend fun toggleTaskStatus(
+        @Path("block_id") blockId: String,
+        @Path("task_id") taskId: String,
+        @Body request: TaskToggleRequest
+    ): Unit
 }
