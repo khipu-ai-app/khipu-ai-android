@@ -1,9 +1,8 @@
 package pe.khipuai.app.data.remote
 
+import okhttp3.MultipartBody
 import pe.khipuai.app.data.remote.dto.*
-import retrofit2.http.Body
-import retrofit2.http.GET
-import retrofit2.http.POST
+import retrofit2.http.*
 
 interface KhipuApiService {
 
@@ -15,4 +14,15 @@ interface KhipuApiService {
 
     @GET("v1/notes")
     suspend fun getMyNotes(): List<NoteResponse>
+
+    @Multipart
+    @POST("v1/uploads")
+    suspend fun uploadDocument(
+        @Part file: MultipartBody.Part
+    ): UploadResponse
+
+    @GET("v1/uploads/{upload_id}")
+    suspend fun getUploadStatus(
+        @Path("upload_id") uploadId: String
+    ): UploadStatusResponse
 }
