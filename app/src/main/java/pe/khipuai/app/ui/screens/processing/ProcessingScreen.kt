@@ -24,20 +24,21 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun ProcessingScreen(
-    onProcessingComplete: () -> Unit,
-    onNavigateToAnalysis: () -> Unit = {},
+    onProcessingComplete: (String) -> Unit,
     viewModel: ProcessingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    // Auto-navigate when processing is complete
+
+    // Auto-navegación segura cuando el backend confirma el éxito total en Postgres
     LaunchedEffect(uiState.isComplete) {
-        if (uiState.isComplete) {
-            delay(1000) // Wait 1 second before navigating
-            onProcessingComplete()
+        val currentNoteId = uiState.noteId
+
+        if (uiState.isComplete && currentNoteId != null) {
+            delay(800)
+            onProcessingComplete(currentNoteId)
         }
     }
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -46,27 +47,21 @@ fun ProcessingScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(60.dp))
-        
-        // Title - Clickable
-        TextButton(
-            onClick = onNavigateToAnalysis
-        ) {
-            Text(
-                text = "Khipu AI",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        
+
+        Text(
+            text = "Khipu AI",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
         Spacer(modifier = Modifier.height(60.dp))
-        
-        // Progress circle
+
+        // Círculo de Progreso Reactivo
         Box(
             modifier = Modifier.size(200.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Background circle
             CircularProgressIndicator(
                 progress = { 1f },
                 modifier = Modifier.size(200.dp),
@@ -75,55 +70,50 @@ fun ProcessingScreen(
                 trackColor = Color.Transparent,
                 strokeCap = StrokeCap.Round
             )
-            
-            // Progress circle
+
             CircularProgressIndicator(
                 progress = { uiState.progress },
                 modifier = Modifier.size(200.dp),
-                color = MaterialTheme.colorScheme.primary,
+                color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 strokeWidth = 12.dp,
                 trackColor = Color.Transparent,
                 strokeCap = StrokeCap.Round
             )
-            
-            // Percentage text
+
             Text(
-                text = "${(uiState.progress * 100).toInt()}%",
+                text = if (uiState.errorMessage != null) "❌" else "${(uiState.progress * 100).toInt()}%",
                 style = MaterialTheme.typography.displayLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             )
         }
-        
+
         Spacer(modifier = Modifier.height(40.dp))
-        
-        // Status message
+
         Text(
-            text = "Khipu está analizando tu archivo...",
+            text = if (uiState.errorMessage != null) "Ocurrió un inconveniente" else "Khipu está analizando tu archivo...",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
-            text = "Por favor espera un momento mientras procesamos la información.",
+            text = uiState.errorMessage ?: "Por favor espera un momento mientras el motor OCR y la factoría cognitiva procesan la información.",
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             lineHeight = 24.sp
         )
-        
+
         Spacer(modifier = Modifier.height(40.dp))
-        
-        // Processing steps
+
+        // Tarjeta de Estados de Ingesta Sincronizados
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
@@ -133,37 +123,36 @@ fun ProcessingScreen(
             ) {
                 ProcessingStep(
                     icon = Icons.Default.Image,
-                    title = "Imagen optimizada",
+                    title = "Archivo recibido e indexado",
                     isComplete = uiState.imageOptimized,
                     isActive = uiState.currentStep == ProcessingStep.IMAGE_OPTIMIZATION
                 )
-                
+
                 ProcessingStep(
                     icon = Icons.Default.TextFields,
-                    title = "OCR completado",
+                    title = "Lectura de texto por PaddleOCR",
                     isComplete = uiState.ocrCompleted,
                     isActive = uiState.currentStep == ProcessingStep.OCR
                 )
-                
+
                 ProcessingStep(
                     icon = Icons.Default.Category,
-                    title = "Clasificando en curso: ${uiState.detectedCourse}",
+                    title = "Estado: ${uiState.detectedCourse}",
                     isComplete = uiState.classificationCompleted,
                     isActive = uiState.currentStep == ProcessingStep.CLASSIFICATION
                 )
-                
+
                 ProcessingStep(
                     icon = Icons.Default.Description,
-                    title = "Generando resumen",
+                    title = "Estructurando resumen semántico",
                     isComplete = uiState.summaryGenerated,
                     isActive = uiState.currentStep == ProcessingStep.SUMMARY
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.weight(1f))
-        
-        // Study tip
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
@@ -181,9 +170,9 @@ fun ProcessingScreen(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
-                
+
                 Spacer(modifier = Modifier.width(12.dp))
-                
+
                 Column {
                     Text(
                         text = "TIP DE ESTUDIO",
@@ -191,9 +180,7 @@ fun ProcessingScreen(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    
                     Spacer(modifier = Modifier.height(4.dp))
-                    
                     Text(
                         text = uiState.studyTip,
                         style = MaterialTheme.typography.bodyMedium,
@@ -203,25 +190,7 @@ fun ProcessingScreen(
                 }
             }
         }
-        
-        // Pagination dots
-        Row(
-            modifier = Modifier.padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            repeat(3) { index ->
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (index == 0) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.outlineVariant
-                        )
-                )
-            }
-        }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
@@ -233,10 +202,7 @@ private fun ProcessingStep(
     isComplete: Boolean,
     isActive: Boolean
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Status icon
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -272,10 +238,9 @@ private fun ProcessingStep(
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
-        // Title
+
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,

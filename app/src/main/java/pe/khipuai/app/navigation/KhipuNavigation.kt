@@ -2,9 +2,11 @@ package pe.khipuai.app.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import pe.khipuai.app.ui.screens.auth.LoginScreen
 import pe.khipuai.app.ui.screens.auth.RegisterScreen
 import pe.khipuai.app.ui.screens.home.HomeScreen
@@ -36,7 +38,7 @@ fun KhipuNavigation(
                 }
             )
         }
-        
+
         composable(Screen.Register.route) {
             RegisterScreen(
                 onNavigateBack = {
@@ -49,7 +51,7 @@ fun KhipuNavigation(
                 }
             )
         }
-        
+
         composable(Screen.Home.route) {
             HomeScreen(
                 onNavigateToTab = { tabIndex ->
@@ -63,7 +65,7 @@ fun KhipuNavigation(
                 }
             )
         }
-        
+
         composable(Screen.Capture.route) {
             CaptureScreen(
                 onNavigateToTab = { tabIndex ->
@@ -75,12 +77,13 @@ fun KhipuNavigation(
                         4 -> navController.navigate(Screen.Profile.route)
                     }
                 },
-                onNavigateToProcessing = {
-                    navController.navigate(Screen.Processing.route)
+                // Corregido: Recibe el uploadId real que arroja Retrofit y lo inyecta a la ruta
+                onNavigateToProcessing = { uploadId ->
+                    navController.navigate("${Screen.Processing.route}/$uploadId")
                 }
             )
         }
-        
+
         composable(Screen.Planner.route) {
             PlannerScreen(
                 onNavigateToTab = { tabIndex ->
@@ -94,7 +97,7 @@ fun KhipuNavigation(
                 }
             )
         }
-        
+
         composable(Screen.Maps.route) {
             MapsScreen(
                 onNavigateToTab = { tabIndex ->
@@ -108,7 +111,7 @@ fun KhipuNavigation(
                 }
             )
         }
-        
+
         composable(Screen.Profile.route) {
             ProfileScreen(
                 onNavigateToTab = { tabIndex ->
@@ -122,21 +125,27 @@ fun KhipuNavigation(
                 }
             )
         }
-        
-        composable(Screen.Processing.route) {
+
+        // Corregido: Se añade la máscara /{uploadId} para alimentar de forma automática al SavedStateHandle
+        composable(
+            route = "${Screen.Processing.route}/{uploadId}",
+            arguments = listOf(navArgument("uploadId") { type = NavType.StringType })
+        ) {
             ProcessingScreen(
-                onProcessingComplete = {
-                    navController.navigate(Screen.Home.route) {
+                // Corregido: Removido el viejo parámetro inexistente y acoplado el salto final por noteId
+                onProcessingComplete = { noteId ->
+                    navController.navigate("${Screen.Analysis.route}/$noteId") {
                         popUpTo(Screen.Capture.route) { inclusive = true }
                     }
-                },
-                onNavigateToAnalysis = {
-                    navController.navigate(Screen.Analysis.route)
                 }
             )
         }
-        
-        composable(Screen.Analysis.route) {
+
+        // Corregido: Se prepara la ruta de Análisis para capturar el noteId de la base de datos
+        composable(
+            route = "${Screen.Analysis.route}/{noteId}",
+            arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+        ) {
             AnalysisScreen(
                 onNavigateBack = {
                     navController.popBackStack()
@@ -146,7 +155,7 @@ fun KhipuNavigation(
                 }
             )
         }
-        
+
         composable(Screen.StudyGuide.route) {
             StudyGuideScreen(
                 onNavigateBack = {
