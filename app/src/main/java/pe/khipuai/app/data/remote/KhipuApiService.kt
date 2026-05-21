@@ -45,4 +45,9 @@ interface KhipuApiService {
         @Path("task_id") taskId: String,
         @Body request: TaskToggleRequest
     ): Unit
+
+    @GET("v1/graph/course/{course_id}")
+    suspend fun getCourseGraph(
+        @Path("course_id") courseId: String
+    ): GraphResponse
 }

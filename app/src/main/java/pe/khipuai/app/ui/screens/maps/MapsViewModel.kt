@@ -9,10 +9,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.remote.dto.CourseResponse
+import pe.khipuai.app.data.remote.dto.GraphResponse
+import pe.khipuai.app.data.repository.CourseRepository
+import pe.khipuai.app.data.repository.GraphRepository
 import javax.inject.Inject
+import kotlin.math.cos
+import kotlin.math.sin
 
 data class MapsUiState(
-    val selectedCourse: String = "Inteligencia Artificial",
+    val selectedCourse: String = "Anatomía Humana",
     val selectedDifficulty: String = "Todas",
     val concepts: List<Concept> = emptyList(),
     val selectedConcept: Concept? = null,
@@ -24,266 +30,130 @@ data class Concept(
     val id: String,
     val title: String,
     val description: String,
-    val position: Offset, // Relative position (-0.5 to 0.5)
+    val position: Offset,
     val color: Color,
     val importance: ConceptImportance,
-    val connections: List<String>, // IDs of connected concepts
+    val connections: List<String>,
     val filesCount: Int,
     val lessonNumber: Int,
     val difficulty: ConceptDifficulty
 )
 
-enum class ConceptImportance {
-    HIGH, MEDIUM, LOW
-}
-
-enum class ConceptDifficulty {
-    BASIC, INTERMEDIATE, ADVANCED
-}
+enum class ConceptImportance { HIGH, MEDIUM, LOW }
+enum class ConceptDifficulty { BASIC, INTERMEDIATE, ADVANCED }
 
 @HiltViewModel
 class MapsViewModel @Inject constructor(
-    // TODO: Inject MapsRepository when implemented
+    private val graphRepository: GraphRepository,
+    private val courseRepository: CourseRepository
 ) : ViewModel() {
-    
-    private val _uiState = MutableStateFlow(
-        MapsUiState(
-            concepts = getSampleConcepts()
-        )
-    )
+
+    private val _uiState = MutableStateFlow(MapsUiState())
     val uiState: StateFlow<MapsUiState> = _uiState.asStateFlow()
-    
-    fun updateCourse(course: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                selectedCourse = course,
-                concepts = getConceptsForCourse(course)
-            )
-        }
+
+    init {
+        loadGraphForCourseName(_uiState.value.selectedCourse)
     }
-    
+
+    fun updateCourse(courseName: String) {
+        _uiState.value = _uiState.value.copy(selectedCourse = courseName)
+        loadGraphForCourseName(courseName)
+    }
+
     fun updateDifficulty(difficulty: String) {
-        viewModelScope.launch {
-            val filteredConcepts = if (difficulty == "Todas") {
-                getSampleConcepts()
-            } else {
-                getSampleConcepts().filter { concept ->
-                    when (difficulty) {
-                        "Básica" -> concept.difficulty == ConceptDifficulty.BASIC
-                        "Intermedia" -> concept.difficulty == ConceptDifficulty.INTERMEDIATE
-                        "Avanzada" -> concept.difficulty == ConceptDifficulty.ADVANCED
-                        else -> true
-                    }
-                }
-            }
-            
-            _uiState.value = _uiState.value.copy(
-                selectedDifficulty = difficulty,
-                concepts = filteredConcepts
-            )
-        }
+        _uiState.value = _uiState.value.copy(selectedDifficulty = difficulty)
+        loadGraphForCourseName(_uiState.value.selectedCourse)
     }
-    
+
     fun selectConcept(concept: Concept?) {
         _uiState.value = _uiState.value.copy(selectedConcept = concept)
     }
-    
-    private fun getSampleConcepts(): List<Concept> {
-        return listOf(
-            Concept(
-                id = "1",
-                title = "Redes Neuronales",
-                description = "La unidad fundamental de las redes neuronales artificiales, inspirada en las neuronas biológicas.",
-                position = Offset(0f, 0f), // Center
-                color = Color(0xFF7B1FA2),
-                importance = ConceptImportance.HIGH,
-                connections = listOf("2", "3", "4", "5"),
-                filesCount = 3,
-                lessonNumber = 4,
-                difficulty = ConceptDifficulty.ADVANCED
-            ),
-            Concept(
-                id = "2",
-                title = "Python",
-                description = "Lenguaje de programación utilizado para implementar algoritmos de IA.",
-                position = Offset(0.25f, -0.3f), // Top right
-                color = Color(0xFF1976D2),
-                importance = ConceptImportance.MEDIUM,
-                connections = listOf("1"),
-                filesCount = 5,
-                lessonNumber = 1,
-                difficulty = ConceptDifficulty.BASIC
-            ),
-            Concept(
-                id = "3",
-                title = "Matemáticas",
-                description = "Fundamentos matemáticos necesarios para entender la IA.",
-                position = Offset(-0.3f, -0.1f), // Top left
-                color = Color(0xFF1976D2),
-                importance = ConceptImportance.MEDIUM,
-                connections = listOf("1"),
-                filesCount = 8,
-                lessonNumber = 2,
-                difficulty = ConceptDifficulty.INTERMEDIATE
-            ),
-            Concept(
-                id = "4",
-                title = "Historia AI",
-                description = "Evolución histórica de la inteligencia artificial.",
-                position = Offset(-0.35f, 0.25f), // Bottom left
-                color = Color(0xFF757575),
-                importance = ConceptImportance.LOW,
-                connections = listOf("1"),
-                filesCount = 2,
-                lessonNumber = 1,
-                difficulty = ConceptDifficulty.BASIC
-            ),
-            Concept(
-                id = "5",
-                title = "Algoritmos",
-                description = "Algoritmos fundamentales utilizados en IA y machine learning.",
-                position = Offset(0.1f, 0.35f), // Bottom center
-                color = Color(0xFF757575),
-                importance = ConceptImportance.LOW,
-                connections = listOf("1"),
-                filesCount = 4,
-                lessonNumber = 3,
-                difficulty = ConceptDifficulty.INTERMEDIATE
-            )
-        )
-    }
-    
-    private fun getConceptsForCourse(course: String): List<Concept> {
-        // TODO: Implement course-specific concepts
-        return when (course) {
-            "Inteligencia Artificial" -> getSampleConcepts()
-            "Matemáticas" -> getMathConcepts()
-            "Historia" -> getHistoryConcepts()
-            "Psicología" -> getPsychologyConcepts()
-            else -> getSampleConcepts()
+
+    private fun loadGraphForCourseName(name: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+            // 1. Llamamos al método real de tu repositorio: fetchMyCourses()
+            courseRepository.fetchMyCourses()
+                .onSuccess { remoteCourses: List<CourseResponse> ->
+                    val targetCourse = remoteCourses.find { it.name.equals(name, ignoreCase = true) }
+                    val courseId = targetCourse?.id ?: "c1"
+
+                    // 2. Invocamos al nuevo GraphRepository real
+                    graphRepository.fetchCourseGraph(courseId)
+                        .onSuccess { response: GraphResponse ->
+                            val difficultyFilter = _uiState.value.selectedDifficulty
+                            val totalNodes = response.nodes.size
+
+                            val mappedConcepts = response.nodes.mapIndexed { index, node ->
+                                val angle = index * (2 * Math.PI / if (totalNodes > 1) totalNodes else 1)
+                                val radius = when (node.type) {
+                                    "course" -> 0.0f
+                                    "note" -> 0.22f
+                                    else -> 0.42f
+                                }
+
+                                val computedPosition = if (node.type == "course") {
+                                    Offset(0f, 0f)
+                                } else {
+                                    Offset(
+                                        x = (cos(angle) * radius).toFloat(),
+                                        y = (sin(angle) * radius).toFloat()
+                                    )
+                                }
+
+                                val nodeConnections = response.edges
+                                    .filter { it.source == node.id }
+                                    .map { it.target }
+
+                                Concept(
+                                    id = node.id,
+                                    title = node.label,
+                                    description = "Nodo clasificado por Khipu AI como [${node.type.uppercase()}]. Retención SM-2: ${node.easeFactor ?: 2.5f}.",
+                                    position = computedPosition,
+                                    color = when (node.type) {
+                                        "course" -> Color(0xFF7B1FA2)
+                                        "note" -> Color(0xFF1976D2)
+                                        else -> if (node.reviewPending == true) Color(0xFFD32F2F) else Color(0xFF757575)
+                                    },
+                                    importance = when (node.type) {
+                                        "course" -> ConceptImportance.HIGH
+                                        "note" -> ConceptImportance.MEDIUM
+                                        else -> ConceptImportance.LOW
+                                    },
+                                    connections = nodeConnections,
+                                    filesCount = if (node.type == "note") 1 else 3,
+                                    lessonNumber = index + 1,
+                                    difficulty = when {
+                                        (node.easeFactor ?: 2.5f) < 1.8f -> ConceptDifficulty.ADVANCED
+                                        (node.easeFactor ?: 2.5f) < 2.3f -> ConceptDifficulty.INTERMEDIATE
+                                        else -> ConceptDifficulty.BASIC
+                                    }
+                                )
+                            }
+
+                            val finalConcepts = if (difficultyFilter == "Todas") {
+                                mappedConcepts
+                            } else {
+                                mappedConcepts.filter {
+                                    when (difficultyFilter) {
+                                        "Básica" -> it.difficulty == ConceptDifficulty.BASIC
+                                        "Intermedia" -> it.difficulty == ConceptDifficulty.INTERMEDIATE
+                                        "Avanzada" -> it.difficulty == ConceptDifficulty.ADVANCED
+                                        else -> true
+                                    }
+                                }
+                            }
+
+                            _uiState.value = _uiState.value.copy(concepts = finalConcepts, isLoading = false)
+                        }
+                        .onFailure { e ->
+                            _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = "Error en Neo4j: ${e.localizedMessage}")
+                        }
+                }
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = "Error al mapear cursos: ${e.localizedMessage}")
+                }
         }
-    }
-    
-    private fun getMathConcepts(): List<Concept> {
-        return listOf(
-            Concept(
-                id = "math1",
-                title = "Álgebra Lineal",
-                description = "Fundamentos de vectores, matrices y transformaciones lineales.",
-                position = Offset(0f, 0f),
-                color = Color(0xFF4B00B2),
-                importance = ConceptImportance.HIGH,
-                connections = listOf("math2", "math3"),
-                filesCount = 6,
-                lessonNumber = 1,
-                difficulty = ConceptDifficulty.INTERMEDIATE
-            ),
-            Concept(
-                id = "math2",
-                title = "Cálculo",
-                description = "Derivadas, integrales y sus aplicaciones.",
-                position = Offset(0.3f, -0.2f),
-                color = Color(0xFF1976D2),
-                importance = ConceptImportance.MEDIUM,
-                connections = listOf("math1"),
-                filesCount = 4,
-                lessonNumber = 2,
-                difficulty = ConceptDifficulty.ADVANCED
-            ),
-            Concept(
-                id = "math3",
-                title = "Estadística",
-                description = "Probabilidad y análisis estadístico.",
-                position = Offset(-0.3f, 0.2f),
-                color = Color(0xFF2E7D32),
-                importance = ConceptImportance.MEDIUM,
-                connections = listOf("math1"),
-                filesCount = 5,
-                lessonNumber = 3,
-                difficulty = ConceptDifficulty.INTERMEDIATE
-            )
-        )
-    }
-    
-    private fun getHistoryConcepts(): List<Concept> {
-        return listOf(
-            Concept(
-                id = "hist1",
-                title = "Revolución Industrial",
-                description = "Transformación económica y social de los siglos XVIII-XIX.",
-                position = Offset(0f, 0f),
-                color = Color(0xFF2E7D32),
-                importance = ConceptImportance.HIGH,
-                connections = listOf("hist2", "hist3"),
-                filesCount = 8,
-                lessonNumber = 5,
-                difficulty = ConceptDifficulty.INTERMEDIATE
-            ),
-            Concept(
-                id = "hist2",
-                title = "Capitalismo",
-                description = "Sistema económico basado en la propiedad privada.",
-                position = Offset(0.25f, -0.25f),
-                color = Color(0xFF1976D2),
-                importance = ConceptImportance.MEDIUM,
-                connections = listOf("hist1"),
-                filesCount = 3,
-                lessonNumber = 6,
-                difficulty = ConceptDifficulty.BASIC
-            ),
-            Concept(
-                id = "hist3",
-                title = "Urbanización",
-                description = "Proceso de crecimiento de las ciudades.",
-                position = Offset(-0.25f, 0.25f),
-                color = Color(0xFF757575),
-                importance = ConceptImportance.LOW,
-                connections = listOf("hist1"),
-                filesCount = 2,
-                lessonNumber = 7,
-                difficulty = ConceptDifficulty.BASIC
-            )
-        )
-    }
-    
-    private fun getPsychologyConcepts(): List<Concept> {
-        return listOf(
-            Concept(
-                id = "psy1",
-                title = "Psicoanálisis",
-                description = "Teoría y método terapéutico desarrollado por Freud.",
-                position = Offset(0f, 0f),
-                color = Color(0xFFD32F2F),
-                importance = ConceptImportance.HIGH,
-                connections = listOf("psy2", "psy3"),
-                filesCount = 7,
-                lessonNumber = 3,
-                difficulty = ConceptDifficulty.ADVANCED
-            ),
-            Concept(
-                id = "psy2",
-                title = "Inconsciente",
-                description = "Parte de la mente que contiene pensamientos reprimidos.",
-                position = Offset(0.3f, -0.2f),
-                color = Color(0xFF7B1FA2),
-                importance = ConceptImportance.MEDIUM,
-                connections = listOf("psy1"),
-                filesCount = 4,
-                lessonNumber = 4,
-                difficulty = ConceptDifficulty.INTERMEDIATE
-            ),
-            Concept(
-                id = "psy3",
-                title = "Transferencia",
-                description = "Proceso donde el paciente proyecta sentimientos al terapeuta.",
-                position = Offset(-0.3f, 0.2f),
-                color = Color(0xFF1976D2),
-                importance = ConceptImportance.MEDIUM,
-                connections = listOf("psy1"),
-                filesCount = 2,
-                lessonNumber = 5,
-                difficulty = ConceptDifficulty.ADVANCED
-            )
-        )
     }
 }
