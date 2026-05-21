@@ -115,12 +115,28 @@ fun KhipuNavigation(
         composable(Screen.Profile.route) {
             ProfileScreen(
                 onNavigateToTab = { tabIndex ->
-                    when (tabIndex) {
-                        0 -> navController.navigate(Screen.Home.route)
-                        1 -> navController.navigate(Screen.Capture.route)
-                        2 -> navController.navigate(Screen.Planner.route)
-                        3 -> navController.navigate(Screen.Maps.route)
-                        4 -> { /* Already on Profile */ }
+                    val targetRoute = when (tabIndex) {
+                        0 -> Screen.Home.route
+                        1 -> Screen.Capture.route
+                        2 -> Screen.Planner.route
+                        3 -> Screen.Maps.route
+                        4 -> null // Ya estamos en Profile
+                        else -> null
+                    }
+
+                    targetRoute?.let { route ->
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true } // Limpieza total del historial
                     }
                 }
             )

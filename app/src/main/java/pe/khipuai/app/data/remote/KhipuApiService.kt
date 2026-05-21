@@ -50,4 +50,7 @@ interface KhipuApiService {
     suspend fun getCourseGraph(
         @Path("course_id") courseId: String
     ): GraphResponse
+
+    @GET("v1/users/me")
+    suspend fun getMyProfile(): UserProfileResponse
 }

@@ -23,10 +23,11 @@ import pe.khipuai.app.ui.components.BottomNavigationBar
 @Composable
 fun ProfileScreen(
     onNavigateToTab: (Int) -> Unit,
+    onLogout: () -> Unit = {}, // ✨ NUEVO: Callback de navegación para limpiar rutas
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -39,33 +40,20 @@ fun ProfileScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { /* TODO: Open drawer */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Perfil",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                    IconButton(onClick = { /* Open drawer */ }) {
+                        Icon(imageVector = Icons.Default.Person, contentDescription = "Perfil", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Notifications */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notificaciones",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                    IconButton(onClick = { /* Notifications */ }) {
+                        Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notificaciones", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
-            BottomNavigationBar(
-                selectedTab = 4, // Profile tab
-                onTabSelected = onNavigateToTab
-            )
+            BottomNavigationBar(selectedTab = 4, onTabSelected = onNavigateToTab)
         }
     ) { paddingValues ->
         LazyColumn(
@@ -75,11 +63,8 @@ fun ProfileScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            
-            // Profile header
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+
             item {
                 ProfileHeader(
                     name = uiState.userName,
@@ -88,116 +73,79 @@ fun ProfileScreen(
                     isPro = uiState.isPro
                 )
             }
-            
-            // Account section
+
+            item { SectionTitle("Cuenta") }
             item {
-                SectionTitle("Cuenta")
+                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
+                    Column {
+                        SettingsItem(icon = Icons.Default.Person, title = "Información Personal", onClick = {})
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        SettingsItem(icon = Icons.Default.School, title = "Universidad y Carrera", onClick = {})
+                    }
+                }
             }
-            
+
+            item { SectionTitle("Preferencias") }
+            item {
+                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
+                    Column {
+                        SettingsItem(icon = Icons.Default.TrackChanges, title = "Metas de Estudio", onClick = {})
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        SettingsItem(icon = Icons.Default.Notifications, title = "Notificaciones", onClick = {})
+                    }
+                }
+            }
+
+            item { SectionTitle("Aplicación") }
+            item {
+                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
+                    Column {
+                        SettingsItemWithSwitch(icon = Icons.Default.DarkMode, title = "Modo Oscuro", checked = uiState.isDarkMode, onCheckedChange = viewModel::toggleDarkMode)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        SettingsItemWithValue(icon = Icons.Default.Language, title = "Idioma", value = uiState.language, onClick = {})
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        SettingsItem(icon = Icons.Default.Help, title = "Ayuda y Soporte", onClick = {})
+                    }
+                }
+            }
+
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    onClick = {
+                        viewModel.logout {
+                            onLogout()
+                        }
+                    }
                 ) {
-                    Column {
-                        SettingsItem(
-                            icon = Icons.Default.Person,
-                            title = "Información Personal",
-                            onClick = { /* TODO: Navigate to personal info */ }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = "Cerrar Sesión",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(24.dp)
                         )
-                        
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        
-                        SettingsItem(
-                            icon = Icons.Default.School,
-                            title = "Universidad y Carrera",
-                            onClick = { /* TODO: Navigate to university */ }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Cerrar Sesión Seguro",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
-            
-            // Preferences section
-            item {
-                SectionTitle("Preferencias")
-            }
-            
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column {
-                        SettingsItem(
-                            icon = Icons.Default.TrackChanges,
-                            title = "Metas de Estudio",
-                            onClick = { /* TODO: Navigate to study goals */ }
-                        )
-                        
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        
-                        SettingsItem(
-                            icon = Icons.Default.Notifications,
-                            title = "Notificaciones",
-                            onClick = { /* TODO: Navigate to notifications */ }
-                        )
-                    }
-                }
-            }
-            
-            // Application section
-            item {
-                SectionTitle("Aplicación")
-            }
-            
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column {
-                        SettingsItemWithSwitch(
-                            icon = Icons.Default.DarkMode,
-                            title = "Modo Oscuro",
-                            checked = uiState.isDarkMode,
-                            onCheckedChange = viewModel::toggleDarkMode
-                        )
-                        
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        
-                        SettingsItemWithValue(
-                            icon = Icons.Default.Language,
-                            title = "Idioma",
-                            value = uiState.language,
-                            onClick = { /* TODO: Navigate to language */ }
-                        )
-                        
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        
-                        SettingsItem(
-                            icon = Icons.Default.Help,
-                            title = "Ayuda y Soporte",
-                            onClick = { /* TODO: Navigate to help */ }
-                        )
-                    }
-                }
-            }
-            
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
@@ -238,9 +186,9 @@ private fun ProfileHeader(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             }
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             // User info
             Column(
                 modifier = Modifier.weight(1f)
@@ -254,10 +202,10 @@ private fun ProfileHeader(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    
+
                     if (isPro) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        
+
                         Surface(
                             color = MaterialTheme.colorScheme.primary,
                             shape = RoundedCornerShape(12.dp)
@@ -272,15 +220,15 @@ private fun ProfileHeader(
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(4.dp))
-                
+
                 Text(
                     text = career,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
+
                 Text(
                     text = university,
                     style = MaterialTheme.typography.bodyMedium,
@@ -324,16 +272,16 @@ private fun SettingsItem(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
             )
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
-            
+
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = "Ir",
@@ -363,16 +311,16 @@ private fun SettingsItemWithSwitch(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp)
         )
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
+
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
-        
+
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
@@ -407,24 +355,24 @@ private fun SettingsItemWithValue(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
             )
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
-            
+
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = "Ir",
