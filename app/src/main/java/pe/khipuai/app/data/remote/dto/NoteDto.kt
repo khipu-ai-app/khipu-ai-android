@@ -10,3 +10,13 @@ data class NoteResponse(
     @SerialName("course_id") val courseId: String?,
     @SerialName("created_at") val createdAt: String
 )
+
+@Serializable
+data class NoteDetailResponse(
+    @SerialName("id") val id: String,
+    @SerialName("title") val title: String,
+    @SerialName("summary") val summary: String,
+    @SerialName("topics") val topics: List<String>,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("course_id") val courseId: String?
+)

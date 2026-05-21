@@ -25,4 +25,9 @@ interface KhipuApiService {
     suspend fun getUploadStatus(
         @Path("upload_id") uploadId: String
     ): UploadStatusResponse
+
+    @GET("v1/notes/{note_id}")
+    suspend fun getNoteDetail(
+        @Path("note_id") noteId: String
+    ): NoteDetailResponse
 }
