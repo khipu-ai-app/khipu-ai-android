@@ -37,14 +37,12 @@ interface KhipuApiService {
     ): StudyGuideResponse
 
     @GET("v1/planner/today")
-    suspend fun getTodayPlanner(): List<StudyBlockResponse>
+    suspend fun getTodayPlanner(): List<DueConceptResponse>
 
-    @PUT("v1/planner/blocks/{block_id}/tasks/{task_id}/toggle")
-    suspend fun toggleTaskStatus(
-        @Path("block_id") blockId: String,
-        @Path("task_id") taskId: String,
-        @Body request: TaskToggleRequest
-    ): Unit
+    @POST("v1/planner/review")
+    suspend fun submitConceptReview(
+        @Body request: ReviewRequest
+    )
 
     @GET("v1/graph/course/{course_id}")
     suspend fun getCourseGraph(

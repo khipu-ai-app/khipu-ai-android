@@ -17,6 +17,7 @@ data class PlannerUiState(
     val errorMessage: String? = null
 )
 
+// Mantenemos tus modelos originales de UI intactos para no romper tu Screen
 data class StudyBlock(
     val id: String,
     val time: String,
@@ -57,26 +58,40 @@ class PlannerViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             plannerRepository.fetchDailyAgenda()
-                .onSuccess { networkBlocks ->
-                    // 🧠 MAPEO INTELIGENTE: Traducimos contratos de red a objetos gráficos de Compose
-                    val mappedBlocks = networkBlocks.map { blockDto ->
+                .onSuccess { networkConcepts ->
+                    if (networkConcepts.isEmpty()) {
+                        _uiState.value = _uiState.value.copy(studyBlocks = emptyList(), isLoading = false)
+                        return@onSuccess
+                    }
+
+                    // 🧠 MAPEO HÍBRIDO: Agrupamos los conceptos del backend por nombre de curso
+                    val conceptsByCourse = networkConcepts.groupBy { it.courseName }
+
+                    val mappedBlocks = conceptsByCourse.entries.mapIndexed { index, entry ->
+                        val courseName = entry.key
+                        val concepts = entry.value
+
+                        // Calculamos una carga mental dinámica basada en la cantidad de conceptos a repasar
+                        val (loadLevel, loadColor) = when {
+                            concepts.size >= 4 -> "Alta" to Color(0xFFD32F2F)
+                            concepts.size >= 2 -> "Media" to Color(0xFFF57C00)
+                            else -> "Baja" to Color(0xFF388E3C)
+                        }
+
                         StudyBlock(
-                            id = blockDto.id,
-                            time = blockDto.time,
-                            duration = blockDto.duration,
-                            subject = blockDto.subject,
-                            tasks = blockDto.tasks.map { Task(it.id, it.title, it.isCompleted) },
-                            isAISuggestion = blockDto.isAISuggestion,
-                            mentalLoadLevel = blockDto.mentalLoadLevel,
-                            mentalLoadColor = safeParseColor(blockDto.mentalLoadColor),
-                            color = safeParseColor(blockDto.color),
-                            type = when (blockDto.type) {
-                                "FOCUS" -> StudyBlockType.FOCUS
-                                "BREAK" -> StudyBlockType.BREAK
-                                else -> StudyBlockType.REVIEW
-                            }
+                            id = courseName, // Usamos el nombre del curso como ID del bloque
+                            time = "${8 + index * 2}:00 AM", // Simulamos un bloque horario elegante
+                            duration = "${concepts.size * 10} min", // 10 minutos sugeridos por concepto
+                            subject = courseName,
+                            tasks = concepts.map { Task(id = it.conceptName, title = it.label, isCompleted = false) },
+                            isAISuggestion = true, // Es sugerencia de la IA porque viene del algoritmo SM-2
+                            mentalLoadLevel = loadLevel,
+                            mentalLoadColor = loadColor,
+                            color = Color(0xFF7B1FA2), // Color base para la geometría
+                            type = StudyBlockType.REVIEW
                         )
                     }
+
                     _uiState.value = _uiState.value.copy(studyBlocks = mappedBlocks, isLoading = false)
                 }
                 .onFailure { exception ->
@@ -88,18 +103,18 @@ class PlannerViewModel @Inject constructor(
         }
     }
 
-    fun toggleTask(blockId: String, taskId: String) {
+    fun toggleTask(blockId: String, conceptName: String) {
         viewModelScope.launch {
             val currentBlocks = _uiState.value.studyBlocks
-            var targetIsCompleted = false
+            var finalIsCompleted = false
 
-            // 1. Clonación y actualización optimista en memoria local para dar respuesta instantánea en la UI
+            // 1. Actualización en memoria local para una respuesta táctil instantánea
             val updatedBlocks = currentBlocks.map { block ->
                 if (block.id == blockId) {
                     val updatedTasks = block.tasks.map { task ->
-                        if (task.id == taskId) {
-                            targetIsCompleted = !task.isCompleted
-                            task.copy(isCompleted = targetIsCompleted)
+                        if (task.id == conceptName) {
+                            finalIsCompleted = !task.isCompleted
+                            task.copy(isCompleted = finalIsCompleted)
                         } else {
                             task
                         }
@@ -111,22 +126,15 @@ class PlannerViewModel @Inject constructor(
             }
             _uiState.value = _uiState.value.copy(studyBlocks = updatedBlocks)
 
-            // 2. Persistencia en caliente en la base de datos relacional de Docker
-            plannerRepository.updateTaskCompletion(blockId, taskId, targetIsCompleted)
+            // 2. Persistencia algorítmica: Si el usuario marca el check, le mandamos un 5 (Recuerdo perfecto)
+            // de lo contrario un 1 (Olvido temporal) para que el algoritmo SM-2 de Neo4j haga su magia
+            val score = if (finalIsCompleted) 5 else 1
+
+            plannerRepository.submitReviewRating(conceptName, score)
                 .onFailure {
-                    // Fallback: Si el servidor falla, revertimos el check para no engañar al estudiante
+                    // Si la red falla, revertimos el estado de manera segura
                     loadRemotePlanner()
                 }
-        }
-    }
-
-    // Helper seguro para evitar caídas si el Hex del backend viene corrupto o vacío
-    private fun safeParseColor(hexString: String): Color {
-        return try {
-            if (hexString.isBlank()) return Color.Gray
-            Color(android.graphics.Color.parseColor(hexString))
-        } catch (_: Exception) {
-            Color(0xFF1976D2) // Azul corporativo por defecto
         }
     }
 }
