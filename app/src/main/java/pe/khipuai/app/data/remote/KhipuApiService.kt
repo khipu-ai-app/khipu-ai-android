@@ -9,6 +9,12 @@ interface KhipuApiService {
     @POST("v1/auth/google")
     suspend fun googleAuth(@Body request: AuthRequest): AuthResponse
 
+    @POST("v1/auth/register")
+    suspend fun registerTraditional(@Body request: UserRegisterRequest): AuthResponse
+
+    @POST("v1/auth/login")
+    suspend fun loginTraditional(@Body request: UserLoginRequest): AuthResponse
+
     @GET("v1/courses")
     suspend fun getMyCourses(): List<CourseResponse>
 

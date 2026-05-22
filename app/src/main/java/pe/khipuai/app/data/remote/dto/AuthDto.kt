@@ -20,3 +20,16 @@ data class UserProfileResponse(
     @SerialName("full_name") val fullName: String?,
     @SerialName("profile_type") val profileType: String?
 )
+
+@Serializable
+data class UserRegisterRequest(
+    @SerialName("email") val email: String,
+    @SerialName("password") val password: String,
+    @SerialName("full_name") val fullName: String? = null
+)
+
+@Serializable
+data class UserLoginRequest(
+    @SerialName("email") val email: String,
+    @SerialName("password") val password: String
+)

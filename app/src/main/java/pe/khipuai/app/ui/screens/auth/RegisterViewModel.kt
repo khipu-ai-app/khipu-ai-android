@@ -3,7 +3,6 @@ package pe.khipuai.app.ui.screens.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,31 +31,33 @@ class RegisterViewModel @Inject constructor(
         confirmPassword: String,
         onResult: (Boolean) -> Unit
     ) {
+        // 1. Validación local previa antes de gastar recursos de red
+        val validationError = validateInputs(name, email, password, confirmPassword)
+        if (validationError != null) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                errorMessage = validationError
+            )
+            onResult(false)
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            try {
-                val validationError = validateInputs(name, email, password, confirmPassword)
-                if (validationError != null) {
+            // 2. Disparar el registro real por HTTP hacia PostgreSQL vía AuthRepository
+            authRepository.registerWithEmail(email, password, name)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(isLoading = false, isRegistered = true)
+                    onResult(true)
+                }
+                .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = validationError
+                        errorMessage = exception.localizedMessage ?: "El correo ya existe o el servidor no responde."
                     )
                     onResult(false)
-                    return@launch
                 }
-
-                delay(2000)
-                _uiState.value = _uiState.value.copy(isLoading = false, isRegistered = true)
-                onResult(true)
-
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "Error al crear la cuenta: ${e.message}"
-                )
-                onResult(false)
-            }
         }
     }
 
@@ -94,7 +95,7 @@ class RegisterViewModel @Inject constructor(
             password.isBlank() -> "Por favor ingresa una contraseña"
             confirmPassword.isBlank() -> "Por favor confirma tu contraseña"
             !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Por favor ingresa un email válido"
-            password.length < 6 -> "La contraseña debe tener al menos 6 caracteres"
+            password.length < 8 -> "La contraseña debe tener al menos 8 caracteres"
             password != confirmPassword -> "Las contraseñas no coinciden"
             else -> null
         }

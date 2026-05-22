@@ -3,7 +3,6 @@ package pe.khipuai.app.ui.screens.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,40 +24,35 @@ class LoginViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
+    // ✨ REFACTORIZADO: Ahora valida localmente y luego interroga a tu servidor FastAPI
     fun login(email: String, password: String, onResult: (Boolean) -> Unit) {
+        if (email.isBlank() || password.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Por favor completa todos los campos")
+            onResult(false)
+            return
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Por favor ingresa un email válido")
+            onResult(false)
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            try {
-                delay(2000)
-                if (email.isBlank() || password.isBlank()) {
+            authRepository.loginWithEmail(email, password)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true)
+                    onResult(true)
+                }
+                .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "Por favor completa todos los campos"
+                        errorMessage = "Error de credenciales: ${exception.localizedMessage ?: "Usuario o contraseña incorrectos"}"
                     )
                     onResult(false)
-                    return@launch
                 }
-
-                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "Por favor ingresa un email válido"
-                    )
-                    onResult(false)
-                    return@launch
-                }
-
-                _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true)
-                onResult(true)
-
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "Error al iniciar sesión: ${e.message}"
-                )
-                onResult(false)
-            }
         }
     }
 
