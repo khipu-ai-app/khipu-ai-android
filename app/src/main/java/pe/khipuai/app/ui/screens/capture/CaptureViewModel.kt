@@ -44,8 +44,8 @@ class CaptureViewModel @Inject constructor(
                 captureMode = CaptureMode.CAMERA
             )
 
-            // Invocamos la subida Multipart asíncrona hacia Docker
-            val result = uploadRepository.uploadFile(file, mimeType = "image/jpeg")
+            val currentCourseId = if (_uiState.value.selectedDestination == "Autoclasificar con IA") null else _uiState.value.selectedDestination
+            val result = uploadRepository.uploadFile(file, mimeType = "image/jpeg", courseId = currentCourseId)
 
             result.onSuccess { response ->
                 _uiState.value = _uiState.value.copy(
@@ -72,7 +72,8 @@ class CaptureViewModel @Inject constructor(
                 captureMode = CaptureMode.UPLOAD
             )
 
-            val result = uploadRepository.uploadFile(file, mimeType)
+            val currentCourseId = if (_uiState.value.selectedDestination == "Autoclasificar con IA") null else _uiState.value.selectedDestination
+            val result = uploadRepository.uploadFile(file, mimeType, courseId = currentCourseId)
 
             result.onSuccess { response ->
                 _uiState.value = _uiState.value.copy(

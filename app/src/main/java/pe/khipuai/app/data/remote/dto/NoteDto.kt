@@ -15,8 +15,8 @@ data class NoteResponse(
 data class NoteDetailResponse(
     @SerialName("id") val id: String,
     @SerialName("title") val title: String,
-    @SerialName("summary") val summary: String,
-    @SerialName("topics") val topics: List<String>,
-    @SerialName("created_at") val createdAt: String,
+    @SerialName("summary") val summary: String,       // Estricto y no-nulo (Garantizado por el Backend)
+    @SerialName("topics") val topics: List<String>,   // Estricto y no-nulo (Garantizado por el Backend)
+    @SerialName("created_at") val createdAt: String, // Estricto y no-nulo (Garantizado por el Backend)
     @SerialName("course_id") val courseId: String?
 )

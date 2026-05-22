@@ -6,13 +6,14 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UploadResponse(
     @SerialName("id") val id: String,
-    @SerialName("status") val status: String,
-    @SerialName("filename") val filename: String
+    @SerialName("filename") val filename: String,
+    @SerialName("file_type") val fileType: String,
+    @SerialName("status") val status: String
 )
 
 @Serializable
 data class UploadStatusResponse(
     @SerialName("id") val id: String,
-    @SerialName("status") val status: String, // pending, processing, completed, failed
-    @SerialName("note_id") val noteId: String?
+    @SerialName("status") val status: String,
+    @SerialName("note_id") val noteId: String? = null
 )

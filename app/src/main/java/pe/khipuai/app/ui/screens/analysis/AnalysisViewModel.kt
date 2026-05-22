@@ -48,9 +48,8 @@ class AnalysisViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         title = detail.title,
-                        summary = detail.summary,
-                        keyConcepts = detail.topics, // Mapeamos los topics de red a tus conceptos clave
-                        // Valores calculados por defecto adaptables
+                        summary = detail.summary ?: "Sin resumen disponible por el momento.",
+                        keyConcepts = detail.topics,
                         difficultyLevel = "Intermedio",
                         difficultyProgress = 0.6f,
                         aiSuggestion = "Detecté que este contenido es clave para tu examen de la UNSA. ¿Quieres que te lo explique con un ejemplo práctico de la región?"

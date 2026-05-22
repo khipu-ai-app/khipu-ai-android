@@ -16,6 +16,7 @@ import pe.khipuai.app.ui.screens.maps.MapsScreen
 import pe.khipuai.app.ui.screens.profile.ProfileScreen
 import pe.khipuai.app.ui.screens.processing.ProcessingScreen
 import pe.khipuai.app.ui.screens.analysis.AnalysisScreen
+import pe.khipuai.app.ui.screens.auth.OnboardingScreen
 import pe.khipuai.app.ui.screens.studyguide.StudyGuideScreen
 
 @Composable
@@ -41,12 +42,20 @@ fun KhipuNavigation(
 
         composable(Screen.Register.route) {
             RegisterScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Onboarding.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.Onboarding.route) {
+            OnboardingScreen(
                 onNavigateToHome = {
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }
             )
@@ -193,4 +202,5 @@ sealed class Screen(val route: String) {
     object Processing : Screen("processing")
     object Analysis : Screen("analysis")
     object StudyGuide : Screen("study_guide")
+    object Onboarding : Screen("onboarding")
 }

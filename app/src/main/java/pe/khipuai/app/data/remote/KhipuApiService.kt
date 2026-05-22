@@ -1,6 +1,7 @@
 package pe.khipuai.app.data.remote
 
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import pe.khipuai.app.data.remote.dto.*
 import retrofit2.http.*
 
@@ -15,6 +16,16 @@ interface KhipuApiService {
     @POST("v1/auth/login")
     suspend fun loginTraditional(@Body request: UserLoginRequest): AuthResponse
 
+    @GET("v1/courses/catalog")
+    suspend fun getCatalogByProfile(
+        @Query("profile_type") profileType: String
+    ): List<String>
+
+    @POST("v1/users/me/onboarding")
+    suspend fun completeOnboarding(
+        @Body request: OnboardingRequest
+    ): UserProfileResponse
+
     @GET("v1/courses")
     suspend fun getMyCourses(): List<CourseResponse>
 
@@ -24,7 +35,8 @@ interface KhipuApiService {
     @Multipart
     @POST("v1/uploads")
     suspend fun uploadDocument(
-        @Part file: MultipartBody.Part
+        @Part file: MultipartBody.Part,
+        @Part("course_id") courseId: RequestBody?
     ): UploadResponse
 
     @GET("v1/uploads/{upload_id}")
