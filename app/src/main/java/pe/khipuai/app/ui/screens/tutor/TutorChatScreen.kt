@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,7 +71,7 @@ fun TutorChatScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Regresar"
                         )
                     }
@@ -162,7 +164,7 @@ fun TutorChatScreen(
                                 .size(40.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Send,
+                                imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Enviar",
                                 tint = if (uiState.inputText.isNotBlank() && !uiState.isStreaming) MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -245,12 +247,12 @@ fun TutorChatScreen(
 
                                     // ✨ Carrusel de Inline Knowledge Node Cards
                                     if (message.referenceNodes.isNotEmpty()) {
-                                        Divider(
+                                        HorizontalDivider(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
                                             thickness = 1.dp,
                                             modifier = Modifier.padding(vertical = 4.dp)
                                         )
-                                        
+
                                         Text(
                                             text = "FUENTES CONSULTADAS",
                                             style = MaterialTheme.typography.labelSmall,

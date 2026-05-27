@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +33,7 @@ fun CourseDetailScreen(
     onBackClick: () -> Unit,
     onNoteClick: (String) -> Unit,
     onExpandMapClick: () -> Unit,
-    viewModel: CourseDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: CourseDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -291,7 +293,7 @@ fun CourseDetailScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                imageVector = if (task.isUrgent) Icons.Default.PriorityHigh else Icons.Default.MenuBook,
+                                                imageVector = if (task.isUrgent) Icons.Default.PriorityHigh else Icons.AutoMirrored.Filled.MenuBook,
                                                 contentDescription = null,
                                                 tint = if (task.isUrgent) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                             )

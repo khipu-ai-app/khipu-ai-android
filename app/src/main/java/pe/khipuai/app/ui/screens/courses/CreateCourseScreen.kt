@@ -21,12 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateCourseScreen(
     onNavigateBack: () -> Unit,
-    viewModel: CreateCourseViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: CreateCourseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -41,7 +42,7 @@ fun CreateCourseScreen(
                 },
                 actions = {
                     IconButton(onClick = { /* Guía de ayuda */ }) {
-                        Icon(imageVector = Icons.Default.HelpOutline, contentDescription = "Ayuda")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Ayuda")
                     }
                 }
             )

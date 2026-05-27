@@ -23,13 +23,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoursesScreen(
     onCourseClick: (String) -> Unit,
     onCreateCourseClick: () -> Unit,
-    viewModel: CoursesViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: CoursesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 

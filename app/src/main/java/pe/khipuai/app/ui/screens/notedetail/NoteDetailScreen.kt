@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -33,7 +34,7 @@ fun NoteDetailScreen(
     onBackClick: () -> Unit,
     onReviewClick: () -> Unit,
     onAskTutorClick: () -> Unit,
-    viewModel: NoteDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: NoteDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 

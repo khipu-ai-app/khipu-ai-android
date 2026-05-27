@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,7 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import pe.khipuai.app.ui.components.BottomNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -248,11 +249,14 @@ private fun FilterSection(
         ) {
             OutlinedTextField(
                 value = selectedCourse,
-                onValueChange = {},
+                onValueChange = { },
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(),
+                    .menuAnchor(
+                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                        enabled = true
+                    ),
                 label = { Text("Curso") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = courseExpanded) },
                 colors = OutlinedTextFieldDefaults.colors(
@@ -286,11 +290,14 @@ private fun FilterSection(
         ) {
             OutlinedTextField(
                 value = selectedDifficulty,
-                onValueChange = {},
+                onValueChange = { },
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(),
+                    .menuAnchor(
+                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                        enabled = true
+                    ),
                 label = { Text("Retención") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = difficultyExpanded) },
                 colors = OutlinedTextFieldDefaults.colors(
@@ -422,7 +429,7 @@ private fun ConceptBottomSheet(concept: Concept, onDismiss: () -> Unit) {
                         label = "Módulo ${concept.lessonNumber}"
                     )
                     ConceptStatItem(
-                        icon = Icons.Default.TrendingUp,
+                        icon = Icons.AutoMirrored.Filled.TrendingUp,
                         label = when (concept.difficulty) {
                             ConceptDifficulty.BASIC -> "Básico"
                             ConceptDifficulty.INTERMEDIATE -> "Intermedio"

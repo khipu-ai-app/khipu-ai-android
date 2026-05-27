@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -84,7 +85,7 @@ class CalendarViewModel @Inject constructor(
 @Composable
 fun CalendarScreen(
     onNavigateToTab: (Int) -> Unit,
-    viewModel: CalendarViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    viewModel: CalendarViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -218,7 +219,7 @@ private fun StatsHeader(stats: PlannerStatsResponse) {
 
             if (stats.courseDistribution.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "Distribución por Materia",

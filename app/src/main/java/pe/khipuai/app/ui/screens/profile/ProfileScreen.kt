@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,14 +18,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import pe.khipuai.app.ui.components.BottomNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onNavigateToTab: (Int) -> Unit,
-    onLogout: () -> Unit = {}, // ✨ NUEVO: Callback de navegación para limpiar rutas
+    onLogout: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -104,7 +106,7 @@ fun ProfileScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         SettingsItemWithValue(icon = Icons.Default.Language, title = "Idioma", value = uiState.language, onClick = {})
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        SettingsItem(icon = Icons.Default.Help, title = "Ayuda y Soporte", onClick = {})
+                        SettingsItem(icon = Icons.AutoMirrored.Filled.Help, title = "Ayuda y Soporte", onClick = {})
                     }
                 }
             }
@@ -129,7 +131,7 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Logout,
+                            imageVector = Icons.AutoMirrored.Filled.Logout,
                             contentDescription = "Cerrar Sesión",
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(24.dp)
