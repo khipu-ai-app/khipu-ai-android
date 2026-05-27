@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.hilt.common)
 
     // Compose BOM
     val composeBom = platform(libs.androidx.compose.bom)
@@ -96,6 +97,7 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+    implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
     implementation(libs.kotlinx.serialization.json)
 
     // Coroutines

@@ -4,6 +4,8 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import kotlinx.serialization.json.Json
 import pe.khipuai.app.data.local.TokenManager
 import pe.khipuai.app.data.remote.KhipuApiService
 import pe.khipuai.app.data.repository.*
@@ -44,4 +46,13 @@ object RepositoryModule {
     @Singleton
     fun provideUploadRepository(apiService: KhipuApiService): UploadRepository =
         UploadRepository(apiService)
+
+    @Provides
+    @Singleton
+    fun provideTutorRepository(
+        apiService: KhipuApiService,
+        okHttpClient: OkHttpClient,
+        json: Json
+    ): TutorRepository =
+        TutorRepository(apiService, okHttpClient, json)
 }

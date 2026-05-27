@@ -82,4 +82,13 @@ interface KhipuApiService {
 
     @DELETE("v1/courses/{course_id}")
     suspend fun deleteCourse(@Path("course_id") courseId: String)
+
+    @POST("v1/tutor/sessions")
+    suspend fun createChatSession(@Body request: ChatSessionCreateRequest): ChatSessionResponse
+
+    @GET("v1/tutor/sessions")
+    suspend fun getChatSessions(): List<ChatSessionResponse>
+
+    @GET("v1/tutor/sessions/{session_id}/messages")
+    suspend fun getChatMessages(@Path("session_id") sessionId: String): List<ChatMessageResponse>
 }

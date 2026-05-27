@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.tutor
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,12 +20,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TutorChatScreen(
-    onBackClick: () -> Unit,
-    viewModel: TutorChatViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    onNavigateBack: () -> Unit,
+    viewModel: TutorChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -32,22 +35,54 @@ fun TutorChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(modifier = Modifier.size(36.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape))
-                        Text("Khipu AI", fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SmartToy,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = uiState.courseName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (uiState.isStreaming) "Khipu está escribiendo..." else "En línea",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (uiState.isStreaming) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                        }
                     }
                 },
-                actions = {
-                    IconButton(onClick = {}) {
-                        Icon(imageVector = Icons.Default.Notifications, contentDescription = null)
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Regresar"
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
-            // Contenedor Fijo Inferior (Acciones Rápidas + Input)
             Surface(
-                tonalElevation = 4.dp,
+                tonalElevation = 6.dp,
                 modifier = Modifier.navigationBarsPadding()
             ) {
                 Column(
@@ -57,22 +92,30 @@ fun TutorChatScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Carrusel de Acciones Rápidas (Chips cognitivos)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(uiState.quickActions) { action ->
-                            val icon = when(action) {
-                                "Explícame más" -> Icons.Default.AddCircle
-                                "Dame un ejemplo" -> Icons.Default.Lightbulb
-                                else -> Icons.Default.Quiz
+                    if (uiState.quickActions.isNotEmpty() && !uiState.isStreaming) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(uiState.quickActions) { action ->
+                                val icon = when (action) {
+                                    "Explícame más" -> Icons.Default.AddCircle
+                                    "Dame un ejemplo" -> Icons.Default.Lightbulb
+                                    else -> Icons.Default.Quiz
+                                }
+                                InputChip(
+                                    selected = false,
+                                    onClick = { viewModel.onInputTextChanged(action) },
+                                    label = { Text(action) },
+                                    leadingIcon = {
+                                        Icon(
+                                            icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                )
                             }
-                            InputChip(
-                                selected = false,
-                                onClick = { viewModel.onInputTextChanged(action) },
-                                label = { Text(action) },
-                                leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            )
                         }
                     }
 
@@ -80,18 +123,22 @@ fun TutorChatScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.Bottom
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                RoundedCornerShape(24.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = { /* Adjuntar archivos */ }, modifier = Modifier.padding(bottom = 2.dp)) {
-                            Icon(Icons.Default.AttachFile, contentDescription = "Adjuntar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-
                         TextField(
                             value = uiState.inputText,
                             onValueChange = { viewModel.onInputTextChanged(it) },
-                            placeholder = { Text("Pregunta a Khipu sobre tus notas...", style = MaterialTheme.typography.bodyMedium) },
+                            placeholder = {
+                                Text(
+                                    "Pregunta a Khipu sobre tus notas...",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
                             modifier = Modifier.weight(1f),
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
@@ -105,108 +152,186 @@ fun TutorChatScreen(
 
                         IconButton(
                             onClick = { viewModel.sendMessage() },
+                            enabled = uiState.inputText.isNotBlank() && !uiState.isStreaming,
                             modifier = Modifier
-                                .padding(bottom = 4.dp)
-                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                .background(
+                                    if (uiState.inputText.isNotBlank() && !uiState.isStreaming) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant,
+                                    CircleShape
+                                )
+                                .size(40.dp)
                         ) {
-                            Icon(Icons.Default.Send, contentDescription = "Enviar", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Enviar",
+                                tint = if (uiState.inputText.isNotBlank() && !uiState.isStreaming) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
             }
         }
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // Burbujas Iterativas de la Conversación
-            items(uiState.messages) { message ->
-                val isUser = message.sender == ChatSender.USER
+                // Burbujas de Chat
+                items(uiState.messages) { message ->
+                    val isUser = message.sender == ChatSender.USER
 
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
-                ) {
-                    // Marcador de tiempo o cabecera opcional
-                    if (message.id == "1") {
-                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-                            Text(text = message.timestamp, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Bottom,
-                        modifier = Modifier.fillMaxWidth(0.9f)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
                     ) {
-                        // Avatar pequeño exclusivo para la IA
-                        if (!isUser) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                            }
-                        } else {
-                            Spacer(modifier = Modifier.weight(1f)) // Empuja el contenido del usuario a la derecha
-                        }
-
-                        // Contenedor de la Burbuja
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isUser) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                            ),
-                            shape = RoundedCornerShape(
-                                topStart = 16.dp,
-                                topEnd = 16.dp,
-                                bottomStart = if (isUser) 16.dp else 4.dp,
-                                bottomEnd = if (isUser) 4.dp else 16.dp
-                            ),
-                            modifier = Modifier.widthIn(max = 280.dp)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier.fillMaxWidth(0.85f)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = message.content,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                                )
+                            if (!isUser) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.SmartToy,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
 
-                                // ✨ INLINE KNOWLEDGE NODE CARD: Referencia de RAG Incrustada
-                                if (message.referenceNode != null) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                                            .clickable { /* Abrir visor del apunte referenced */ }
-                                            .padding(8.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        // Barra vertical simuladora de acento de diseño
-                                        Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(2.dp)))
+                            // Burbuja
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isUser) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                ),
+                                shape = RoundedCornerShape(
+                                    topStart = 16.dp,
+                                    topEnd = 16.dp,
+                                    bottomStart = if (isUser) 16.dp else 4.dp,
+                                    bottomEnd = if (isUser) 4.dp else 16.dp
+                                ),
+                                modifier = Modifier.widthIn(max = 280.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = message.content.ifEmpty { "Escribiendo..." },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                    )
 
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(text = message.referenceNode.title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            Text(text = message.referenceNode.snippet, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    // ✨ Carrusel de Inline Knowledge Node Cards
+                                    if (message.referenceNodes.isNotEmpty()) {
+                                        Divider(
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                                            thickness = 1.dp,
+                                            modifier = Modifier.padding(vertical = 4.dp)
+                                        )
+                                        
+                                        Text(
+                                            text = "FUENTES CONSULTADAS",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+
+                                        message.referenceNodes.forEach { node ->
+                                            InlineKnowledgeNodeCard(node = node)
                                         }
-                                        Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
                                     }
                                 }
                             }
                         }
                     }
                 }
+
+                item { Spacer(modifier = Modifier.height(40.dp)) }
             }
 
-            item { Spacer(modifier = Modifier.height(40.dp)) }
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun InlineKnowledgeNodeCard(
+    node: KnowledgeNodeRef
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { /* Abrir visor del apunte referenced */ },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(8.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(36.dp)
+                    .background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(2.dp))
+            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = node.title,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = node.snippet,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 14.sp
+                )
+            }
+            
+            Icon(
+                imageVector = Icons.Default.Description,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

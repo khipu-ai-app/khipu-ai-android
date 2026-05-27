@@ -18,6 +18,7 @@ import pe.khipuai.app.ui.screens.processing.ProcessingScreen
 import pe.khipuai.app.ui.screens.analysis.AnalysisScreen
 import pe.khipuai.app.ui.screens.auth.OnboardingScreen
 import pe.khipuai.app.ui.screens.studyguide.StudyGuideScreen
+import pe.khipuai.app.ui.screens.tutor.TutorChatScreen
 
 @Composable
 fun KhipuNavigation(
@@ -188,6 +189,22 @@ fun KhipuNavigation(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        composable(
+            route = "${Screen.Tutor.route}/{sessionId}?courseId={courseId}",
+            arguments = listOf(
+                navArgument("sessionId") { type = NavType.StringType },
+                navArgument("courseId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) {
+            TutorChatScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
     }
 }
 
@@ -203,4 +220,5 @@ sealed class Screen(val route: String) {
     object Analysis : Screen("analysis")
     object StudyGuide : Screen("study_guide")
     object Onboarding : Screen("onboarding")
+    object Tutor : Screen("tutor")
 }
