@@ -27,6 +27,7 @@ import pe.khipuai.app.ui.components.BottomNavigationBar
 @Composable
 fun PlannerScreen(
     onNavigateToTab: (Int) -> Unit,
+    onNavigateToCalendar: () -> Unit = {},
     viewModel: PlannerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -111,7 +112,9 @@ fun PlannerScreen(
             ) {
                 item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                item { DailyAgendaHeader() }
+                item { 
+                    DailyAgendaHeader(onCalendarClick = onNavigateToCalendar) 
+                }
 
                 if (uiState.studyBlocks.isEmpty()) {
                     item {
@@ -166,7 +169,9 @@ fun PlannerScreen(
 }
 
 @Composable
-private fun DailyAgendaHeader() {
+private fun DailyAgendaHeader(
+    onCalendarClick: () -> Unit
+) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -179,18 +184,28 @@ private fun DailyAgendaHeader() {
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onCalendarClick) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = "Ver Calendario",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
 
-            Surface(
-                color = Color(0xFFE8F5E8),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(
-                    text = "🔋 SM-2 ACTIVO",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2E7D32)
-                )
+                Surface(
+                    color = Color(0xFFE8F5E8),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text = "🔋 SM-2",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32)
+                    )
+                }
             }
         }
 

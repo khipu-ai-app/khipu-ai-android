@@ -25,6 +25,7 @@ import pe.khipuai.app.ui.components.BottomNavigationBar
 @Composable
 fun ProfileScreen(
     onNavigateToTab: (Int) -> Unit,
+    onNavigateToSubscription: () -> Unit = {},
     onLogout: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -72,7 +73,8 @@ fun ProfileScreen(
                     name = uiState.userName,
                     career = uiState.career,
                     university = uiState.university,
-                    isPro = uiState.isPro
+                    isPro = uiState.isPro,
+                    onProClick = onNavigateToSubscription
                 )
             }
 
@@ -157,10 +159,12 @@ private fun ProfileHeader(
     name: String,
     career: String,
     university: String,
-    isPro: Boolean
+    isPro: Boolean,
+    onProClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        onClick = onProClick,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),

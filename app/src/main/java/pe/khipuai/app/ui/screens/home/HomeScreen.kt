@@ -27,6 +27,8 @@ import pe.khipuai.app.ui.components.SuggestionCard
 @Composable
 fun HomeScreen(
     onNavigateToTab: (Int) -> Unit = {},
+    onNavigateToCourses: () -> Unit = {},
+    onNavigateToCourseDetail: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     // Corregido: Se añaden los métodos delegados correctos mediante los imports de Compose runtime
@@ -122,7 +124,7 @@ fun HomeScreen(
                 SectionHeader(
                     title = "Tus Cursos",
                     actionText = "Ver todos",
-                    onActionClick = { /* TODO: View all courses */ }
+                    onActionClick = onNavigateToCourses
                 )
             }
 
@@ -148,7 +150,8 @@ fun HomeScreen(
                                 progress = course.progress,
                                 filesCount = course.filesCount,
                                 icon = Icons.AutoMirrored.Filled.MenuBook,
-                                color = composeColor
+                                color = composeColor,
+                                onClick = { onNavigateToCourseDetail(course.id) }
                             )
                         }
                     }

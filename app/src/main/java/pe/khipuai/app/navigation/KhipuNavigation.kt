@@ -9,16 +9,24 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import pe.khipuai.app.ui.screens.auth.LoginScreen
 import pe.khipuai.app.ui.screens.auth.RegisterScreen
+import pe.khipuai.app.ui.screens.auth.OnboardingScreen
 import pe.khipuai.app.ui.screens.home.HomeScreen
 import pe.khipuai.app.ui.screens.capture.CaptureScreen
 import pe.khipuai.app.ui.screens.planner.PlannerScreen
+import pe.khipuai.app.ui.screens.planner.CalendarScreen
 import pe.khipuai.app.ui.screens.maps.MapsScreen
 import pe.khipuai.app.ui.screens.profile.ProfileScreen
 import pe.khipuai.app.ui.screens.processing.ProcessingScreen
 import pe.khipuai.app.ui.screens.analysis.AnalysisScreen
-import pe.khipuai.app.ui.screens.auth.OnboardingScreen
 import pe.khipuai.app.ui.screens.studyguide.StudyGuideScreen
 import pe.khipuai.app.ui.screens.tutor.TutorChatScreen
+import pe.khipuai.app.ui.screens.courses.CoursesScreen
+import pe.khipuai.app.ui.screens.courses.CreateCourseScreen
+import pe.khipuai.app.ui.screens.coursedetail.CourseDetailScreen
+import pe.khipuai.app.ui.screens.notedetail.NoteDetailScreen
+import pe.khipuai.app.ui.screens.quiz.QuizCreationScreen
+import pe.khipuai.app.ui.screens.subscription.SubscriptionScreen
+import pe.khipuai.app.ui.screens.fileviewer.FileViewerScreen
 
 @Composable
 fun KhipuNavigation(
@@ -72,6 +80,12 @@ fun KhipuNavigation(
                         3 -> navController.navigate(Screen.Maps.route)
                         4 -> navController.navigate(Screen.Profile.route)
                     }
+                },
+                onNavigateToCourses = {
+                    navController.navigate(Screen.Courses.route)
+                },
+                onNavigateToCourseDetail = { courseId ->
+                    navController.navigate("${Screen.CourseDetail.route}/$courseId")
                 }
             )
         }
@@ -87,7 +101,6 @@ fun KhipuNavigation(
                         4 -> navController.navigate(Screen.Profile.route)
                     }
                 },
-                // Corregido: Recibe el uploadId real que arroja Retrofit y lo inyecta a la ruta
                 onNavigateToProcessing = { uploadId ->
                     navController.navigate("${Screen.Processing.route}/$uploadId")
                 }
@@ -104,6 +117,9 @@ fun KhipuNavigation(
                         3 -> navController.navigate(Screen.Maps.route)
                         4 -> navController.navigate(Screen.Profile.route)
                     }
+                },
+                onNavigateToCalendar = {
+                    navController.navigate(Screen.Calendar.route)
                 }
             )
         }
@@ -144,6 +160,9 @@ fun KhipuNavigation(
                         }
                     }
                 },
+                onNavigateToSubscription = {
+                    navController.navigate(Screen.Subscription.route)
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true } // Limpieza total del historial
@@ -152,13 +171,11 @@ fun KhipuNavigation(
             )
         }
 
-        // Corregido: Se añade la máscara /{uploadId} para alimentar de forma automática al SavedStateHandle
         composable(
             route = "${Screen.Processing.route}/{uploadId}",
             arguments = listOf(navArgument("uploadId") { type = NavType.StringType })
         ) {
             ProcessingScreen(
-                // Corregido: Removido el viejo parámetro inexistente y acoplado el salto final por noteId
                 onProcessingComplete = { noteId ->
                     navController.navigate("${Screen.Analysis.route}/$noteId") {
                         popUpTo(Screen.Capture.route) { inclusive = true }
@@ -167,7 +184,6 @@ fun KhipuNavigation(
             )
         }
 
-        // Corregido: Se prepara la ruta de Análisis para capturar el noteId de la base de datos
         composable(
             route = "${Screen.Analysis.route}/{noteId}",
             arguments = listOf(navArgument("noteId") { type = NavType.StringType })
@@ -205,6 +221,92 @@ fun KhipuNavigation(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        // --- Nuevas Rutas SPRINT 5 ---
+
+        composable(Screen.Courses.route) {
+            CoursesScreen(
+                onCourseClick = { courseId ->
+                    navController.navigate("${Screen.CourseDetail.route}/$courseId")
+                },
+                onCreateCourseClick = {
+                    navController.navigate(Screen.CreateCourse.route)
+                }
+            )
+        }
+
+        composable(Screen.CreateCourse.route) {
+            CreateCourseScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "${Screen.CourseDetail.route}/{courseId}",
+            arguments = listOf(navArgument("courseId") { type = NavType.StringType })
+        ) {
+            CourseDetailScreen(
+                onBackClick = { navController.popBackStack() },
+                onNoteClick = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
+                },
+                onExpandMapClick = {
+                    navController.navigate(Screen.Maps.route)
+                }
+            )
+        }
+
+        composable(
+            route = "${Screen.NoteDetail.route}/{noteId}",
+            arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+        ) {
+            NoteDetailScreen(
+                onBackClick = { navController.popBackStack() },
+                onReviewClick = { /* Acción para repaso */ },
+                onAskTutorClick = {
+                    // Navigate to tutor with a generated session id or hardcoded one since we just need it to open
+                    navController.navigate("${Screen.Tutor.route}/new_session")
+                }
+            )
+        }
+
+        composable(
+            route = "${Screen.QuizCreation.route}/{noteId}",
+            arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+        ) {
+            QuizCreationScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Subscription.route) {
+            SubscriptionScreen(
+                onCloseClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "${Screen.FileViewer.route}/{uploadId}",
+            arguments = listOf(navArgument("uploadId") { type = NavType.StringType })
+        ) {
+            FileViewerScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Calendar.route) {
+            CalendarScreen(
+                onNavigateToTab = { tabIndex ->
+                    when (tabIndex) {
+                        0 -> navController.navigate(Screen.Home.route)
+                        1 -> navController.navigate(Screen.Capture.route)
+                        2 -> navController.navigate(Screen.Planner.route)
+                        3 -> navController.navigate(Screen.Maps.route)
+                        4 -> navController.navigate(Screen.Profile.route)
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -221,4 +323,14 @@ sealed class Screen(val route: String) {
     object StudyGuide : Screen("study_guide")
     object Onboarding : Screen("onboarding")
     object Tutor : Screen("tutor")
+    
+    // Sprint 5 Nuevas Rutas
+    object Courses : Screen("courses")
+    object CreateCourse : Screen("create_course")
+    object CourseDetail : Screen("course_detail")
+    object NoteDetail : Screen("note_detail")
+    object QuizCreation : Screen("quiz_creation")
+    object Subscription : Screen("subscription")
+    object FileViewer : Screen("file_viewer")
+    object Calendar : Screen("calendar")
 }
