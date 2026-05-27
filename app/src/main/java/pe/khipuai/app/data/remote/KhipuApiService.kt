@@ -50,9 +50,7 @@ interface KhipuApiService {
     ): NoteDetailResponse
 
     @GET("v1/notes/{note_id}/study-guide")
-    suspend fun getStudyGuide(
-        @Path("note_id") noteId: String
-    ): StudyGuideResponse
+    suspend fun getStudyGuide(@Path("note_id") noteId: String): StudyGuideResponse
 
     @GET("v1/planner/today")
     suspend fun getTodayPlanner(): List<DueConceptResponse>

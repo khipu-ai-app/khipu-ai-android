@@ -48,10 +48,10 @@ class AnalysisViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         title = detail.title,
-                        summary = detail.summary ?: "Sin resumen disponible por el momento.",
+                        summary = detail.summary,
                         keyConcepts = detail.topics,
-                        difficultyLevel = "Intermedio",
-                        difficultyProgress = 0.6f,
+                        difficultyLevel = detail.difficultyLevel,
+                        difficultyProgress = detail.difficultyProgress,
                         aiSuggestion = "Detecté que este contenido es clave para tu examen de la UNSA. ¿Quieres que te lo explique con un ejemplo práctico de la región?"
                     )
                 }

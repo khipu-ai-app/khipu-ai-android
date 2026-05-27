@@ -13,7 +13,8 @@ import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import pe.khipuai.app.data.local.TokenManager
+import pe.khipuai.app.BuildConfig
+import pe.khipuai.app.core.datastore.SessionDataStore
 import pe.khipuai.app.data.remote.KhipuApiService
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -24,8 +25,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://10.0.2.2:8000/"
-
     @Provides
     @Singleton
     fun provideJson(): Json = Json {
@@ -35,8 +34,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideAuthInterceptor(tokenManager: TokenManager): Interceptor = Interceptor { chain ->
-        val token = runBlocking { tokenManager.accessToken.first() }
+    fun provideAuthInterceptor(sessionDataStore: SessionDataStore): Interceptor = Interceptor { chain ->
+        val token = runBlocking { sessionDataStore.tokenFlow.first() }
         val requestBuilder = chain.request().newBuilder()
 
         if (!token.isNullOrEmpty()) {
@@ -67,7 +66,7 @@ object NetworkModule {
     fun provideKhipuApiService(okHttpClient: OkHttpClient, json: Json): KhipuApiService {
         val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(BuildConfig.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
@@ -76,6 +75,6 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideTokenManager(@ApplicationContext context: Context): TokenManager =
-        TokenManager(context)
+    fun provideSessionDataStore(@ApplicationContext context: Context): SessionDataStore =
+        SessionDataStore(context)
 }
