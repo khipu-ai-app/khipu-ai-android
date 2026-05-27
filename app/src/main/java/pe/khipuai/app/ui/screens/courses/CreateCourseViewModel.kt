@@ -1,9 +1,12 @@
 package pe.khipuai.app.ui.screens.courses
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import pe.khipuai.app.data.repository.CourseRepository
+import javax.inject.Inject
 
 // Paleta de colores Hex oficiales que tu frontend bento sabe pintar
 data class ColorPaletteItem(
@@ -18,7 +21,11 @@ data class CreateCourseUiState(
     val errorMessage: String? = null
 )
 
-class CreateCourseViewModel : ViewModel() {
+@HiltViewModel
+class CreateCourseViewModel @Inject constructor(
+    private val courseRepository: CourseRepository
+) : ViewModel() {
+
 
     private val _uiState = MutableStateFlow(CreateCourseUiState())
     val uiState: StateFlow<CreateCourseUiState> = _uiState.asStateFlow()

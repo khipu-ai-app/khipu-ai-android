@@ -1,9 +1,13 @@
 package pe.khipuai.app.ui.screens.coursedetail
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import pe.khipuai.app.data.repository.CourseRepository
+import pe.khipuai.app.data.repository.NoteRepository
+import javax.inject.Inject
 
 data class CompactNoteUiModel(
     val id: String,
@@ -33,7 +37,7 @@ enum class NodeStatus { DOMINADO, EN_PROGRESO, BLOQUEADO }
 data class CourseDetailUiState(
     val courseName: String = "Matemáticas",
     val categoryName: String = "Ciencias Exactas",
-    val professorName: String = "Prof. Elena Rojas",
+    val professorName: String = "Elena Rojas", // ✨ REFACTORIZADO: quitado "Prof." del mock para cumplir la UI real
     val courseProgress: Int = 45,
     val notes: List<CompactNoteUiModel> = emptyList(),
     val upcomingReviews: List<ReviewItemUiModel> = emptyList(),
@@ -41,7 +45,12 @@ data class CourseDetailUiState(
     val isLoading: Boolean = false
 )
 
-class CourseDetailViewModel : ViewModel() {
+@HiltViewModel
+class CourseDetailViewModel @Inject constructor(
+    private val courseRepository: CourseRepository,
+    private val noteRepository: NoteRepository
+) : ViewModel() {
+
 
     private val _uiState = MutableStateFlow(CourseDetailUiState(isLoading = true))
     val uiState: StateFlow<CourseDetailUiState> = _uiState.asStateFlow()

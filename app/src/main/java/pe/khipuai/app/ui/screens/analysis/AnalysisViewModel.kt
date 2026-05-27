@@ -49,7 +49,7 @@ class AnalysisViewModel @Inject constructor(
                         isLoading = false,
                         title = detail.title,
                         summary = detail.summary,
-                        keyConcepts = detail.topics,
+                        keyConcepts = detail.topics.map { it.name },
                         difficultyLevel = detail.difficultyLevel,
                         difficultyProgress = detail.difficultyProgress,
                         aiSuggestion = "Detecté que este contenido es clave para tu examen de la UNSA. ¿Quieres que te lo explique con un ejemplo práctico de la región?"

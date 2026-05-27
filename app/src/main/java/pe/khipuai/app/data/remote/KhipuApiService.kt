@@ -67,4 +67,19 @@ interface KhipuApiService {
 
     @GET("v1/users/me")
     suspend fun getMyProfile(): UserProfileResponse
-}
+
+    @DELETE("v1/notes/{note_id}")
+    suspend fun deleteNote(@Path("note_id") noteId: String)
+
+    @POST("v1/courses")
+    suspend fun createCourse(@Body request: CourseCreateRequest): CourseResponse
+
+    @PATCH("v1/courses/{course_id}")
+    suspend fun updateCourse(
+        @Path("course_id") courseId: String,
+        @Body request: CourseUpdateRequest
+    ): CourseResponse
+
+    @DELETE("v1/courses/{course_id}")
+    suspend fun deleteCourse(@Path("course_id") courseId: String)
+}

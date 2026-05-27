@@ -1,9 +1,12 @@
 package pe.khipuai.app.ui.screens.courses
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import pe.khipuai.app.data.repository.CourseRepository
+import javax.inject.Inject
 
 // Enumeración estricta para el control de pestañas organizacionales
 enum class CourseFilter { TODOS, ACTIVOS, COMPLETADOS, ARCHIVADOS }
@@ -28,7 +31,11 @@ data class CoursesUiState(
     val isLoading: Boolean = false
 )
 
-class CoursesViewModel : ViewModel() {
+@HiltViewModel
+class CoursesViewModel @Inject constructor(
+    private val courseRepository: CourseRepository
+) : ViewModel() {
+
 
     private val _uiState = MutableStateFlow(CoursesUiState(isLoading = true))
     val uiState: StateFlow<CoursesUiState> = _uiState.asStateFlow()

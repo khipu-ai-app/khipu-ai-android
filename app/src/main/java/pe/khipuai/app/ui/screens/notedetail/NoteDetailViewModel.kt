@@ -1,9 +1,12 @@
 package pe.khipuai.app.ui.screens.notedetail
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import pe.khipuai.app.data.repository.NoteRepository
+import javax.inject.Inject
 
 enum class HistoryItemType { REPASO_COMPLETADO, NOTA_CREADA }
 
@@ -26,7 +29,11 @@ data class NoteDetailUiState(
     val isLoading: Boolean = false
 )
 
-class NoteDetailViewModel : ViewModel() {
+@HiltViewModel
+class NoteDetailViewModel @Inject constructor(
+    private val noteRepository: NoteRepository
+) : ViewModel() {
+
 
     private val _uiState = MutableStateFlow(NoteDetailUiState(isLoading = true))
     val uiState: StateFlow<NoteDetailUiState> = _uiState.asStateFlow()

@@ -2,9 +2,12 @@ package pe.khipuai.app.ui.screens.quiz
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import pe.khipuai.app.data.repository.NoteRepository
+import javax.inject.Inject
 
 // Modelos locales ligeros para renderizado visual
 data class QuestionUiModel(
@@ -24,7 +27,11 @@ data class QuizCreationUiState(
     val isSaving: Boolean = false
 )
 
-class QuizCreationViewModel : ViewModel() {
+@HiltViewModel
+class QuizCreationViewModel @Inject constructor(
+    private val noteRepository: NoteRepository
+) : ViewModel() {
+
 
     private val _uiState = MutableStateFlow(QuizCreationUiState())
     val uiState: StateFlow<QuizCreationUiState> = _uiState.asStateFlow()

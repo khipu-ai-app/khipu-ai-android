@@ -1,9 +1,12 @@
 package pe.khipuai.app.ui.screens.tutor
 
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import pe.khipuai.app.data.repository.NoteRepository
+import javax.inject.Inject
 
 // Identificador del emisor del mensaje
 enum class ChatSender { USER, AI }
@@ -29,7 +32,11 @@ data class TutorChatUiState(
     val quickActions: List<String> = emptyList()
 )
 
-class TutorChatViewModel : ViewModel() {
+@HiltViewModel
+class TutorChatViewModel @Inject constructor(
+    private val noteRepository: NoteRepository
+) : ViewModel() {
+
 
     private val _uiState = MutableStateFlow(TutorChatUiState())
     val uiState: StateFlow<TutorChatUiState> = _uiState.asStateFlow()

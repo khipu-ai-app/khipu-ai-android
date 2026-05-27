@@ -17,3 +17,16 @@ data class CourseResponse(
     @SerialName("name") val name: String,
     @SerialName("color") val color: String
 )
+
+@Serializable
+data class CourseCreateRequest(
+    @SerialName("name") val name: String,
+    @SerialName("color") val color: String? = "#7F7F7F"
+)
+
+@Serializable
+data class CourseUpdateRequest(
+    @SerialName("name") val name: String? = null,
+    @SerialName("color") val color: String? = null,
+    @SerialName("is_active") val isActive: Boolean? = null
+)
