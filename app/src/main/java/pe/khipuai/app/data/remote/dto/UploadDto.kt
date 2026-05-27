@@ -15,5 +15,6 @@ data class UploadResponse(
 data class UploadStatusResponse(
     @SerialName("id") val id: String,
     @SerialName("status") val status: String,
+    @SerialName("pipeline_step") val pipelineStep: String? = null,
     @SerialName("note_id") val noteId: String? = null
 )

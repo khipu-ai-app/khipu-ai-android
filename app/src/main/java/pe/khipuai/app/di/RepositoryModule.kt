@@ -4,6 +4,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import pe.khipuai.app.data.local.TokenManager
 import pe.khipuai.app.data.remote.KhipuApiService
 import pe.khipuai.app.data.repository.*
 import javax.inject.Singleton
@@ -14,8 +15,10 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideAuthRepository(apiService: KhipuApiService): AuthRepository =
-        AuthRepository(apiService)
+    fun provideAuthRepository(
+        apiService: KhipuApiService,
+        tokenManager: TokenManager
+    ): AuthRepository = AuthRepository(apiService, tokenManager)
 
     @Provides
     @Singleton
