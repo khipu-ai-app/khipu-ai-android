@@ -83,7 +83,7 @@ class PlannerViewModel @Inject constructor(
                             time = "${8 + index * 2}:00 AM", // Simulamos un bloque horario elegante
                             duration = "${concepts.size * 10} min", // 10 minutos sugeridos por concepto
                             subject = courseName,
-                            tasks = concepts.map { Task(id = it.conceptName, title = it.label, isCompleted = false) },
+                            tasks = concepts.map { Task(id = it.conceptId, title = it.label, isCompleted = false) },
                             isAISuggestion = true, // Es sugerencia de la IA porque viene del algoritmo SM-2
                             mentalLoadLevel = loadLevel,
                             mentalLoadColor = loadColor,
@@ -103,7 +103,7 @@ class PlannerViewModel @Inject constructor(
         }
     }
 
-    fun toggleTask(blockId: String, conceptName: String) {
+    fun toggleTask(blockId: String, conceptId: String) {
         viewModelScope.launch {
             val currentBlocks = _uiState.value.studyBlocks
             var finalIsCompleted = false
@@ -112,7 +112,7 @@ class PlannerViewModel @Inject constructor(
             val updatedBlocks = currentBlocks.map { block ->
                 if (block.id == blockId) {
                     val updatedTasks = block.tasks.map { task ->
-                        if (task.id == conceptName) {
+                        if (task.id == conceptId) {
                             finalIsCompleted = !task.isCompleted
                             task.copy(isCompleted = finalIsCompleted)
                         } else {
@@ -130,9 +130,35 @@ class PlannerViewModel @Inject constructor(
             // de lo contrario un 1 (Olvido temporal) para que el algoritmo SM-2 de Neo4j haga su magia
             val score = if (finalIsCompleted) 5 else 1
 
-            plannerRepository.submitReviewRating(conceptName, score)
+            plannerRepository.submitReviewRating(conceptId, score)
                 .onFailure {
                     // Si la red falla, revertimos el estado de manera segura
+                    loadRemotePlanner()
+                }
+        }
+    }
+
+    fun submitRating(blockId: String, conceptId: String, rating: Int) {
+        viewModelScope.launch {
+            val currentBlocks = _uiState.value.studyBlocks
+            val updatedBlocks = currentBlocks.map { block ->
+                if (block.id == blockId) {
+                    val updatedTasks = block.tasks.map { task ->
+                        if (task.id == conceptId) {
+                            task.copy(isCompleted = true)
+                        } else {
+                            task
+                        }
+                    }
+                    block.copy(tasks = updatedTasks)
+                } else {
+                    block
+                }
+            }
+            _uiState.value = _uiState.value.copy(studyBlocks = updatedBlocks)
+
+            plannerRepository.submitReviewRating(conceptId, rating)
+                .onFailure {
                     loadRemotePlanner()
                 }
         }

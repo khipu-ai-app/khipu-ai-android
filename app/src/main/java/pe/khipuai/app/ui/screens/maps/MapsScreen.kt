@@ -1,8 +1,8 @@
 package pe.khipuai.app.ui.screens.maps
 
-import androidx.compose.foundation.Canvas
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,18 +13,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import pe.khipuai.app.ui.components.BottomNavigationBar
-import androidx.compose.ui.graphics.nativeCanvas
-import android.graphics.Paint
-import android.graphics.Color as AndroidColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,12 +30,34 @@ fun MapsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // Referencia estable a la WebView para poder inyectarle datos vía evaluateJavascript
+    val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    val pageLoaded = remember { mutableStateOf(false) }
+
+    // Cuando llegan nuevos datos del backend Y la página ya está lista, actualizamos el grafo
+    LaunchedEffect(uiState.d3NodesJson, uiState.d3EdgesJson) {
+        if (pageLoaded.value && webViewRef.value != null) {
+            val nodesEscaped = uiState.d3NodesJson
+                .replace("\\", "\\\\")
+                .replace("`", "\\`")
+                .replace("$", "\\$")
+            val edgesEscaped = uiState.d3EdgesJson
+                .replace("\\", "\\\\")
+                .replace("`", "\\`")
+                .replace("$", "\\$")
+            webViewRef.value?.evaluateJavascript(
+                "updateGraphData(`$nodesEscaped`, `$edgesEscaped`)",
+                null
+            )
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Khipu AI",
+                        text = "Mapa Cognitivo",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -54,7 +72,7 @@ fun MapsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "U",
+                            text = "K",
                             color = MaterialTheme.colorScheme.onPrimary,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
@@ -62,7 +80,7 @@ fun MapsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Notifications */ }) {
+                    IconButton(onClick = { /* TODO */ }) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Notificaciones",
@@ -70,7 +88,9 @@ fun MapsScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         },
         bottomBar = {
@@ -82,7 +102,8 @@ fun MapsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Column {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Filtros de curso y retención
                 FilterSection(
                     selectedCourse = uiState.selectedCourse,
                     selectedDifficulty = uiState.selectedDifficulty,
@@ -90,35 +111,113 @@ fun MapsScreen(
                     onDifficultyChange = viewModel::updateDifficulty
                 )
 
-                // Contenedor adaptativo según el estado asíncrono del backend
+                // Área principal del grafo
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .weight(1f)
                 ) {
+                    // La WebView siempre está compuesta para no recrearla en cada recomposición.
+                    // Se muestra/oculta con alpha según el estado de carga.
+                    AndroidView(
+                        factory = { context ->
+                            WebView(context).apply {
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.allowFileAccess = true
+                                settings.setSupportZoom(true)
+                                settings.builtInZoomControls = true
+                                settings.displayZoomControls = false
+
+                                addJavascriptInterface(
+                                    GraphWebViewBridge { conceptId ->
+                                        viewModel.selectConceptById(conceptId)
+                                    },
+                                    "AndroidBridge"
+                                )
+
+                                webViewClient = object : WebViewClient() {
+                                    override fun onPageFinished(view: WebView?, url: String?) {
+                                        super.onPageFinished(view, url)
+                                        pageLoaded.value = true
+                                        // Si ya hay datos, inyectarlos inmediatamente
+                                        val nodes = uiState.d3NodesJson
+                                        val edges = uiState.d3EdgesJson
+                                        if (nodes != "[]") {
+                                            view?.evaluateJavascript(
+                                                "updateGraphData(`${nodes.replace("`", "\\`").replace("$", "\\$")}`, `${edges.replace("`", "\\`").replace("$", "\\$")}`)",
+                                                null
+                                            )
+                                        }
+                                    }
+                                }
+
+                                loadUrl("file:///android_asset/mindmap.html")
+                                webViewRef.value = this
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // Overlay de carga encima del WebView
                     if (uiState.isLoading) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    } else if (uiState.errorMessage != null) {
-                        Text(
-                            text = uiState.errorMessage ?: "Error",
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(24.dp)
-                        )
-                    } else {
-                        MindMapCanvas(
-                            concepts = uiState.concepts,
-                            selectedConcept = uiState.selectedConcept,
-                            onConceptClick = viewModel::selectConcept
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Cargando grafo cognitivo…",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // Overlay de error
+                    if (uiState.errorMessage != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = uiState.errorMessage ?: "Error desconocido",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                OutlinedButton(onClick = { viewModel.updateCourse(uiState.selectedCourse) }) {
+                                    Text("Reintentar")
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            uiState.selectedConcept?.let { selectedConcept ->
+            // BottomSheet nativo de Compose para el concepto seleccionado
+            uiState.selectedConcept?.let { concept ->
                 ConceptBottomSheet(
-                    concept = selectedConcept,
+                    concept = concept,
                     onDismiss = { viewModel.selectConcept(null) }
                 )
             }
@@ -137,7 +236,7 @@ private fun FilterSection(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         var courseExpanded by remember { mutableStateOf(false) }
@@ -149,7 +248,7 @@ private fun FilterSection(
         ) {
             OutlinedTextField(
                 value = selectedCourse,
-                onValueChange = { },
+                onValueChange = {},
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -162,7 +261,6 @@ private fun FilterSection(
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
-
             ExposedDropdownMenu(
                 expanded = courseExpanded,
                 onDismissRequest = { courseExpanded = false }
@@ -188,12 +286,12 @@ private fun FilterSection(
         ) {
             OutlinedTextField(
                 value = selectedDifficulty,
-                onValueChange = { },
+                onValueChange = {},
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(),
-                label = { Text("Dificultad") },
+                label = { Text("Retención") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = difficultyExpanded) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.outline,
@@ -201,16 +299,15 @@ private fun FilterSection(
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
-
             ExposedDropdownMenu(
                 expanded = difficultyExpanded,
                 onDismissRequest = { difficultyExpanded = false }
             ) {
-                listOf("Todas", "Básica", "Intermedia", "Avanzada").forEach { difficulty ->
+                listOf("Todas", "Básica", "Intermedia", "Avanzada").forEach { diff ->
                     DropdownMenuItem(
-                        text = { Text(difficulty) },
+                        text = { Text(diff) },
                         onClick = {
-                            onDifficultyChange(difficulty)
+                            onDifficultyChange(diff)
                             difficultyExpanded = false
                         }
                     )
@@ -221,118 +318,137 @@ private fun FilterSection(
 }
 
 @Composable
-private fun MindMapCanvas(
-    concepts: List<Concept>,
-    selectedConcept: Concept?,
-    onConceptClick: (Concept?) -> Unit
-) {
-    Canvas(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable { onConceptClick(null) }
+private fun ConceptBottomSheet(concept: Concept, onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        val centerX = size.width / 2
-        val centerY = size.height / 2
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "CONCEPTO SELECCIONADO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = concept.title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
 
-        // 1. Dibujar las líneas de conexión primero (detrás)
-        concepts.forEach { concept ->
-            concept.connections.forEach { connectionId ->
-                val connectedConcept = concepts.find { it.id == connectionId }
-                if (connectedConcept != null) {
-                    drawConnection(
-                        from = Offset(centerX + concept.position.x * size.width, centerY + concept.position.y * size.height),
-                        to = Offset(centerX + connectedConcept.position.x * size.width, centerY + connectedConcept.position.y * size.height)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Indicador de retención SM-2
+                val retentionColor = if (concept.color == Color(0xFFD32F2F))
+                    Color(0xFFEF5350)
+                else
+                    Color(0xFF4CAF50)
+
+                Surface(
+                    color = retentionColor.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (concept.color == Color(0xFFD32F2F))
+                                Icons.Default.Warning
+                            else
+                                Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = retentionColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (concept.color == Color(0xFFD32F2F))
+                                "Repaso pendiente · Prioridad alta"
+                            else
+                                "Retención óptima · SM-2 activo",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = retentionColor,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = concept.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    ConceptStatItem(
+                        icon = Icons.Default.Description,
+                        label = "${concept.filesCount} Archivos"
+                    )
+                    ConceptStatItem(
+                        icon = Icons.Default.School,
+                        label = "Módulo ${concept.lessonNumber}"
+                    )
+                    ConceptStatItem(
+                        icon = Icons.Default.TrendingUp,
+                        label = when (concept.difficulty) {
+                            ConceptDifficulty.BASIC -> "Básico"
+                            ConceptDifficulty.INTERMEDIATE -> "Intermedio"
+                            ConceptDifficulty.ADVANCED -> "Avanzado"
+                        }
                     )
                 }
             }
         }
-
-        // 2. Dibujar los nodos y sus nombres
-        concepts.forEach { concept ->
-            val position = Offset(centerX + concept.position.x * size.width, centerY + concept.position.y * size.height)
-
-            // Dibujamos el círculo
-            drawConceptNode(concept = concept, position = position, isSelected = concept == selectedConcept)
-
-            // ✨ NUEVO: Pintar el texto explicativo del nodo usando el nativeCanvas de Android
-            val radius = when (concept.importance) {
-                ConceptImportance.HIGH -> 40.dp.toPx()
-                ConceptImportance.MEDIUM -> 30.dp.toPx()
-                ConceptImportance.LOW -> 25.dp.toPx()
-            }
-
-            drawContext.canvas.nativeCanvas.apply {
-                drawText(
-                    concept.title,
-                    position.x,
-                    position.y + radius + 16.dp.toPx(), // Posicionado estratégicamente abajo del círculo
-                    Paint().apply {
-                        color = AndroidColor.DKGRAY
-                        textSize = 12.sp.toPx()
-                        textAlign = Paint.Align.CENTER
-                        isFakeBoldText = concept.importance == ConceptImportance.HIGH
-                        isAntiAlias = true
-                    }
-                )
-            }
-        }
-    }
-}
-
-private fun DrawScope.drawConnection(from: Offset, to: Offset) {
-    drawLine(color = Color(0xFFDCDCDC), start = from, end = to, strokeWidth = 2.dp.toPx())
-}
-
-private fun DrawScope.drawConceptNode(concept: Concept, position: Offset, isSelected: Boolean) {
-    val radius = when (concept.importance) {
-        ConceptImportance.HIGH -> 40.dp.toPx()
-        ConceptImportance.MEDIUM -> 30.dp.toPx()
-        ConceptImportance.LOW -> 25.dp.toPx()
-    }
-
-    if (isSelected) {
-        drawCircle(color = concept.color.copy(alpha = 0.3f), radius = radius + 8.dp.toPx(), center = position)
-    }
-
-    drawCircle(color = concept.color, radius = radius, center = position)
-    drawCircle(color = Color.White, radius = radius * 0.5f, center = position) // Anillo interior estilizado
-}
-
-@Composable
-private fun ConceptBottomSheet(concept: Concept, onDismiss: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                    Text(text = "CONCEPTO SELECCIONADO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Cerrar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = concept.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(text = concept.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 20.sp)
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    StatItem(icon = Icons.Default.Description, label = "${concept.filesCount} Archivos")
-                    StatItem(icon = Icons.Default.School, label = "Módulo ${concept.lessonNumber}")
-                }
-            }
-        }
     }
 }
 
 @Composable
-private fun StatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+private fun ConceptStatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

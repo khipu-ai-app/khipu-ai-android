@@ -60,10 +60,21 @@ interface KhipuApiService {
         @Body request: ReviewRequest
     )
 
+    @GET("v1/planner/schedule")
+    suspend fun getWeeklySchedule(): List<ScheduleDayResponse>
+
+    @GET("v1/planner/stats")
+    suspend fun getPlannerStats(): PlannerStatsResponse
+
     @GET("v1/graph/course/{course_id}")
     suspend fun getCourseGraph(
         @Path("course_id") courseId: String
     ): GraphResponse
+
+    @GET("v1/graph/concept/{concept_name}")
+    suspend fun getConceptDetail(
+        @Path("concept_name") conceptName: String
+    ): ConceptDetailResponse
 
     @GET("v1/users/me")
     suspend fun getMyProfile(): UserProfileResponse
