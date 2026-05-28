@@ -37,37 +37,8 @@ class QuizCreationViewModel @Inject constructor(
     val uiState: StateFlow<QuizCreationUiState> = _uiState.asStateFlow()
 
     init {
-        loadMockQuestions()
-    }
-
-    private fun loadMockQuestions() {
-        _uiState.value = _uiState.value.copy(
-            questions = listOf(
-                QuestionUiModel(
-                    id = 1,
-                    question = "¿Quién es considerado el padre del psicoanálisis?",
-                    options = listOf("A. B.F. Skinner", "B. Sigmund Freud", "C. Carl Jung", "D. Ivan Pavlov"),
-                    selectedOptionIndex = 1
-                ),
-                QuestionUiModel(
-                    id = 2,
-                    question = "¿Qué perspectiva psicológica se enfoca en el comportamiento observable en lugar de los procesos mentales internos?",
-                    options = listOf("A. Cognitivismo", "B. Psicoanálisis", "C. Conductismo", "D. Humanismo"),
-                    selectedOptionIndex = 2
-                ),
-                QuestionUiModel(
-                    id = 3,
-                    question = "¿Cuál es la función principal de la amígdala en el cerebro humano?",
-                    options = listOf(
-                        "A. Procesamiento de emociones, especialmente el miedo.",
-                        "B. Control motor fino y equilibrio.",
-                        "C. Regulación del ciclo sueño-vigilia.",
-                        "D. Procesamiento del lenguaje hablado."
-                    ),
-                    selectedOptionIndex = 0
-                )
-            )
-        )
+        // Inicializar sin datos falsos, dependiendo enteramente de la IA o el Backend
+        _uiState.value = _uiState.value.copy(questions = emptyList())
     }
 
     fun selectOption(questionId: Int, optionIndex: Int) {

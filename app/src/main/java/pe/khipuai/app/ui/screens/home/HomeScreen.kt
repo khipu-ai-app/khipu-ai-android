@@ -99,6 +99,39 @@ fun HomeScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
+            
+            // FREEMIUM-07: Banner "X capturas restantes"
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Plan Gratuito", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            Text("Te quedan 5 capturas este mes.", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Button(
+                            onClick = { /* Navigate to Subscription */ },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text("Ser Pro")
+                        }
+                    }
+                }
+            }
 
             item {
                 GreetingSection()

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import pe.khipuai.app.data.local.dao.CourseDao
 import pe.khipuai.app.data.remote.dto.CourseResponse
 import pe.khipuai.app.data.remote.dto.GraphResponse
 import pe.khipuai.app.data.repository.CourseRepository
@@ -22,7 +23,9 @@ import kotlin.math.sin
 // ─── UI State ─────────────────────────────────────────────────────────────
 
 data class MapsUiState(
-    val selectedCourse: String = "Anatomía Humana",
+    // Sin curso seleccionado por defecto — se carga dinámicamente desde Room
+    val selectedCourseId: String = "",
+    val selectedCourseName: String = "",
     val selectedDifficulty: String = "Todas",
     val concepts: List<Concept> = emptyList(),
     val selectedConcept: Concept? = null,
@@ -56,24 +59,47 @@ enum class ConceptDifficulty { BASIC, INTERMEDIATE, ADVANCED }
 @HiltViewModel
 class MapsViewModel @Inject constructor(
     private val graphRepository: GraphRepository,
-    private val courseRepository: CourseRepository
+    private val courseRepository: CourseRepository,
+    private val courseDao: CourseDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MapsUiState())
     val uiState: StateFlow<MapsUiState> = _uiState.asStateFlow()
 
     init {
-        loadGraphForCourseName(_uiState.value.selectedCourse)
+        // Cargar el primer curso real disponible en Room.
+        // Sin cursos → estado vacío, sin fallback inventado.
+        viewModelScope.launch {
+            courseRepository.fetchMyCourses().getOrNull()?.firstOrNull()?.let { first ->
+                _uiState.value = _uiState.value.copy(
+                    selectedCourseId = first.id,
+                    selectedCourseName = first.name
+                )
+                loadGraphForCourseId(first.id)
+            } ?: run {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "No tienes cursos activos. Sube tu primer PDF para comenzar."
+                )
+            }
+        }
     }
 
-    fun updateCourse(courseName: String) {
-        _uiState.value = _uiState.value.copy(selectedCourse = courseName)
-        loadGraphForCourseName(courseName)
+    fun updateCourse(courseId: String, courseName: String) {
+        _uiState.value = _uiState.value.copy(selectedCourseId = courseId, selectedCourseName = courseName)
+        loadGraphForCourseId(courseId)
+    }
+
+    fun refreshCurrentGraph() {
+        val courseId = _uiState.value.selectedCourseId
+        if (courseId.isNotBlank()) {
+            loadGraphForCourseId(courseId)
+        }
     }
 
     fun updateDifficulty(difficulty: String) {
         _uiState.value = _uiState.value.copy(selectedDifficulty = difficulty)
-        loadGraphForCourseName(_uiState.value.selectedCourse)
+        loadGraphForCourseId(_uiState.value.selectedCourseId)
     }
 
     /** Selección desde el BottomSheet (dismiss o selección manual en lista) */
@@ -87,21 +113,15 @@ class MapsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedConcept = concept)
     }
 
-    private fun loadGraphForCourseName(name: String) {
+    private fun loadGraphForCourseId(courseId: String) {
+        if (courseId.isBlank()) {
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            return
+        }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            // 1. Resolver nombre de curso → course_id
-            val courseIdResult = courseRepository.fetchMyCourses()
-            val courseId = courseIdResult.getOrNull()
-                ?.find { it.name.equals(name, ignoreCase = true) }
-                ?.id
-                ?: run {
-                    // Si no hay cursos remotos, usamos un ID de desarrollo
-                    "c1"
-                }
-
-            // 2. Obtener el grafo de Neo4j
+            // Consultar el grafo de Neo4j con el ID real
             graphRepository.fetchCourseGraph(courseId)
                 .onSuccess { response: GraphResponse ->
                     val difficultyFilter = _uiState.value.selectedDifficulty

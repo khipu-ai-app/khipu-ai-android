@@ -102,7 +102,7 @@ fun CaptureScreen(
         },
         bottomBar = {
             BottomNavigationBar(
-                selectedTab = 1, // Capturar tab
+                selectedTab = 1,
                 onTabSelected = onNavigateToTab
             )
         }
@@ -112,9 +112,35 @@ fun CaptureScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            // FREEMIUM-07: Banner "X capturas restantes"
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Plan Gratuito", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("Te quedan 5 capturas este mes.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Button(
+                        onClick = { /* Navigate to Subscription */ },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Ser Pro")
+                    }
+                }
+            }
 
             // Destination section
             DestinationSection(

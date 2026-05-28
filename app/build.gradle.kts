@@ -115,6 +115,11 @@ dependencies {
     // Coil
     implementation(libs.coil.compose)
 
+    // Freemium & Telemetry
+    implementation("com.android.billingclient:billing-ktx:6.1.0")
+    implementation(platform("com.google.firebase:firebase-bom:32.7.1"))
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

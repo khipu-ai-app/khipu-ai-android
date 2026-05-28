@@ -1,30 +1,29 @@
 package pe.khipuai.app.data.local.database
 
-import android.content.Context
 import androidx.room.Database
-import androidx.room.Room
 import androidx.room.RoomDatabase
+import pe.khipuai.app.data.local.dao.CourseDao
+import pe.khipuai.app.data.local.dao.NoteDao
+import pe.khipuai.app.data.local.dao.ReviewDao
 import pe.khipuai.app.data.local.dao.UploadQueueDao
+import pe.khipuai.app.data.local.entity.CourseEntity
+import pe.khipuai.app.data.local.entity.NoteEntity
+import pe.khipuai.app.data.local.entity.ReviewEntity
 import pe.khipuai.app.data.local.entity.UploadQueueEntity
 
-@Database(entities = [UploadQueueEntity::class], version = 1, exportSchema = false)
+@Database(
+    entities = [
+        UploadQueueEntity::class,
+        CourseEntity::class,
+        NoteEntity::class,
+        ReviewEntity::class
+    ],
+    version = 2,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun uploadQueueDao(): UploadQueueDao
-
-    companion object {
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
-
-        fun getDatabase(context: Context): AppDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "khipu_database"
-                ).build()
-                INSTANCE = instance
-                instance
-            }
-        }
-    }
+    abstract fun courseDao(): CourseDao
+    abstract fun noteDao(): NoteDao
+    abstract fun reviewDao(): ReviewDao
 }

@@ -8,15 +8,19 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background: radial-gradient(circle at center, #141424 0%, #08080f 100%);
+            background: #121212;
             font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: #ffffff;
             user-select: none;
             -webkit-user-select: none;
+            width: 100vw;
+            height: 100vh;
         }
         svg {
             width: 100vw;
             height: 100vh;
+            display: block;
+            background: #121212;
         }
         .node {
             cursor: pointer;
@@ -48,139 +52,164 @@
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="./d3.v7.min.js"></script>
 </head>
 <body>
-    <svg id="graph"></svg>
-    <script>
-        const svg = d3.select("#graph");
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        
-        let g = svg.append("g");
-        
-        const zoom = d3.zoom()
-            .scaleExtent([0.2, 4])
-            .on("zoom", (event) => {
-                g.attr("transform", event.transform);
-            });
-        svg.call(zoom);
+<svg id="graph"></svg>
+<script>
+    const svg = d3.select("#graph");
+    const width = window.innerWidth || document.documentElement.clientWidth;
+    const height = window.innerHeight || document.documentElement.clientHeight;
 
-        let simulation = d3.forceSimulation()
-            .force("link", d3.forceLink().id(d => d.id).distance(120))
-            .force("charge", d3.forceManyBody().strength(-250))
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collision", d3.forceCollide().radius(45));
+    svg.attr("width", width).attr("height", height);
 
-        window.addEventListener('resize', () => {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            svg.attr("width", w).attr("height", h);
-            simulation.force("center", d3.forceCenter(w / 2, h / 2));
+    let g = svg.append("g");
+
+    const zoom = d3.zoom()
+        .scaleExtent([0.2, 4])
+        .on("zoom", (event) => {
+            g.attr("transform", event.transform);
         });
+    svg.call(zoom);
 
-        function updateGraphData(nodesJsonStr, edgesJsonStr) {
-            g.selectAll("*").remove();
+    let simulation = d3.forceSimulation()
+        .force("link", d3.forceLink().id(d => d.id).distance(120))
+        .force("charge", d3.forceManyBody().strength(-250))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collision", d3.forceCollide().radius(45));
 
-            const nodes = JSON.parse(nodesJsonStr);
-            const links = JSON.parse(edgesJsonStr);
+    window.addEventListener('resize', () => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        svg.attr("width", w).attr("height", h);
+        simulation.force("center", d3.forceCenter(w / 2, h / 2));
+    });
 
-            const link = g.append("g")
-                .attr("class", "links")
-                .selectAll("line")
-                .data(links)
-                .enter().append("line")
-                .attr("class", "link")
-                .style("stroke", d => {
-                    if (d.type === "MENTIONS") return "rgba(147, 51, 234, 0.4)";
-                    if (d.type === "RELATED_TO") return "rgba(59, 130, 246, 0.4)";
-                    return "rgba(255, 255, 255, 0.15)";
-                });
+    function loadGraph(nodesJsonStr, edgesJsonStr) {
+        let decodedNodes = nodesJsonStr;
+        let decodedEdges = edgesJsonStr;
+        try {
+            if (nodesJsonStr && !nodesJsonStr.trim().startsWith('[')) {
+                decodedNodes = decodeURIComponent(escape(window.atob(nodesJsonStr)));
+            }
+        } catch(e) {
+            console.error("Error decoding nodes Base64:", e);
+        }
+        try {
+            if (edgesJsonStr && !edgesJsonStr.trim().startsWith('[')) {
+                decodedEdges = decodeURIComponent(escape(window.atob(edgesJsonStr)));
+            }
+        } catch(e) {
+            console.error("Error decoding edges Base64:", e);
+        }
+        updateGraphData(decodedNodes, decodedEdges);
+    }
 
-            const nodeGroup = g.append("g")
-                .attr("class", "nodes")
-                .selectAll("g")
-                .data(nodes)
-                .enter().append("g")
-                .call(d3.drag()
-                    .on("start", dragstarted)
-                    .on("drag", dragged)
-                    .on("end", dragended))
-                .on("click", (event, d) => {
-                    if (window.AndroidBridge && typeof window.AndroidBridge.onConceptSelected === 'function') {
-                        window.AndroidBridge.onConceptSelected(d.id);
-                    }
-                });
+    function updateGraphData(nodesJsonStr, edgesJsonStr) {
+        if (simulation) {
+            simulation.stop();
+        }
+        g.selectAll("*").remove();
 
-            nodeGroup.append("circle")
-                .attr("class", "node glow")
-                .attr("r", d => {
-                    if (d.type === "course") return 26;
-                    if (d.type === "note") return 20;
-                    return 16;
-                })
-                .style("fill", d => {
-                    if (d.type === "course") return "#a855f7";
-                    if (d.type === "note") return "#3b82f6";
-                    return d.review_pending ? "#ef4444" : "#10b981";
-                })
-                .style("--glow-color", d => {
-                    if (d.type === "course") return "rgba(168, 85, 247, 0.6)";
-                    if (d.type === "note") return "rgba(59, 130, 246, 0.6)";
-                    return d.review_pending ? "rgba(239, 68, 68, 0.6)" : "rgba(16, 185, 129, 0.6)";
-                });
+        const nodes = JSON.parse(nodesJsonStr);
+        const links = JSON.parse(edgesJsonStr);
 
-            nodeGroup.append("circle")
-                .attr("r", d => {
-                    if (d.type === "course") return 10;
-                    if (d.type === "note") return 6;
-                    return 4;
-                })
-                .style("fill", "#ffffff")
-                .style("opacity", 0.9);
-
-            nodeGroup.append("text")
-                .attr("class", "label")
-                .attr("dy", d => {
-                    if (d.type === "course") return 40;
-                    if (d.type === "note") return 32;
-                    return 28;
-                })
-                .attr("text-anchor", "middle")
-                .text(d => d.label);
-
-            simulation.nodes(nodes);
-            simulation.force("link").links(links);
-            simulation.alpha(1).restart();
-
-            simulation.on("tick", () => {
-                link
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
-
-                nodeGroup
-                    .attr("transform", d => `translate(${d.x}, ${d.y})`);
+        const link = g.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(links)
+            .enter().append("line")
+            .attr("class", "link")
+            .style("stroke", d => {
+                if (d.type === "MENTIONS") return "rgba(147, 51, 234, 0.4)";
+                if (d.type === "RELATED_TO") return "rgba(59, 130, 246, 0.4)";
+                return "rgba(255, 255, 255, 0.15)";
             });
-        }
 
-        function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }
+        const nodeGroup = g.append("g")
+            .attr("class", "nodes")
+            .selectAll("g")
+            .data(nodes)
+            .enter().append("g")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended))
+            .on("click", (event, d) => {
+                if (window.AndroidBridge && typeof window.AndroidBridge.onConceptSelected === 'function') {
+                    window.AndroidBridge.onConceptSelected(d.id);
+                }
+            });
 
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
-        }
+        nodeGroup.append("circle")
+            .attr("class", "node glow")
+            .attr("r", d => {
+                if (d.type === "course") return 26;
+                if (d.type === "note") return 20;
+                return 16;
+            })
+            .style("fill", d => {
+                if (d.type === "course") return "#a855f7";
+                if (d.type === "note") return "#3b82f6";
+                return d.review_pending ? "#ef4444" : "#10b981";
+            })
+            .style("--glow-color", d => {
+                if (d.type === "course") return "rgba(168, 85, 247, 0.6)";
+                if (d.type === "note") return "rgba(59, 130, 246, 0.6)";
+                return d.review_pending ? "rgba(239, 68, 68, 0.6)" : "rgba(16, 185, 129, 0.6)";
+            });
 
-        function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
-    </script>
+        nodeGroup.append("circle")
+            .attr("r", d => {
+                if (d.type === "course") return 10;
+                if (d.type === "note") return 6;
+                return 4;
+            })
+            .style("fill", "#ffffff")
+            .style("opacity", 0.9);
+
+        nodeGroup.append("text")
+            .attr("class", "label")
+            .attr("dy", d => {
+                if (d.type === "course") return 40;
+                if (d.type === "note") return 32;
+                return 28;
+            })
+            .attr("text-anchor", "middle")
+            .text(d => d.label);
+
+        simulation.nodes(nodes);
+        simulation.force("link").links(links);
+        simulation.alpha(1).restart();
+
+        simulation.on("tick", () => {
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            nodeGroup
+                .attr("transform", d => `translate(${d.x}, ${d.y})`);
+        });
+    }
+
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
+</script>
 </body>
 </html>

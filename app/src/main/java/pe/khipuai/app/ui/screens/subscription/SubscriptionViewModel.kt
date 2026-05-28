@@ -1,7 +1,11 @@
 package pe.khipuai.app.ui.screens.subscription
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.PurchasesUpdatedListener
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,11 +36,21 @@ data class SubscriptionUiState(
 )
 
 @HiltViewModel
-class SubscriptionViewModel @Inject constructor() : ViewModel() {
-
+class SubscriptionViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SubscriptionUiState())
     val uiState: StateFlow<SubscriptionUiState> = _uiState.asStateFlow()
+
+    private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
+        // Lógica de respuesta de Google Play Billing
+    }
+
+    private var billingClient: BillingClient = BillingClient.newBuilder(context)
+        .setListener(purchasesUpdatedListener)
+        .enablePendingPurchases()
+        .build()
 
     init {
         loadSubscriptionData()

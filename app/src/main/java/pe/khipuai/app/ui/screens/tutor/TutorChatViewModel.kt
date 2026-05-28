@@ -57,11 +57,11 @@ class TutorChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             quickActions = listOf("Explícame más", "Dame un ejemplo", "Hazme una pregunta")
         )
-        if (sessionIdArg != null) {
+        if (sessionIdArg != null && sessionIdArg != "new" && sessionIdArg != "new_session") {
             _uiState.value = _uiState.value.copy(sessionId = sessionIdArg)
             loadMessages(sessionIdArg)
         } else {
-            // Crear sesión de chat nueva de forma dinámica
+            // Crear sesión de chat nueva de forma dinámica llamando a Postgres
             initializeNewSession()
         }
     }

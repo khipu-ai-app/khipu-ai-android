@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.maps
 
+import android.util.Base64
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -35,21 +36,11 @@ fun MapsScreen(
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     val pageLoaded = remember { mutableStateOf(false) }
 
-    // Cuando llegan nuevos datos del backend Y la página ya está lista, actualizamos el grafo
+    // Control Estricto de Inyección: Delegamos a onPageFinished recargando el WebView
     LaunchedEffect(uiState.d3NodesJson, uiState.d3EdgesJson) {
         if (pageLoaded.value && webViewRef.value != null) {
-            val nodesEscaped = uiState.d3NodesJson
-                .replace("\\", "\\\\")
-                .replace("`", "\\`")
-                .replace("$", "\\$")
-            val edgesEscaped = uiState.d3EdgesJson
-                .replace("\\", "\\\\")
-                .replace("`", "\\`")
-                .replace("$", "\\$")
-            webViewRef.value?.evaluateJavascript(
-                "updateGraphData(`$nodesEscaped`, `$edgesEscaped`)",
-                null
-            )
+            pageLoaded.value = false
+            webViewRef.value?.reload()
         }
     }
 
@@ -106,9 +97,9 @@ fun MapsScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 // Filtros de curso y retención
                 FilterSection(
-                    selectedCourse = uiState.selectedCourse,
+                    selectedCourse = uiState.selectedCourseName,
                     selectedDifficulty = uiState.selectedDifficulty,
-                    onCourseChange = viewModel::updateCourse,
+                    onCourseChange = { name -> viewModel.updateCourse(uiState.selectedCourseId, name) },
                     onDifficultyChange = viewModel::updateDifficulty
                 )
 
@@ -123,9 +114,17 @@ fun MapsScreen(
                     AndroidView(
                         factory = { context ->
                             WebView(context).apply {
+                                layoutParams = android.view.ViewGroup.LayoutParams(
+                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                                setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
                                 settings.allowFileAccess = true
+                                settings.allowContentAccess = true
+                                settings.allowFileAccessFromFileURLs = true
+                                settings.allowUniversalAccessFromFileURLs = true
                                 settings.setSupportZoom(true)
                                 settings.builtInZoomControls = true
                                 settings.displayZoomControls = false
@@ -145,8 +144,10 @@ fun MapsScreen(
                                         val nodes = uiState.d3NodesJson
                                         val edges = uiState.d3EdgesJson
                                         if (nodes != "[]") {
+                                            val nodesB64 = Base64.encodeToString(nodes.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+                                            val edgesB64 = Base64.encodeToString(edges.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
                                             view?.evaluateJavascript(
-                                                "updateGraphData(`${nodes.replace("`", "\\`").replace("$", "\\$")}`, `${edges.replace("`", "\\`").replace("$", "\\$")}`)",
+                                                "loadGraph('$nodesB64', '$edgesB64')",
                                                 null
                                             )
                                         }
@@ -206,7 +207,7 @@ fun MapsScreen(
                                     textAlign = TextAlign.Center
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
-                                OutlinedButton(onClick = { viewModel.updateCourse(uiState.selectedCourse) }) {
+                                OutlinedButton(onClick = { viewModel.updateCourse(uiState.selectedCourseId, uiState.selectedCourseName) }) {
                                     Text("Reintentar")
                                 }
                             }

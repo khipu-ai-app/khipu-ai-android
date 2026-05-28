@@ -41,7 +41,15 @@ object NetworkModule {
         if (!token.isNullOrEmpty()) {
             requestBuilder.addHeader("Authorization", "Bearer $token")
         }
-        chain.proceed(requestBuilder.build())
+        
+        val response = chain.proceed(requestBuilder.build())
+        
+        // Si recibimos 401 (ej. Wipe de BD o token expirado), limpiamos la sesión local
+        if (response.code == 401) {
+            runBlocking { sessionDataStore.clearToken() }
+        }
+        
+        return@Interceptor response
     }
 
     @Provides

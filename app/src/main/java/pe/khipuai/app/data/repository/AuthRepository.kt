@@ -1,7 +1,7 @@
 package pe.khipuai.app.data.repository
 
 import kotlinx.coroutines.flow.Flow
-import pe.khipuai.app.data.local.TokenManager
+import pe.khipuai.app.core.datastore.SessionDataStore
 import pe.khipuai.app.data.remote.KhipuApiService
 import pe.khipuai.app.data.remote.dto.AuthRequest
 import pe.khipuai.app.data.remote.dto.UserLoginRequest
@@ -13,15 +13,15 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepository @Inject constructor(
     private val apiService: KhipuApiService,
-    private val tokenManager: TokenManager
+    private val sessionDataStore: SessionDataStore
 ) {
 
-    val isLoggedIn: Flow<String?> = tokenManager.accessToken
+    val isLoggedIn: Flow<String?> = sessionDataStore.tokenFlow
 
     suspend fun loginWithGoogle(idToken: String): Result<Unit> {
         return try {
             val response = apiService.googleAuth(AuthRequest(idToken = idToken))
-            tokenManager.saveToken(response.accessToken)
+            sessionDataStore.saveToken(response.accessToken)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -31,7 +31,7 @@ class AuthRepository @Inject constructor(
     suspend fun loginWithEmail(email: String, password: String): Result<Unit> {
         return try {
             val response = apiService.loginTraditional(UserLoginRequest(email, password))
-            tokenManager.saveToken(response.accessToken)
+            sessionDataStore.saveToken(response.accessToken)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -41,7 +41,7 @@ class AuthRepository @Inject constructor(
     suspend fun registerWithEmail(email: String, password: String, fullName: String): Result<Unit> {
         return try {
             val response = apiService.registerTraditional(UserRegisterRequest(email, password, fullName))
-            tokenManager.saveToken(response.accessToken)
+            sessionDataStore.saveToken(response.accessToken)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -57,6 +57,6 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun logout() {
-        tokenManager.clearToken()
+        sessionDataStore.clearToken()
     }
 }

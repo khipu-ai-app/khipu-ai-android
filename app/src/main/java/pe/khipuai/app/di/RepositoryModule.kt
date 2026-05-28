@@ -6,7 +6,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import kotlinx.serialization.json.Json
-import pe.khipuai.app.data.local.TokenManager
+import pe.khipuai.app.core.datastore.SessionDataStore
+import pe.khipuai.app.data.local.dao.CourseDao
+import pe.khipuai.app.data.local.dao.NoteDao
 import pe.khipuai.app.data.remote.KhipuApiService
 import pe.khipuai.app.data.repository.*
 import javax.inject.Singleton
@@ -19,13 +21,22 @@ object RepositoryModule {
     @Singleton
     fun provideAuthRepository(
         apiService: KhipuApiService,
-        tokenManager: TokenManager
-    ): AuthRepository = AuthRepository(apiService, tokenManager)
+        sessionDataStore: SessionDataStore
+    ): AuthRepository = AuthRepository(apiService, sessionDataStore)
 
     @Provides
     @Singleton
-    fun provideCourseRepository(apiService: KhipuApiService): CourseRepository =
-        CourseRepository(apiService)
+    fun provideCourseRepository(
+        apiService: KhipuApiService,
+        courseDao: CourseDao
+    ): CourseRepository = CourseRepository(apiService, courseDao)
+
+    @Provides
+    @Singleton
+    fun provideOfflineFirstNoteRepository(
+        noteDao: NoteDao,
+        apiService: KhipuApiService
+    ): OfflineFirstNoteRepository = OfflineFirstNoteRepository(noteDao, apiService)
 
     @Provides
     @Singleton
