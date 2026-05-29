@@ -26,7 +26,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import pe.khipuai.app.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -44,19 +46,19 @@ fun NoteDetailScreen(
                 title = { Text(uiState.title, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(0.7f), maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(id = R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.toggleBookmark() }) {
                         Icon(
                             imageVector = if (uiState.isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            contentDescription = "Guardar",
+                            contentDescription = stringResource(id = R.string.action_save),
                             tint = if (uiState.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     IconButton(onClick = { /* Menú de opciones */ }) {
-                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Opciones")
+                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = stringResource(id = R.string.action_options))
                     }
                 }
             )
@@ -81,7 +83,7 @@ fun NoteDetailScreen(
                     ) {
                         Icon(Icons.Default.School, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Repasar ahora", fontWeight = FontWeight.Bold)
+                        Text(stringResource(id = R.string.action_review_now), fontWeight = FontWeight.Bold)
                     }
 
                     OutlinedButton(
@@ -93,7 +95,7 @@ fun NoteDetailScreen(
                     ) {
                         Icon(Icons.Default.Forum, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Preguntar a Khipu", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                        Text(stringResource(id = R.string.action_ask_khipu), color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -119,7 +121,7 @@ fun NoteDetailScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(180.dp)
+                                .height(IntrinsicSize.Min)
                                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
                             contentAlignment = Alignment.BottomEnd
                         ) {
@@ -133,7 +135,7 @@ fun NoteDetailScreen(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                                    Text("Ver original", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(id = R.string.label_view_original), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -147,7 +149,7 @@ fun NoteDetailScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Capturado: ${uiState.capturedDate}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(id = R.string.label_captured_date, uiState.capturedDate), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -172,7 +174,7 @@ fun NoteDetailScreen(
                         Column(modifier = Modifier.padding(16.dp).padding(start = 8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
-                                Text("Resumen Khipu", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(stringResource(id = R.string.title_khipu_summary), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -194,7 +196,7 @@ fun NoteDetailScreen(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Texto Extraído", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(id = R.string.title_extracted_text), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Box(
@@ -227,7 +229,7 @@ fun NoteDetailScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Icon(Icons.Default.LocalOffer, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.outline)
-                            Text("Conceptos Clave", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(stringResource(id = R.string.title_key_concepts), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(12.dp))
 
@@ -264,7 +266,7 @@ fun NoteDetailScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.outline)
-                            Text("Historial de Repaso", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(stringResource(id = R.string.title_review_history), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -280,7 +282,7 @@ fun NoteDetailScreen(
                                     Box(
                                         modifier = Modifier
                                             .width(24.dp)
-                                            .height(50.dp),
+                                            .height(IntrinsicSize.Min),
                                         contentAlignment = Alignment.TopCenter
                                     ) {
                                         if (index < uiState.historyTimeline.lastIndex) {

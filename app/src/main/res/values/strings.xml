@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">Khipu AI</string>
+    <string name="action_back">Volver</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_options">Opciones</string>
+    <string name="action_review_now">Repasar ahora</string>
+    <string name="action_ask_khipu">Preguntar a Khipu</string>
+    <string name="label_view_original">Ver original</string>
+    <string name="label_captured_date">Capturado: %1$s</string>
+    <string name="title_khipu_summary">Resumen Khipu</string>
+    <string name="title_extracted_text">Texto Extraído</string>
+    <string name="title_key_concepts">Conceptos Clave</string>
+    <string name="title_review_history">Historial de Repaso</string>
 </resources>
