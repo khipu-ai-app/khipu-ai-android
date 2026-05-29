@@ -202,7 +202,12 @@ fun LoginScreen(
         // Botón de Google
         GoogleSignInButton(
             onClick = {
-                viewModel.signInWithGoogle(idToken = "mock_developer_token_payload_unsa_2026") { success ->
+                // TODO: [SEGURIDAD] Implementar Google CredentialManager API aquí.
+                // 1. Instanciar CredentialManager.create(context)
+                // 2. Construir GetGoogleIdOption con el Web Client ID de GCP
+                // 3. Ejecutar credentialManager.getCredential(...)
+                // 4. Extraer el GoogleIdTokenCredential y pasar su idToken
+                viewModel.signInWithGoogle(idToken = "TODO_REAL_ID_TOKEN_FROM_CREDENTIAL_MANAGER") { success ->
                     if (success) onNavigateToHome()
                 }
             },
