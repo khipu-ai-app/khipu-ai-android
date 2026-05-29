@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,12 +50,19 @@ class PlannerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(PlannerUiState(isLoading = true))
     val uiState: StateFlow<PlannerUiState> = _uiState.asStateFlow()
 
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            errorMessage = "Error de conexión: ${exception.localizedMessage}"
+        )
+    }
+
     init {
         loadRemotePlanner()
     }
 
     fun loadRemotePlanner() {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             plannerRepository.fetchDailyAgenda()
@@ -104,7 +112,7 @@ class PlannerViewModel @Inject constructor(
     }
 
     fun toggleTask(blockId: String, conceptId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             val currentBlocks = _uiState.value.studyBlocks
             var finalIsCompleted = false
 
@@ -139,7 +147,7 @@ class PlannerViewModel @Inject constructor(
     }
 
     fun submitRating(blockId: String, conceptId: String, rating: Int) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             val currentBlocks = _uiState.value.studyBlocks
             val updatedBlocks = currentBlocks.map { block ->
                 if (block.id == blockId) {

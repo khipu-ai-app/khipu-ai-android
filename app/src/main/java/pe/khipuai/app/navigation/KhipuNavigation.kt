@@ -180,6 +180,11 @@ fun KhipuNavigation(
                     navController.navigate("${Screen.Analysis.route}/$noteId") {
                         popUpTo(Screen.Capture.route) { inclusive = true }
                     }
+                },
+                onErrorEscape = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
                 }
             )
         }

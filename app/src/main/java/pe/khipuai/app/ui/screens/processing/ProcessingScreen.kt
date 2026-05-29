@@ -25,6 +25,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun ProcessingScreen(
     onProcessingComplete: (String) -> Unit,
+    onErrorEscape: () -> Unit = {},
     viewModel: ProcessingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -36,6 +37,14 @@ fun ProcessingScreen(
         if (uiState.isComplete && currentNoteId != null) {
             delay(800)
             onProcessingComplete(currentNoteId)
+        }
+    }
+
+    // Auto-navegación segura cuando ocurre un error crítico
+    LaunchedEffect(uiState.isError) {
+        if (uiState.isError) {
+            delay(3000)
+            onErrorEscape()
         }
     }
 

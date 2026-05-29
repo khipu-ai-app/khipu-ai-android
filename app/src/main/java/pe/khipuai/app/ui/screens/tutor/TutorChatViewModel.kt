@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,8 +67,16 @@ class TutorChatViewModel @Inject constructor(
         }
     }
 
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            isStreaming = false,
+            errorMessage = "Error de conexión: ${exception.localizedMessage}"
+        )
+    }
+
     private fun initializeNewSession() {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _uiState.value = _uiState.value.copy(isLoading = true)
             tutorRepository.createSession("Conversación con Khipu Tutor")
                 .onSuccess { session ->
@@ -86,7 +95,7 @@ class TutorChatViewModel @Inject constructor(
     }
 
     fun loadMessages(sessionId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _uiState.value = _uiState.value.copy(isLoading = true)
             tutorRepository.getMessages(sessionId)
                 .onSuccess { list ->
@@ -142,7 +151,7 @@ class TutorChatViewModel @Inject constructor(
             errorMessage = null
         )
 
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             var fullTextAccumulated = ""
             
             tutorRepository.streamChatMessages(sessionId, query, courseIdArg)

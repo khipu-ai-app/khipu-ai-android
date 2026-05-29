@@ -23,6 +23,7 @@ data class ProcessingUiState(
     val studyTip: String = "Revisar tus apuntes clasificados por Khipu durante 15 minutos al día mejora la retención a largo plazo en un 40%.",
     val isComplete: Boolean = false,
     val errorMessage: String? = null,
+    val isError: Boolean = false,
     val noteId: String? = null
 )
 
@@ -51,7 +52,8 @@ class ProcessingViewModel @Inject constructor(
             startRealBackendPolling(uploadId)
         } else {
             _uiState.value = _uiState.value.copy(
-                errorMessage = "Error crítico: No se encontró el identificador de carga."
+                errorMessage = "Error crítico: No se encontró el identificador de carga.",
+                isError = true
             )
         }
     }
@@ -141,7 +143,8 @@ class ProcessingViewModel @Inject constructor(
                                 isProcessingFinished = true
                                 _uiState.value = _uiState.value.copy(
                                     currentStep = ProcessingStep.COMPLETE,
-                                    errorMessage = "Fallo total en pipeline: la IA no pudo extraer la información."
+                                    errorMessage = "Fallo total en pipeline: la IA no pudo extraer la información.",
+                                    isError = true
                                 )
                             }
                         }
@@ -152,12 +155,13 @@ class ProcessingViewModel @Inject constructor(
 
                 if (!isProcessingFinished) {
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = "Tiempo de espera agotado. Verifica el estado en tu pantalla de inicio."
+                        errorMessage = "Tiempo de espera agotado. Verifica el estado en tu pantalla de inicio.",
+                        isError = true
                     )
                 }
 
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(errorMessage = "Fallo en el hilo del procesador: ${e.message}")
+                _uiState.value = _uiState.value.copy(errorMessage = "Fallo en el hilo del procesador: ${e.message}", isError = true)
             }
         }
     }

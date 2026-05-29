@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,10 +38,17 @@ class AnalysisViewModel @Inject constructor(
         loadNoteDetail()
     }
 
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            errorMessage = "Error de red: ${exception.localizedMessage}"
+        )
+    }
+
     fun loadNoteDetail() {
         val id = noteId ?: return
 
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             noteRepository.getNoteDetail(id)
