@@ -25,16 +25,12 @@ class FileViewerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    // Extraemos el ID del archivo o nota subida desde la navegación
-    private val uploadId: String = checkNotNull(savedStateHandle["uploadId"])
+    private var uploadId: String = ""
 
     private val _uiState = MutableStateFlow(FileViewerUiState())
     val uiState: StateFlow<FileViewerUiState> = _uiState.asStateFlow()
 
-    init {
-        loadFileDetails()
-        startPipelinePolling()
-    }
+
 
     private fun loadFileDetails() {
         viewModelScope.launch {
@@ -78,6 +74,14 @@ class FileViewerViewModel @Inject constructor(
             }
             // Fallback si no termina
             _uiState.value = _uiState.value.copy(isPipelineActive = false)
+        }
+    }
+
+    fun setUploadId(id: String) {
+        if (uploadId.isEmpty() && id.isNotEmpty()) {
+            uploadId = id
+            loadFileDetails()
+            startPipelinePolling()
         }
     }
 }

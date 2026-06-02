@@ -19,6 +19,7 @@ data class NoteDetailResponse(
     @SerialName("topics") val topics: List<ConceptNodeDto>,
     @SerialName("created_at") val createdAt: String,
     @SerialName("course_id") val courseId: String?,
+    @SerialName("course_name") val courseName: String? = null,
     @SerialName("difficulty_level") val difficultyLevel: String,
     @SerialName("difficulty_progress") val difficultyProgress: Float
 )

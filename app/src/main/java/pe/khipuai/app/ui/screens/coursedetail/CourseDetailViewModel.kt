@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import pe.khipuai.app.data.local.entity.NoteEntity
 import pe.khipuai.app.data.repository.CourseRepository
+import pe.khipuai.app.data.repository.GraphRepository
 import pe.khipuai.app.data.repository.OfflineFirstNoteRepository
+import pe.khipuai.app.data.repository.PlannerRepository
 import javax.inject.Inject
 
 data class CompactNoteUiModel(
@@ -59,6 +61,8 @@ data class CourseDetailUiState(
 class CourseDetailViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
     private val offlineFirstNoteRepository: OfflineFirstNoteRepository,
+    private val plannerRepository: PlannerRepository,  // Sprint 7: reviews SM-2
+    private val graphRepository: GraphRepository,       // Sprint 7: grafo Neo4j
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -67,10 +71,6 @@ class CourseDetailViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CourseDetailUiState(isLoading = true))
     val uiState: StateFlow<CourseDetailUiState> = _uiState.asStateFlow()
-
-    init {
-        loadCourseData()
-    }
 
     private fun loadCourseData() {
         if (courseId.isBlank()) {
@@ -86,8 +86,10 @@ class CourseDetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             // 1. Cargar datos del curso desde Room
+            var resolvedCourseName = ""
             val course = courseRepository.getById(courseId)
             if (course != null) {
+                resolvedCourseName = course.name
                 _uiState.value = _uiState.value.copy(
                     courseName = course.name,
                     categoryName = course.color, // El backend no retorna categoría aún
@@ -100,6 +102,7 @@ class CourseDetailViewModel @Inject constructor(
                 courseRepository.fetchMyCourses()
                 val freshCourse = courseRepository.getById(courseId)
                 if (freshCourse != null) {
+                    resolvedCourseName = freshCourse.name
                     _uiState.value = _uiState.value.copy(
                         courseName = freshCourse.name,
                         courseColor = freshCourse.color
@@ -109,9 +112,13 @@ class CourseDetailViewModel @Inject constructor(
 
             // 3. Sincronizar notas desde la API hacia Room
             offlineFirstNoteRepository.syncFromNetwork()
+
+            // 4. Cargar reviews y grafo en paralelo; errores son silenciosos (listas vacías)
+            launch { loadUpcomingReviews(resolvedCourseName) }
+            launch { loadGraphPreview() }
         }
 
-        // 4. Observar notas de Room reactivamente — se actualiza cuando la sync termina
+        // 5. Observar notas de Room reactivamente — se actualiza cuando la sync termina
         offlineFirstNoteRepository.observeByCourse(courseId)
             .onEach { noteEntities ->
                 _uiState.value = _uiState.value.copy(
@@ -122,8 +129,97 @@ class CourseDetailViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    /**
+     * Obtiene la agenda diaria SM-2 y filtra por el nombre del curso actual.
+     * Falla de forma silenciosa: si el endpoint falla, [upcomingReviews] queda vacío.
+     */
+    private suspend fun loadUpcomingReviews(courseName: String) {
+        if (courseName.isBlank()) return
+
+        plannerRepository.fetchDailyAgenda()
+            .onSuccess { concepts ->
+                val reviews = concepts
+                    .filter { it.courseName.equals(courseName, ignoreCase = true) }
+                    .map { due ->
+                        ReviewItemUiModel(
+                            id = due.conceptId,
+                            title = due.conceptName,
+                            scheduleText = buildScheduleText(due.nextReviewDate, due.interval),
+                            // Urgente si el concepto es nuevo (interval ≤ 1) o el ease factor es bajo
+                            isUrgent = due.interval <= 1 || due.easeFactor < 2.0f
+                        )
+                    }
+                _uiState.value = _uiState.value.copy(upcomingReviews = reviews)
+            }
+            // onFailure: lista queda vacía, la pantalla no crashea
+    }
+
+    /**
+     * Obtiene el grafo del curso y toma los primeros 5 nodos de tipo "concept"
+     * para renderizar en el mini-mapa. Falla de forma silenciosa.
+     */
+    private suspend fun loadGraphPreview() {
+        // Posiciones fijas que coinciden con las líneas del Canvas dibujado en CourseDetailScreen
+        val positions = listOf(
+            0.5f to 0.2f,
+            0.3f to 0.5f,
+            0.7f to 0.5f,
+            0.3f to 0.8f,
+            0.7f to 0.8f
+        )
+
+        graphRepository.fetchCourseGraph(courseId)
+            .onSuccess { graph ->
+                val nodes = graph.nodes
+                    .filter { it.type == "concept" }
+                    .take(5)
+                    .mapIndexed { index, node ->
+                        val (x, y) = positions[index]
+                        val status = when {
+                            node.reviewPending == true -> NodeStatus.EN_PROGRESO
+                            (node.easeFactor ?: 0f) >= 2.5f -> NodeStatus.DOMINADO
+                            else -> NodeStatus.BLOQUEADO
+                        }
+                        GraphNodeUiModel(
+                            label = node.label,
+                            iconName = when (status) {
+                                NodeStatus.DOMINADO -> "check"
+                                NodeStatus.EN_PROGRESO -> "circle"
+                                NodeStatus.BLOQUEADO -> "lock"
+                            },
+                            status = status,
+                            xOffsetFraction = x,
+                            yOffsetFraction = y
+                        )
+                    }
+                _uiState.value = _uiState.value.copy(previewNodes = nodes)
+            }
+            // onFailure: mini-mapa queda vacío, la pantalla no crashea
+    }
+
+    /**
+     * Marca un concepto como repasado con rating 4 ("Fácil, recordado con esfuerzo")
+     * y lo remueve optimistamente de la lista local al confirmar el servidor.
+     */
     fun completeReviewTask(taskId: String) {
-        // TODO Sprint 7: Llamar al PlannerRepository con el rating real
+        viewModelScope.launch {
+            plannerRepository.submitReviewRating(taskId, rating = 4)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        upcomingReviews = _uiState.value.upcomingReviews.filter { it.id != taskId }
+                    )
+                }
+            // onFailure: el concepto permanece en lista, el usuario puede reintentar
+        }
+    }
+
+    /** Genera el texto descriptivo de cuándo vence el próximo repaso. */
+    private fun buildScheduleText(nextReviewDate: String, interval: Int): String {
+        return when (interval) {
+            0 -> "Nuevo concepto • Por aprender"
+            1 -> "Vence hoy • Repaso urgente"
+            else -> "En $interval días • ${nextReviewDate.take(10)}"
+        }
     }
 
     private fun NoteEntity.toUiModel(): CompactNoteUiModel {
@@ -147,5 +243,9 @@ class CourseDetailViewModel @Inject constructor(
     private fun monthName(month: Int): String = when (month) {
         1 -> "Ene"; 2 -> "Feb"; 3 -> "Mar"; 4 -> "Abr"; 5 -> "May"; 6 -> "Jun"
         7 -> "Jul"; 8 -> "Ago"; 9 -> "Sep"; 10 -> "Oct"; 11 -> "Nov"; else -> "Dic"
+    }
+
+    init {
+        loadCourseData()
     }
 }

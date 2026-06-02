@@ -47,9 +47,7 @@ class StudyGuideViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(StudyGuideUiState(isLoading = true))
     val uiState: StateFlow<StudyGuideUiState> = _uiState.asStateFlow()
 
-    init {
-        loadStudyGuideContent()
-    }
+
 
     fun loadStudyGuideContent() {
         val id = noteId ?: return
@@ -91,5 +89,9 @@ class StudyGuideViewModel @Inject constructor(
             if (q.id == questionId) q.copy(selectedOptionIndex = optionIndex) else q
         }
         _uiState.value = _uiState.value.copy(questions = updatedQuestions)
+    }
+
+    init {
+        loadStudyGuideContent()
     }
 }

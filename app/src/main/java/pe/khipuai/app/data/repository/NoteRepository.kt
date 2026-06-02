@@ -32,4 +32,13 @@ class NoteRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun deleteNote(noteId: String): Result<Unit> {
+        return try {
+            apiService.deleteNote(noteId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

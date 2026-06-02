@@ -1,10 +1,13 @@
 package pe.khipuai.app.ui.screens.notedetail
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import pe.khipuai.app.data.repository.NoteRepository
 import javax.inject.Inject
 
@@ -18,6 +21,8 @@ data class HistoryItemUiModel(
 )
 
 data class NoteDetailUiState(
+    val noteId: String = "",
+    val uploadId: String = "",
     val title: String = "Cargando nota...",
     val capturedDate: String = "",
     val courseName: String = "",
@@ -26,39 +31,82 @@ data class NoteDetailUiState(
     val keyConcepts: List<String> = emptyList(),
     val historyTimeline: List<HistoryItemUiModel> = emptyList(),
     val isBookmarked: Boolean = false,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
 )
 
 @HiltViewModel
 class NoteDetailViewModel @Inject constructor(
-    private val noteRepository: NoteRepository
+    private val noteRepository: NoteRepository,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    private val noteId: String = checkNotNull(savedStateHandle["noteId"])
 
-    private val _uiState = MutableStateFlow(NoteDetailUiState(isLoading = true))
+    private val _uiState = MutableStateFlow(NoteDetailUiState(isLoading = true, noteId = noteId))
     val uiState: StateFlow<NoteDetailUiState> = _uiState.asStateFlow()
 
-    init {
-        loadNoteDetails()
-    }
-
     private fun loadNoteDetails() {
-        _uiState.value = _uiState.value.copy(
-            isLoading = false,
-            title = "Teoría de Cuerdas",
-            capturedDate = "24 Oct, 2023",
-            courseName = "Física Cuántica",
-            aiSummary = "La teoría de cuerdas propone que las partículas fundamentales no son puntos sin dimensión, sino filamentos unidimensionales vibrantes llamados \"cuerdas\". Esta teoría busca unificar la mecánica cuántica con la relatividad general, intentando explicar todas las fuerzas fundamentales de la naturaleza en un solo marco teórico coherente, requiriendo dimensiones espaciales adicionales más allá de las tres perceptibles.",
-            extractedText = "...el modelo estándar de la física de partículas es incompleto. Las ecuaciones de la relatividad general de Einstein fallan a nivel subatómico. Aquí es donde la teoría de cuerdas ofrece una solución elegante. Si asumimos que los quarks y electrones están formados por cuerdas minúsculas, la gravedad surge naturalmente de las vibraciones de estas cuerdas (gravitones). Sin embargo, las matemáticas requieren 10 u 11 dimensiones para funcionar sin anomalías...",
-            keyConcepts = listOf("Física Cuántica", "Relatividad", "Dimensiones Extras", "Gravitones", "Unificación"),
-            historyTimeline = listOf(
-                HistoryItemUiModel("h1", "Repaso Guiado", "Hace 2 días • 85% retención", HistoryItemType.REPASO_COMPLETADO),
-                HistoryItemUiModel("h2", "Nota Creada", "24 Oct, 2023", HistoryItemType.NOTA_CREADA)
-            )
-        )
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+            noteRepository.getNoteDetail(noteId)
+                .onSuccess { detail ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        noteId = detail.id,
+                        // El id de la nota se usa como referencia al archivo original
+                        uploadId = detail.id,
+                        title = detail.title,
+                        capturedDate = formatDate(detail.createdAt),
+                        courseName = detail.courseName ?: "",
+                        aiSummary = detail.summary,
+                        // El endpoint /v1/notes/{id} no devuelve texto OCR crudo en este sprint
+                        extractedText = "",
+                        keyConcepts = detail.topics.map { it.name },
+                        historyTimeline = listOf(
+                            HistoryItemUiModel(
+                                id = "nota_creada_${detail.id}",
+                                title = "Nota Creada",
+                                description = formatDate(detail.createdAt),
+                                type = HistoryItemType.NOTA_CREADA
+                            )
+                        )
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Error al cargar la nota"
+                    )
+                }
+        }
     }
 
     fun toggleBookmark() {
         _uiState.value = _uiState.value.copy(isBookmarked = !_uiState.value.isBookmarked)
+    }
+
+    /** Convierte ISO 8601 (ej: "2024-10-24T12:00:00") → "24 Oct, 2024". */
+    private fun formatDate(isoDate: String): String {
+        return try {
+            val parts = isoDate.take(10).split("-")
+            if (parts.size == 3) {
+                val monthName = when (parts[1].toInt()) {
+                    1 -> "Ene"; 2 -> "Feb"; 3 -> "Mar"; 4 -> "Abr"
+                    5 -> "May"; 6 -> "Jun"; 7 -> "Jul"; 8 -> "Ago"
+                    9 -> "Sep"; 10 -> "Oct"; 11 -> "Nov"; else -> "Dic"
+                }
+                "${parts[2]} $monthName, ${parts[0]}"
+            } else {
+                isoDate.take(10)
+            }
+        } catch (_: Exception) {
+            isoDate.take(10)
+        }
+    }
+
+    init {
+        loadNoteDetails()
     }
 }

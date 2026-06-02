@@ -27,7 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import pe.khipuai.app.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -36,6 +36,7 @@ fun NoteDetailScreen(
     onBackClick: () -> Unit,
     onReviewClick: () -> Unit,
     onAskTutorClick: () -> Unit,
+    onViewOriginalClick: (String) -> Unit = {},
     viewModel: NoteDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -130,7 +131,7 @@ fun NoteDetailScreen(
                                 modifier = Modifier
                                     .padding(12.dp)
                                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), RoundedCornerShape(99.dp))
-                                    .clickable { /* Mostrar visor de pantalla completa */ }
+                                    .clickable { onViewOriginalClick(java.net.URLEncoder.encode(uiState.uploadId, "UTF-8")) }
                                     .padding(horizontal = 14.dp, vertical = 6.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

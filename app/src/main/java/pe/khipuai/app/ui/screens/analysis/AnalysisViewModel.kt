@@ -31,19 +31,15 @@ class AnalysisViewModel @Inject constructor(
 
     private val noteId: String? = savedStateHandle["noteId"]
 
-    private val _uiState = MutableStateFlow(AnalysisUiState(isLoading = true))
-    val uiState: StateFlow<AnalysisUiState> = _uiState.asStateFlow()
-
-    init {
-        loadNoteDetail()
-    }
-
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         _uiState.value = _uiState.value.copy(
             isLoading = false,
             errorMessage = "Error de red: ${exception.localizedMessage}"
         )
     }
+
+    private val _uiState = MutableStateFlow(AnalysisUiState(isLoading = true))
+    val uiState: StateFlow<AnalysisUiState> = _uiState.asStateFlow()
 
     fun loadNoteDetail() {
         val id = noteId ?: return
@@ -70,5 +66,9 @@ class AnalysisViewModel @Inject constructor(
                     )
                 }
         }
+    }
+
+    init {
+        loadNoteDetail()
     }
 }

@@ -29,9 +29,7 @@ class ProfileViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
-    init {
-        loadUserProfile()
-    }
+
 
     private fun loadUserProfile() {
         viewModelScope.launch {
@@ -40,9 +38,8 @@ class ProfileViewModel @Inject constructor(
                 .onSuccess { profile ->
                     _uiState.value = _uiState.value.copy(
                         userName = profile.fullName ?: "Estudiante UNSA",
-                        // Capitalizamos el tipo de perfil (ej: "ingenieria" -> "Ingenieria")
                         career = profile.profileType?.replaceFirstChar { it.uppercase() } ?: "General",
-                        isPro = true, // Vinculado a tu cuenta mock de desarrollo
+                        isPro = false,
                         isLoading = false
                     )
                 }
@@ -66,5 +63,9 @@ class ProfileViewModel @Inject constructor(
             authRepository.logout()
             onLogoutSuccess()
         }
+    }
+
+    init {
+        loadUserProfile()
     }
 }

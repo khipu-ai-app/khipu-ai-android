@@ -7,9 +7,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import pe.khipuai.app.ui.components.BottomNavigationBar
 import pe.khipuai.app.ui.components.CourseCard
 import pe.khipuai.app.ui.components.RecentFileItem
@@ -29,6 +31,7 @@ fun HomeScreen(
     onNavigateToTab: (Int) -> Unit = {},
     onNavigateToCourses: () -> Unit = {},
     onNavigateToCourseDetail: (String) -> Unit = {},
+    onNavigateToFileViewer: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     // Corregido: Se añaden los métodos delegados correctos mediante los imports de Compose runtime
@@ -99,7 +102,7 @@ fun HomeScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            
+
             // FREEMIUM-07: Banner "X capturas restantes"
             item {
                 Card(
@@ -161,33 +164,33 @@ fun HomeScreen(
                 )
             }
 
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (uiState.courses.isEmpty() && !uiState.isLoading) {
-                        Text(
-                            text = "No tienes cursos creados. ¡Sube un apunte para empezar!",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    } else {
-                        uiState.courses.forEach { course ->
-                            val composeColor = try {
-                                Color(android.graphics.Color.parseColor(course.color))
-                            } catch (_: Exception) {
-                                MaterialTheme.colorScheme.primary
-                            }
-
-                            CourseCard(
-                                name = course.name,
-                                progress = course.progress,
-                                filesCount = course.filesCount,
-                                icon = Icons.AutoMirrored.Filled.MenuBook,
-                                color = composeColor,
-                                onClick = { onNavigateToCourseDetail(course.id) }
-                            )
+            if (uiState.courses.isEmpty() && !uiState.isLoading) {
+                item {
+                    Text(
+                        text = "No tienes cursos creados. ¡Sube un apunte para empezar!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            } else {
+                items(uiState.courses, key = { it.id }) { course ->
+                    val fallbackColor = MaterialTheme.colorScheme.primary
+                    val composeColor = remember(course.color) {
+                        try {
+                            Color(android.graphics.Color.parseColor(course.color))
+                        } catch (_: Exception) {
+                            null
                         }
-                    }
+                    } ?: fallbackColor
+                    CourseCard(
+                        name = course.name,
+                        progress = course.progress,
+                        filesCount = course.filesCount,
+                        icon = Icons.AutoMirrored.Filled.MenuBook,
+                        color = composeColor,
+                        onClick = { onNavigateToCourseDetail(course.id) }
+                    )
                 }
             }
 
@@ -200,26 +203,25 @@ fun HomeScreen(
                 )
             }
 
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (uiState.recentFiles.isEmpty() && !uiState.isLoading) {
-                        Text(
-                            text = "Aún no hay documentos digitalizados.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    } else {
-                        uiState.recentFiles.forEach { file ->
-                            RecentFileItem(
-                                title = file.title,
-                                subject = file.subject,
-                                timeAgo = file.timeAgo,
-                                icon = if (file.type == FileType.AUDIO) Icons.Default.Mic else Icons.Default.Description,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
+            if (uiState.recentFiles.isEmpty() && !uiState.isLoading) {
+                item {
+                    Text(
+                        text = "Aún no hay documentos digitalizados.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            } else {
+                items(uiState.recentFiles, key = { it.id }) { file ->
+                    RecentFileItem(
+                        title = file.title,
+                        subject = file.subject,
+                        timeAgo = file.timeAgo,
+                        icon = if (file.type == FileType.AUDIO) Icons.Default.Mic else Icons.Default.Description,
+                        color = MaterialTheme.colorScheme.secondary,
+                        onClick = { onNavigateToFileViewer(java.net.URLEncoder.encode(file.id, "UTF-8")) }
+                    )
                 }
             }
 

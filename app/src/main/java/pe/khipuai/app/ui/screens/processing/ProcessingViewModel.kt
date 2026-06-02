@@ -47,16 +47,7 @@ class ProcessingViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ProcessingUiState())
     val uiState: StateFlow<ProcessingUiState> = _uiState.asStateFlow()
 
-    init {
-        if (uploadId != null) {
-            startRealBackendPolling(uploadId)
-        } else {
-            _uiState.value = _uiState.value.copy(
-                errorMessage = "Error crítico: No se encontró el identificador de carga.",
-                isError = true
-            )
-        }
-    }
+
 
     private fun startRealBackendPolling(id: String) {
         viewModelScope.launch {
@@ -166,4 +157,14 @@ class ProcessingViewModel @Inject constructor(
         }
     }
 
+    init {
+        if (uploadId != null) {
+            startRealBackendPolling(uploadId)
+        } else {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "Error crítico: No se encontró el identificador de carga.",
+                isError = true
+            )
+        }
+    }
 }

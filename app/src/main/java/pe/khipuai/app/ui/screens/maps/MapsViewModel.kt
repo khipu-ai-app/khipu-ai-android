@@ -66,24 +66,7 @@ class MapsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MapsUiState())
     val uiState: StateFlow<MapsUiState> = _uiState.asStateFlow()
 
-    init {
-        // Cargar el primer curso real disponible en Room.
-        // Sin cursos → estado vacío, sin fallback inventado.
-        viewModelScope.launch {
-            courseRepository.fetchMyCourses().getOrNull()?.firstOrNull()?.let { first ->
-                _uiState.value = _uiState.value.copy(
-                    selectedCourseId = first.id,
-                    selectedCourseName = first.name
-                )
-                loadGraphForCourseId(first.id)
-            } ?: run {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "No tienes cursos activos. Sube tu primer PDF para comenzar."
-                )
-            }
-        }
-    }
+
 
     fun updateCourse(courseId: String, courseName: String) {
         _uiState.value = _uiState.value.copy(selectedCourseId = courseId, selectedCourseName = courseName)
@@ -235,6 +218,25 @@ class MapsViewModel @Inject constructor(
                 "Intermedia" -> it.difficulty == ConceptDifficulty.INTERMEDIATE
                 "Avanzada" -> it.difficulty == ConceptDifficulty.ADVANCED
                 else -> true
+            }
+        }
+    }
+
+    init {
+        // Cargar el primer curso real disponible en Room.
+        // Sin cursos → estado vacío, sin fallback inventado.
+        viewModelScope.launch {
+            courseRepository.fetchMyCourses().getOrNull()?.firstOrNull()?.let { first ->
+                _uiState.value = _uiState.value.copy(
+                    selectedCourseId = first.id,
+                    selectedCourseName = first.name
+                )
+                loadGraphForCourseId(first.id)
+            } ?: run {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "No tienes cursos activos. Sube tu primer PDF para comenzar."
+                )
             }
         }
     }

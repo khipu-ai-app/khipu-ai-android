@@ -9,13 +9,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.remote.dto.ScheduleDayResponse
 import pe.khipuai.app.data.repository.PlannerRepository
 import javax.inject.Inject
 
 data class PlannerUiState(
     val studyBlocks: List<StudyBlock> = emptyList(),
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val streakDays: Int = 0,
+    val masteryPercentage: Int = 0,
+    val totalConcepts: Int = 0,
+    val weeklySchedule: List<ScheduleDayResponse> = emptyList()
 )
 
 // Mantenemos tus modelos originales de UI intactos para no romper tu Screen
@@ -47,9 +52,6 @@ class PlannerViewModel @Inject constructor(
     private val plannerRepository: PlannerRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(PlannerUiState(isLoading = true))
-    val uiState: StateFlow<PlannerUiState> = _uiState.asStateFlow()
-
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         _uiState.value = _uiState.value.copy(
             isLoading = false,
@@ -57,9 +59,8 @@ class PlannerViewModel @Inject constructor(
         )
     }
 
-    init {
-        loadRemotePlanner()
-    }
+    private val _uiState = MutableStateFlow(PlannerUiState(isLoading = true))
+    val uiState: StateFlow<PlannerUiState> = _uiState.asStateFlow()
 
     fun loadRemotePlanner() {
         viewModelScope.launch(exceptionHandler) {
@@ -107,6 +108,23 @@ class PlannerViewModel @Inject constructor(
                         isLoading = false,
                         errorMessage = "Error al sincronizar tu agenda con la IA: ${exception.localizedMessage}"
                     )
+                    return@launch
+                }
+
+            // Estadísticas de progreso (fallo silencioso para no bloquear la agenda)
+            plannerRepository.fetchStats()
+                .onSuccess { stats ->
+                    _uiState.value = _uiState.value.copy(
+                        streakDays = stats.streakDays,
+                        masteryPercentage = stats.masteryPercentage,
+                        totalConcepts = stats.totalConcepts
+                    )
+                }
+
+            // Calendario semanal de repasos (fallo silencioso)
+            plannerRepository.fetchWeeklySchedule()
+                .onSuccess { schedule ->
+                    _uiState.value = _uiState.value.copy(weeklySchedule = schedule)
                 }
         }
     }
@@ -170,5 +188,9 @@ class PlannerViewModel @Inject constructor(
                     loadRemotePlanner()
                 }
         }
+    }
+
+    init {
+        loadRemotePlanner()
     }
 }

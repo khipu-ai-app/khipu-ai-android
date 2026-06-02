@@ -23,9 +23,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileViewerScreen(
+    uploadId: String,
     onNavigateBack: () -> Unit,
     viewModel: FileViewerViewModel = hiltViewModel()
 ) {
+    androidx.compose.runtime.LaunchedEffect(uploadId) {
+        viewModel.setUploadId(uploadId)
+    }
+
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(

@@ -52,9 +52,7 @@ class SubscriptionViewModel @Inject constructor(
         .enablePendingPurchases()
         .build()
 
-    init {
-        loadSubscriptionData()
-    }
+
 
     private fun loadSubscriptionData() {
         _uiState.value = _uiState.value.copy(
@@ -90,5 +88,9 @@ class SubscriptionViewModel @Inject constructor(
 
     fun selectPlan(planId: String) {
         // Disparador listo para integrar la API de pasarela (Stripe/Google Play Billing)
+    }
+
+    init {
+        loadSubscriptionData()
     }
 }

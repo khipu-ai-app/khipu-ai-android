@@ -48,24 +48,8 @@ class TutorChatViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(TutorChatUiState())
-    val uiState: StateFlow<TutorChatUiState> = _uiState.asStateFlow()
-
     private val sessionIdArg: String? = savedStateHandle["sessionId"]
     private val courseIdArg: String? = savedStateHandle["courseId"]
-
-    init {
-        _uiState.value = _uiState.value.copy(
-            quickActions = listOf("Explícame más", "Dame un ejemplo", "Hazme una pregunta")
-        )
-        if (sessionIdArg != null && sessionIdArg != "new" && sessionIdArg != "new_session") {
-            _uiState.value = _uiState.value.copy(sessionId = sessionIdArg)
-            loadMessages(sessionIdArg)
-        } else {
-            // Crear sesión de chat nueva de forma dinámica llamando a Postgres
-            initializeNewSession()
-        }
-    }
 
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         _uiState.value = _uiState.value.copy(
@@ -74,6 +58,9 @@ class TutorChatViewModel @Inject constructor(
             errorMessage = "Error de conexión: ${exception.localizedMessage}"
         )
     }
+
+    private val _uiState = MutableStateFlow(TutorChatUiState())
+    val uiState: StateFlow<TutorChatUiState> = _uiState.asStateFlow()
 
     private fun initializeNewSession() {
         viewModelScope.launch(exceptionHandler) {
@@ -196,5 +183,18 @@ class TutorChatViewModel @Inject constructor(
             } else msg
         }
         _uiState.value = _uiState.value.copy(messages = updated)
+    }
+
+    init {
+        _uiState.value = _uiState.value.copy(
+            quickActions = listOf("Explícame más", "Dame un ejemplo", "Hazme una pregunta")
+        )
+        if (sessionIdArg != null && sessionIdArg != "new" && sessionIdArg != "new_session") {
+            _uiState.value = _uiState.value.copy(sessionId = sessionIdArg)
+            loadMessages(sessionIdArg)
+        } else {
+            // Crear sesión de chat nueva de forma dinámica llamando a Postgres
+            initializeNewSession()
+        }
     }
 }

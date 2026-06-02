@@ -1,10 +1,12 @@
 package pe.khipuai.app.ui.screens.courses
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import pe.khipuai.app.data.repository.CourseRepository
 import javax.inject.Inject
 
@@ -18,7 +20,8 @@ data class CreateCourseUiState(
     val courseName: String = "",
     val selectedColorHex: String = "#7B41B3", // Color morado por defecto (surface-tint)
     val isSubmitting: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val createdSuccessfully: Boolean = false
 )
 
 @HiltViewModel
@@ -51,7 +54,23 @@ class CreateCourseViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(errorMessage = "El nombre del curso es obligatorio.")
             return
         }
-        _uiState.value = _uiState.value.copy(isSubmitting = true)
-        // Aquí se conectará el apiService.createCourse(name, color) directo a Postgres
+        _uiState.value = _uiState.value.copy(isSubmitting = true, errorMessage = null)
+        viewModelScope.launch {
+            courseRepository.createCourse(
+                name = _uiState.value.courseName,
+                color = _uiState.value.selectedColorHex
+            ).onSuccess {
+                _uiState.value = _uiState.value.copy(isSubmitting = false, createdSuccessfully = true)
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isSubmitting = false,
+                    errorMessage = "Error al crear el curso: ${error.localizedMessage}"
+                )
+            }
+        }
+    }
+
+    fun resetSuccess() {
+        _uiState.value = _uiState.value.copy(createdSuccessfully = false)
     }
 }

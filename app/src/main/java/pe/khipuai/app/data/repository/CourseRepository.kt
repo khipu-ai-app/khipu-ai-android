@@ -4,7 +4,9 @@ import kotlinx.coroutines.flow.Flow
 import pe.khipuai.app.data.local.dao.CourseDao
 import pe.khipuai.app.data.local.entity.CourseEntity
 import pe.khipuai.app.data.remote.KhipuApiService
+import pe.khipuai.app.data.remote.dto.CourseCreateRequest
 import pe.khipuai.app.data.remote.dto.CourseResponse
+import pe.khipuai.app.data.remote.dto.CourseUpdateRequest
 import pe.khipuai.app.data.remote.dto.OnboardingRequest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,6 +36,36 @@ class CourseRepository @Inject constructor(
             }
             courseDao.upsertAll(entities)
             Result.success(remote)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createCourse(name: String, color: String): Result<CourseResponse> {
+        return try {
+            val response = apiService.createCourse(CourseCreateRequest(name = name, color = color))
+            courseDao.upsertAll(listOf(CourseEntity(id = response.id, name = response.name, color = response.color)))
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateCourse(courseId: String, name: String?, color: String?): Result<CourseResponse> {
+        return try {
+            val response = apiService.updateCourse(courseId, CourseUpdateRequest(name = name, color = color))
+            courseDao.upsertAll(listOf(CourseEntity(id = response.id, name = response.name, color = response.color)))
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun archiveCourse(courseId: String): Result<Unit> {
+        return try {
+            apiService.deleteCourse(courseId)
+            courseDao.deleteById(courseId)
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

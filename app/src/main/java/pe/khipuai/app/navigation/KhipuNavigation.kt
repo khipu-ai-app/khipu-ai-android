@@ -86,6 +86,9 @@ fun KhipuNavigation(
                 },
                 onNavigateToCourseDetail = { courseId ->
                     navController.navigate("${Screen.CourseDetail.route}/$courseId")
+                },
+                onNavigateToFileViewer = { encodedPath ->
+                    navController.navigate("${Screen.FileViewer.route}/$encodedPath")
                 }
             )
         }
@@ -271,6 +274,9 @@ fun KhipuNavigation(
                 onAskTutorClick = {
                     // Navigate to tutor with a generated session id or hardcoded one since we just need it to open
                     navController.navigate("${Screen.Tutor.route}/new_session")
+                },
+                onViewOriginalClick = { encodedPath ->
+                    navController.navigate("${Screen.FileViewer.route}/$encodedPath")
                 }
             )
         }
@@ -293,8 +299,11 @@ fun KhipuNavigation(
         composable(
             route = "${Screen.FileViewer.route}/{uploadId}",
             arguments = listOf(navArgument("uploadId") { type = NavType.StringType })
-        ) {
+        ) { backStackEntry ->
+            val uploadIdEncoded = backStackEntry.arguments?.getString("uploadId") ?: ""
+            val decodedPath = java.net.URLDecoder.decode(uploadIdEncoded, "UTF-8")
             FileViewerScreen(
+                uploadId = decodedPath,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
