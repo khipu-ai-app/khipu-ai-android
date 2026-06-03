@@ -200,9 +200,68 @@ fun CoursesScreen(
                 }
             }
 
-            // Renderizado de las Tarjetas Bento Reales en lista de una columna
             items(uiState.courses) { course ->
                 var menuExpanded by remember { mutableStateOf(false) }
+                var renameDialogExpanded by remember { mutableStateOf(false) }
+                var renameText by remember { mutableStateOf(course.name) }
+                var deleteDialogExpanded by remember { mutableStateOf(false) }
+
+                if (renameDialogExpanded) {
+                    AlertDialog(
+                        onDismissRequest = { renameDialogExpanded = false },
+                        title = { Text("Renombrar Curso") },
+                        text = {
+                            OutlinedTextField(
+                                value = renameText,
+                                onValueChange = { renameText = it },
+                                label = { Text("Nombre del curso") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    if (renameText.isNotBlank()) {
+                                        viewModel.renameCourse(course.id, renameText)
+                                    }
+                                    renameDialogExpanded = false
+                                }
+                            ) {
+                                Text("Guardar")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { renameDialogExpanded = false }) {
+                                Text("Cancelar")
+                            }
+                        }
+                    )
+                }
+
+                if (deleteDialogExpanded) {
+                    AlertDialog(
+                        onDismissRequest = { deleteDialogExpanded = false },
+                        title = { Text("Eliminar Curso") },
+                        text = { Text("¿Estás seguro de que deseas eliminar permanentemente '${course.name}'? Esta acción no se puede deshacer y desvinculará sus apuntes.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    viewModel.deleteCoursePermanently(course.id)
+                                    deleteDialogExpanded = false
+                                },
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Eliminar")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { deleteDialogExpanded = false }) {
+                                Text("Cancelar")
+                            }
+                        }
+                    )
+                }
 
                 Card(
                     modifier = Modifier
@@ -251,6 +310,17 @@ fun CoursesScreen(
                                     expanded = menuExpanded,
                                     onDismissRequest = { menuExpanded = false }
                                 ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Renombrar curso") },
+                                        onClick = {
+                                            renameText = course.name
+                                            renameDialogExpanded = true
+                                            menuExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Edit, contentDescription = null)
+                                        }
+                                    )
                                     if (course.isActive) {
                                         DropdownMenuItem(
                                             text = { Text("Archivar curso") },
@@ -262,7 +332,33 @@ fun CoursesScreen(
                                                 Icon(Icons.Default.Archive, contentDescription = null)
                                             }
                                         )
+                                    } else {
+                                        DropdownMenuItem(
+                                            text = { Text("Activar/Restaurar curso") },
+                                            onClick = {
+                                                viewModel.restoreCourse(course.id)
+                                                menuExpanded = false
+                                            },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.Unarchive, contentDescription = null)
+                                            }
+                                        )
                                     }
+                                    HorizontalDivider()
+                                    DropdownMenuItem(
+                                        text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
+                                        onClick = {
+                                            deleteDialogExpanded = true
+                                            menuExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.DeleteForever,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    )
                                 }
                             }
                         }

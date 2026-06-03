@@ -82,6 +82,13 @@ interface KhipuApiService {
     @DELETE("v1/notes/{note_id}")
     suspend fun deleteNote(@Path("note_id") noteId: String)
 
+    @PATCH("v1/notes/{note_id}")
+    suspend fun updateNote(
+        @Path("note_id") noteId: String,
+        @Body request: NoteUpdateRequest
+    ): NoteResponse
+
+
     @POST("v1/courses")
     suspend fun createCourse(@Body request: CourseCreateRequest): CourseResponse
 
@@ -93,6 +100,10 @@ interface KhipuApiService {
 
     @DELETE("v1/courses/{course_id}")
     suspend fun deleteCourse(@Path("course_id") courseId: String)
+
+    @DELETE("v1/courses/{course_id}/permanent")
+    suspend fun deleteCoursePermanently(@Path("course_id") courseId: String)
+
 
     @POST("v1/tutor/sessions")
     suspend fun createChatSession(@Body request: ChatSessionCreateRequest): ChatSessionResponse

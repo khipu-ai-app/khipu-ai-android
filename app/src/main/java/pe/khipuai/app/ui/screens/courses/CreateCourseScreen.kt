@@ -31,6 +31,13 @@ fun CreateCourseScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    LaunchedEffect(uiState.createdSuccessfully) {
+        if (uiState.createdSuccessfully) {
+            onNavigateBack()
+            viewModel.resetSuccess()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

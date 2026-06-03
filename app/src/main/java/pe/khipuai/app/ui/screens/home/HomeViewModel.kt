@@ -45,7 +45,8 @@ data class RecentFile(
     val title: String,
     val subject: String,
     val timeAgo: String,
-    val type: FileType
+    val type: FileType,
+    val courseId: String? = null
 )
 
 enum class FileType {
@@ -55,7 +56,7 @@ enum class FileType {
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
-    private val noteRepository: NoteRepository,
+    private val offlineFirstNoteRepository: pe.khipuai.app.data.repository.OfflineFirstNoteRepository,
     private val plannerRepository: PlannerRepository
 ) : ViewModel() {
 
@@ -68,46 +69,18 @@ class HomeViewModel @Inject constructor(
             try {
                 // Lanzar las llamadas en paralelo incluyendo la agenda diaria para sugerencias
                 val coursesDeferred = async { courseRepository.fetchMyCourses() }
-                val notesDeferred = async { noteRepository.fetchMyNotes() }
+                val notesDeferred = async { offlineFirstNoteRepository.syncFromNetwork() }
                 val statsDeferred = async { plannerRepository.fetchStats() }
                 val agendaDeferred = async { plannerRepository.fetchDailyAgenda() }
 
-                val coursesResult = coursesDeferred.await()
-                val notesResult = notesDeferred.await()
+                coursesDeferred.await()
+                notesDeferred.await()
                 val statsResult = statsDeferred.await()
                 val agendaResult = agendaDeferred.await()
 
-                var fetchedCourses = emptyList<Course>()
-                var fetchedFiles = emptyList<RecentFile>()
                 var streak = 0
                 var dailyProgress = 0f
                 var suggestion: Suggestion? = null
-
-                coursesResult.onSuccess { list ->
-                    fetchedCourses = list.map { dto ->
-                        Course(
-                            id = dto.id,
-                            name = dto.name,
-                            progress = 0.0f,
-                            filesCount = 0,
-                            color = dto.color.orEmpty().ifBlank { "#4B00B2" },
-                            icon = "calculate"
-                        )
-                    }
-                }
-
-                notesResult.onSuccess { list ->
-                    fetchedFiles = list.map { dto ->
-                        RecentFile(
-                            id = dto.id,
-                            uploadId = dto.uploadId,
-                            title = dto.title,
-                            subject = "General",
-                            timeAgo = "Añadido recientemente",
-                            type = FileType.DOCUMENT
-                        )
-                    }
-                }
 
                 // Si la llamada de stats falla, streak y dailyProgress quedan en sus defaults (0)
                 statsResult.onSuccess { stats ->
@@ -129,8 +102,6 @@ class HomeViewModel @Inject constructor(
                 }
 
                 _uiState.value = _uiState.value.copy(
-                    courses = fetchedCourses,
-                    recentFiles = fetchedFiles,
                     streak = streak,
                     dailyProgress = dailyProgress,
                     suggestion = suggestion,
@@ -144,6 +115,55 @@ class HomeViewModel @Inject constructor(
     }
 
     init {
+        // Observar cursos y notas de Room reactivamente para mantener la UI sincronizada
+        viewModelScope.launch {
+            kotlinx.coroutines.flow.combine(
+                courseRepository.observeAll(),
+                offlineFirstNoteRepository.observeAll()
+            ) { localCourses, localNotes ->
+                val coursesMapped = localCourses.filter { it.isActive }.map { entity ->
+                    Course(
+                        id = entity.id,
+                        name = entity.name,
+                        progress = 0.0f,
+                        filesCount = localNotes.count { it.courseId == entity.id },
+                        color = entity.color.ifBlank { "#4B00B2" },
+                        icon = "calculate"
+                    )
+                }
+
+                val courseMap = localCourses.associateBy { it.id }
+                val filesMapped = localNotes.map { entity ->
+                    RecentFile(
+                        id = entity.id,
+                        uploadId = entity.uploadId,
+                        title = entity.title,
+                        subject = entity.courseId?.let { courseMap[it]?.name } ?: "General",
+                        timeAgo = "Añadido recientemente",
+                        type = FileType.DOCUMENT,
+                        courseId = entity.courseId
+                    )
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    courses = coursesMapped,
+                    recentFiles = filesMapped
+                )
+            }.collect {}
+        }
+
         loadDashboardContent()
+    }
+
+    fun deleteNote(noteId: String) {
+        viewModelScope.launch {
+            offlineFirstNoteRepository.deleteNote(noteId)
+        }
+    }
+
+    fun renameNote(noteId: String, newTitle: String, currentCourseId: String?) {
+        viewModelScope.launch {
+            offlineFirstNoteRepository.updateNote(noteId, newTitle, currentCourseId)
+        }
     }
 }

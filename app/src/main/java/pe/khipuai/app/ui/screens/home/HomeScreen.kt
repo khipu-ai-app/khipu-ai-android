@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -218,20 +219,117 @@ fun HomeScreen(
                 }
             } else {
                 items(uiState.recentFiles, key = { it.id }) { file ->
-                    RecentFileItem(
-                        title = file.title,
-                        subject = file.subject,
-                        timeAgo = file.timeAgo,
-                        icon = if (file.type == FileType.AUDIO) Icons.Default.Mic else Icons.Default.Description,
-                        color = MaterialTheme.colorScheme.secondary,
-                        onClick = {
-                            if (!file.uploadId.isNullOrEmpty()) {
-                                onNavigateToFileViewer(java.net.URLEncoder.encode(file.uploadId, "UTF-8"))
-                            } else {
-                                onNavigateToNoteDetail(file.id)
+                    var menuExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+                    var renameDialogExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+                    var renameText by remember { androidx.compose.runtime.mutableStateOf(file.title) }
+                    var deleteDialogExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+                    if (renameDialogExpanded) {
+                        AlertDialog(
+                            onDismissRequest = { renameDialogExpanded = false },
+                            title = { Text("Renombrar Apunte") },
+                            text = {
+                                OutlinedTextField(
+                                    value = renameText,
+                                    onValueChange = { renameText = it },
+                                    label = { Text("Título") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        if (renameText.isNotBlank()) {
+                                            viewModel.renameNote(file.id, renameText, file.courseId)
+                                        }
+                                        renameDialogExpanded = false
+                                    }
+                                ) {
+                                    Text("Guardar")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { renameDialogExpanded = false }) {
+                                    Text("Cancelar")
+                                }
                             }
+                        )
+                    }
+
+                    if (deleteDialogExpanded) {
+                        AlertDialog(
+                            onDismissRequest = { deleteDialogExpanded = false },
+                            title = { Text("Eliminar Apunte") },
+                            text = { Text("¿Estás seguro de que deseas eliminar permanentemente el apunte '${file.title}'? Esta acción no se puede deshacer.") },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        viewModel.deleteNote(file.id)
+                                        deleteDialogExpanded = false
+                                    },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("Eliminar")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { deleteDialogExpanded = false }) {
+                                    Text("Cancelar")
+                                }
+                            }
+                        )
+                    }
+
+                    Box {
+                        RecentFileItem(
+                            title = file.title,
+                            subject = file.subject,
+                            timeAgo = file.timeAgo,
+                            icon = if (file.type == FileType.AUDIO) Icons.Default.Mic else Icons.Default.Description,
+                            color = MaterialTheme.colorScheme.secondary,
+                            onClick = {
+                                if (!file.uploadId.isNullOrEmpty()) {
+                                    onNavigateToFileViewer(java.net.URLEncoder.encode(file.uploadId, "UTF-8"))
+                                } else {
+                                    onNavigateToNoteDetail(file.id)
+                                }
+                            },
+                            onMenuClick = { menuExpanded = true }
+                        )
+
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Renombrar") },
+                                onClick = {
+                                    renameText = file.title
+                                    renameDialogExpanded = true
+                                    menuExpanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    deleteDialogExpanded = true
+                                    menuExpanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteForever,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
 

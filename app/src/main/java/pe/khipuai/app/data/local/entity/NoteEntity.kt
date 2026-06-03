@@ -38,6 +38,9 @@ data class NoteEntity(
     @ColumnInfo(name = "difficulty_level")
     val difficultyLevel: String = "medium",
 
+    @ColumnInfo(name = "upload_id")
+    val uploadId: String? = null,
+
     @ColumnInfo(name = "cached_at")
     val cachedAt: Long = System.currentTimeMillis()
 )

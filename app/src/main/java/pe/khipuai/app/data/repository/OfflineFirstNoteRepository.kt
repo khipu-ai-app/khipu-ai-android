@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import pe.khipuai.app.data.local.dao.NoteDao
 import pe.khipuai.app.data.local.entity.NoteEntity
 import pe.khipuai.app.data.remote.KhipuApiService
+import pe.khipuai.app.data.remote.dto.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,7 +45,8 @@ class OfflineFirstNoteRepository @Inject constructor(
                     summary = "",           // El resumen viene en NoteDetail, no en la lista
                     courseId = dto.courseId,
                     createdAt = dto.createdAt,
-                    difficultyLevel = "medium"
+                    difficultyLevel = "medium",
+                    uploadId = dto.uploadId
                 )
             }
             noteDao.upsertAll(entities)
@@ -64,7 +66,8 @@ class OfflineFirstNoteRepository @Inject constructor(
                 summary = detail.summary,
                 courseId = detail.courseId,
                 createdAt = detail.createdAt,
-                difficultyLevel = detail.difficultyLevel
+                difficultyLevel = detail.difficultyLevel,
+                uploadId = detail.uploadId
             )
             noteDao.upsertAll(listOf(entity))
             Result.success(Unit)
@@ -72,4 +75,33 @@ class OfflineFirstNoteRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun updateNote(noteId: String, title: String?, courseId: String?): Result<NoteResponse> {
+        return try {
+            val response = apiService.updateNote(noteId, NoteUpdateRequest(title = title, courseId = courseId))
+            val local = noteDao.getById(noteId)
+            if (local != null) {
+                noteDao.upsertAll(listOf(
+                    local.copy(
+                        title = response.title,
+                        courseId = response.courseId
+                    )
+                ))
+            }
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteNote(noteId: String): Result<Unit> {
+        return try {
+            apiService.deleteNote(noteId)
+            noteDao.deleteById(noteId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
+

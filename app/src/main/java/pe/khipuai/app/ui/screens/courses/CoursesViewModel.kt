@@ -177,6 +177,39 @@ class CoursesViewModel @Inject constructor(
         }
     }
 
+    fun restoreCourse(courseId: String) {
+        viewModelScope.launch {
+            courseRepository.restoreCourse(courseId)
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "No se pudo restaurar el curso: ${e.localizedMessage}"
+                    )
+                }
+        }
+    }
+
+    fun deleteCoursePermanently(courseId: String) {
+        viewModelScope.launch {
+            courseRepository.deleteCoursePermanently(courseId)
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "No se pudo eliminar el curso: ${e.localizedMessage}"
+                    )
+                }
+        }
+    }
+
+    fun renameCourse(courseId: String, newName: String) {
+        viewModelScope.launch {
+            courseRepository.updateCourse(courseId, newName, null)
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "No se pudo renombrar el curso: ${e.localizedMessage}"
+                    )
+                }
+        }
+    }
+
     fun changeFilter(filter: CourseFilter) {
         _selectedFilter.value = filter
     }

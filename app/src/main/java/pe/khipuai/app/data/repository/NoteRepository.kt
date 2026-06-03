@@ -41,4 +41,13 @@ class NoteRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun updateNote(noteId: String, title: String?, courseId: String?): Result<NoteResponse> {
+        return try {
+            Result.success(apiService.updateNote(noteId, NoteUpdateRequest(title = title, courseId = courseId)))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
+

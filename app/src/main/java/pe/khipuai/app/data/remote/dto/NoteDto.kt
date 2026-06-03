@@ -25,3 +25,10 @@ data class NoteDetailResponse(
     @SerialName("difficulty_progress") val difficultyProgress: Float,
     @SerialName("upload_id") val uploadId: String? = null
 )
+
+@Serializable
+data class NoteUpdateRequest(
+    @SerialName("title") val title: String? = null,
+    @SerialName("course_id") val courseId: String? = null
+)
+

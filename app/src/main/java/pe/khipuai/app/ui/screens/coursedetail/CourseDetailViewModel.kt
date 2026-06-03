@@ -54,7 +54,8 @@ data class CourseDetailUiState(
     // El mini-mapa muestra estado vacío hasta que el grafo real responda
     val previewNodes: List<GraphNodeUiModel> = emptyList(),
     val isLoading: Boolean = true,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val availableCourses: List<pe.khipuai.app.data.local.entity.CourseEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -83,6 +84,13 @@ class CourseDetailViewModel @Inject constructor(
 
         // Actualizar el ID en el estado inmediatamente
         _uiState.value = _uiState.value.copy(courseId = courseId, isLoading = true)
+
+        // Cargar cursos disponibles reactivamente
+        viewModelScope.launch {
+            courseRepository.observeAll().collect { courses ->
+                _uiState.value = _uiState.value.copy(availableCourses = courses)
+            }
+        }
 
         viewModelScope.launch {
             // 1. Cargar datos del curso desde Room
@@ -210,6 +218,25 @@ class CourseDetailViewModel @Inject constructor(
                     )
                 }
             // onFailure: el concepto permanece en lista, el usuario puede reintentar
+        }
+    }
+
+    fun renameNote(noteId: String, newTitle: String) {
+        viewModelScope.launch {
+            offlineFirstNoteRepository.updateNote(noteId, newTitle, courseId)
+        }
+    }
+
+    fun deleteNote(noteId: String) {
+        viewModelScope.launch {
+            offlineFirstNoteRepository.deleteNote(noteId)
+        }
+    }
+
+    fun reassociateNote(noteId: String, newCourseId: String?) {
+        viewModelScope.launch {
+            val noteTitle = _uiState.value.notes.find { it.id == noteId }?.title
+            offlineFirstNoteRepository.updateNote(noteId, noteTitle ?: "Apunte sin título", newCourseId)
         }
     }
 

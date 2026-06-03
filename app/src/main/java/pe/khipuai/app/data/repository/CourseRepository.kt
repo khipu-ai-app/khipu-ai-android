@@ -89,6 +89,32 @@ class CourseRepository @Inject constructor(
     suspend fun archiveCourse(courseId: String): Result<Unit> {
         return try {
             apiService.deleteCourse(courseId)
+            val local = courseDao.getById(courseId)
+            if (local != null) {
+                courseDao.upsertAll(listOf(local.copy(isActive = false)))
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun restoreCourse(courseId: String): Result<Unit> {
+        return try {
+            apiService.updateCourse(courseId, CourseUpdateRequest(isActive = true))
+            val local = courseDao.getById(courseId)
+            if (local != null) {
+                courseDao.upsertAll(listOf(local.copy(isActive = true)))
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteCoursePermanently(courseId: String): Result<Unit> {
+        return try {
+            apiService.deleteCoursePermanently(courseId)
             courseDao.deleteById(courseId)
             Result.success(Unit)
         } catch (e: Exception) {

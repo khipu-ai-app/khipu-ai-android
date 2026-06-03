@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -137,29 +139,256 @@ fun CourseDetailScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Fila adaptativa para emular bento horizontal de notas
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            uiState.notes.forEach { note ->
-                                Card(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(150.dp)
-                                        .clickable { onNoteClick(note.id) },
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                                        Column {
-                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
-                                                Text(note.dateTag, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (uiState.notes.isEmpty()) {
+                            Text(
+                                text = "Aún no tienes notas en este curso.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        } else {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                uiState.notes.forEach { note ->
+                                    var menuExpanded by remember { mutableStateOf(false) }
+                                    var renameDialogExpanded by remember { mutableStateOf(false) }
+                                    var renameText by remember { mutableStateOf(note.title) }
+                                    var deleteDialogExpanded by remember { mutableStateOf(false) }
+                                    var reassociateDialogExpanded by remember { mutableStateOf(false) }
+
+                                    if (renameDialogExpanded) {
+                                        AlertDialog(
+                                            onDismissRequest = { renameDialogExpanded = false },
+                                            title = { Text("Renombrar Apunte") },
+                                            text = {
+                                                OutlinedTextField(
+                                                    value = renameText,
+                                                    onValueChange = { renameText = it },
+                                                    label = { Text("Título") },
+                                                    singleLine = true,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            },
+                                            confirmButton = {
+                                                TextButton(
+                                                    onClick = {
+                                                        if (renameText.isNotBlank()) {
+                                                            viewModel.renameNote(note.id, renameText)
+                                                        }
+                                                        renameDialogExpanded = false
+                                                    }
+                                                ) {
+                                                    Text("Guardar")
+                                                }
+                                            },
+                                            dismissButton = {
+                                                TextButton(onClick = { renameDialogExpanded = false }) {
+                                                    Text("Cancelar")
+                                                }
                                             }
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text(note.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            Text(note.snippet, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                        }
-                                        Box(modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                                            Text(note.subCategory, style = MaterialTheme.typography.labelSmall)
+                                        )
+                                    }
+
+                                    if (deleteDialogExpanded) {
+                                        AlertDialog(
+                                            onDismissRequest = { deleteDialogExpanded = false },
+                                            title = { Text("Eliminar Apunte") },
+                                            text = { Text("¿Estás seguro de que deseas eliminar permanentemente el apunte '${note.title}'? Esta acción no se puede deshacer.") },
+                                            confirmButton = {
+                                                TextButton(
+                                                    onClick = {
+                                                        viewModel.deleteNote(note.id)
+                                                        deleteDialogExpanded = false
+                                                    },
+                                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                                ) {
+                                                    Text("Eliminar")
+                                                }
+                                            },
+                                            dismissButton = {
+                                                TextButton(onClick = { deleteDialogExpanded = false }) {
+                                                    Text("Cancelar")
+                                                }
+                                            }
+                                        )
+                                    }
+
+                                    if (reassociateDialogExpanded) {
+                                        AlertDialog(
+                                            onDismissRequest = { reassociateDialogExpanded = false },
+                                            title = { Text("Asociar a Materia / Curso") },
+                                            text = {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .heightIn(max = 300.dp)
+                                                        .verticalScroll(rememberScrollState())
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clickable {
+                                                                viewModel.reassociateNote(note.id, null)
+                                                                reassociateDialogExpanded = false
+                                                            }
+                                                            .padding(vertical = 12.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        RadioButton(
+                                                            selected = uiState.courseId.isBlank(),
+                                                            onClick = {
+                                                                viewModel.reassociateNote(note.id, null)
+                                                                reassociateDialogExpanded = false
+                                                            }
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text("Ninguno (General)")
+                                                    }
+                                                    
+                                                    HorizontalDivider()
+
+                                                    uiState.availableCourses.forEach { course ->
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .clickable {
+                                                                    viewModel.reassociateNote(note.id, course.id)
+                                                                    reassociateDialogExpanded = false
+                                                                }
+                                                                .padding(vertical = 12.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            RadioButton(
+                                                                selected = uiState.courseId == course.id,
+                                                                onClick = {
+                                                                    viewModel.reassociateNote(note.id, course.id)
+                                                                    reassociateDialogExpanded = false
+                                                                }
+                                                            )
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            Text(course.name)
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            confirmButton = {},
+                                            dismissButton = {
+                                                TextButton(onClick = { reassociateDialogExpanded = false }) {
+                                                    Text("Cancelar")
+                                                }
+                                            }
+                                        )
+                                    }
+
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onNoteClick(note.id) },
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Description,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.secondary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = note.title,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = note.snippet,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(note.subCategory, style = MaterialTheme.typography.labelSmall)
+                                                    }
+                                                    Text(
+                                                        text = note.dateTag,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                            Box {
+                                                IconButton(onClick = { menuExpanded = true }) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.MoreVert,
+                                                        contentDescription = "Opciones de la nota",
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                DropdownMenu(
+                                                    expanded = menuExpanded,
+                                                    onDismissRequest = { menuExpanded = false }
+                                                ) {
+                                                    DropdownMenuItem(
+                                                        text = { Text("Renombrar") },
+                                                        onClick = {
+                                                            renameText = note.title
+                                                            renameDialogExpanded = true
+                                                            menuExpanded = false
+                                                        },
+                                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                                                    )
+                                                    DropdownMenuItem(
+                                                        text = { Text("Cambiar Materia") },
+                                                        onClick = {
+                                                            reassociateDialogExpanded = true
+                                                            menuExpanded = false
+                                                        },
+                                                        leadingIcon = { Icon(Icons.Default.Class, contentDescription = null) }
+                                                    )
+                                                    HorizontalDivider()
+                                                    DropdownMenuItem(
+                                                        text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
+                                                        onClick = {
+                                                            deleteDialogExpanded = true
+                                                            menuExpanded = false
+                                                        },
+                                                        leadingIcon = {
+                                                            Icon(
+                                                                imageVector = Icons.Default.DeleteForever,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.error
+                                                            )
+                                                        }
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }

@@ -41,6 +41,136 @@ fun NoteDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    var menuExpanded by remember { mutableStateOf(false) }
+    var renameDialogExpanded by remember { mutableStateOf(false) }
+    var renameText by remember { mutableStateOf(uiState.title) }
+    var deleteDialogExpanded by remember { mutableStateOf(false) }
+    var reassociateDialogExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.title) {
+        renameText = uiState.title
+    }
+
+    if (renameDialogExpanded) {
+        AlertDialog(
+            onDismissRequest = { renameDialogExpanded = false },
+            title = { Text("Renombrar Apunte") },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    label = { Text("Título") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (renameText.isNotBlank()) {
+                            viewModel.renameNote(renameText)
+                        }
+                        renameDialogExpanded = false
+                    }
+                ) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameDialogExpanded = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (deleteDialogExpanded) {
+        AlertDialog(
+            onDismissRequest = { deleteDialogExpanded = false },
+            title = { Text("Eliminar Apunte") },
+            text = { Text("¿Estás seguro de que deseas eliminar permanentemente el apunte '${uiState.title}'? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteNote(onBackClick)
+                        deleteDialogExpanded = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteDialogExpanded = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (reassociateDialogExpanded) {
+        AlertDialog(
+            onDismissRequest = { reassociateDialogExpanded = false },
+            title = { Text("Asociar a Materia / Curso") },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                    // Opción "General" (Ningún curso)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                viewModel.reassociateCourse(null)
+                                reassociateDialogExpanded = false
+                            }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = uiState.courseId == null,
+                            onClick = {
+                                viewModel.reassociateCourse(null)
+                                reassociateDialogExpanded = false
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Ninguno (General)")
+                    }
+                    
+                    HorizontalDivider()
+
+                    uiState.availableCourses.forEach { course ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.reassociateCourse(course.id)
+                                    reassociateDialogExpanded = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = uiState.courseId == course.id,
+                                onClick = {
+                                    viewModel.reassociateCourse(course.id)
+                                    reassociateDialogExpanded = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(course.name)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { reassociateDialogExpanded = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -58,8 +188,46 @@ fun NoteDetailScreen(
                             tint = if (uiState.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    IconButton(onClick = { /* Menú de opciones */ }) {
-                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = stringResource(id = R.string.action_options))
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(imageVector = Icons.Default.MoreVert, contentDescription = stringResource(id = R.string.action_options))
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Renombrar") },
+                                onClick = {
+                                    renameDialogExpanded = true
+                                    menuExpanded = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Cambiar Materia") },
+                                onClick = {
+                                    reassociateDialogExpanded = true
+                                    menuExpanded = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Class, contentDescription = null) }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    deleteDialogExpanded = true
+                                    menuExpanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteForever,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             )
