@@ -15,8 +15,12 @@ data class OnboardingRequest(
 data class CourseResponse(
     @SerialName("id") val id: String,
     @SerialName("name") val name: String,
-    @SerialName("color") val color: String
+    @SerialName("color") val color: String? = "#7F7F7F",
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("is_from_catalog") val isFromCatalog: Boolean = false,
+    @SerialName("catalog_key") val catalogKey: String? = null
 )
+
 
 @Serializable
 data class CourseCreateRequest(

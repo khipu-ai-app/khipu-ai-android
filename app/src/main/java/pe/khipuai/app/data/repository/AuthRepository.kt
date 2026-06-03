@@ -2,6 +2,7 @@ package pe.khipuai.app.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import pe.khipuai.app.core.datastore.SessionDataStore
+import pe.khipuai.app.data.local.database.AppDatabase
 import pe.khipuai.app.data.remote.KhipuApiService
 import pe.khipuai.app.data.remote.dto.AuthRequest
 import pe.khipuai.app.data.remote.dto.UserLoginRequest
@@ -13,7 +14,8 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepository @Inject constructor(
     private val apiService: KhipuApiService,
-    private val sessionDataStore: SessionDataStore
+    private val sessionDataStore: SessionDataStore,
+    private val appDatabase: AppDatabase
 ) {
 
     val isLoggedIn: Flow<String?> = sessionDataStore.tokenFlow
@@ -58,5 +60,8 @@ class AuthRepository @Inject constructor(
 
     suspend fun logout() {
         sessionDataStore.clearToken()
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            appDatabase.clearAllTables()
+        }
     }
-}
+}

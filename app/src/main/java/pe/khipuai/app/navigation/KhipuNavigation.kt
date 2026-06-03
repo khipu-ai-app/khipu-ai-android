@@ -89,6 +89,12 @@ fun KhipuNavigation(
                 },
                 onNavigateToFileViewer = { encodedPath ->
                     navController.navigate("${Screen.FileViewer.route}/$encodedPath")
+                },
+                onNavigateToNoteDetail = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
+                },
+                onNavigateToSubscription = {
+                    navController.navigate(Screen.Subscription.route)
                 }
             )
         }
@@ -106,6 +112,9 @@ fun KhipuNavigation(
                 },
                 onNavigateToProcessing = { uploadId ->
                     navController.navigate("${Screen.Processing.route}/$uploadId")
+                },
+                onNavigateToSubscription = {
+                    navController.navigate(Screen.Subscription.route)
                 }
             )
         }

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 import pe.khipuai.app.data.local.entity.CourseEntity
 
@@ -12,6 +13,12 @@ interface CourseDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(courses: List<CourseEntity>)
+
+    @Transaction
+    suspend fun clearAndInsert(courses: List<CourseEntity>) {
+        deleteAll()
+        upsertAll(courses)
+    }
 
     @Query("SELECT * FROM courses ORDER BY name ASC")
     fun observeAll(): Flow<List<CourseEntity>>
@@ -25,3 +32,4 @@ interface CourseDao {
     @Query("DELETE FROM courses WHERE id = :id")
     suspend fun deleteById(id: String)
 }
+

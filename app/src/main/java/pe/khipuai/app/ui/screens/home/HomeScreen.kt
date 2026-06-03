@@ -32,6 +32,8 @@ fun HomeScreen(
     onNavigateToCourses: () -> Unit = {},
     onNavigateToCourseDetail: (String) -> Unit = {},
     onNavigateToFileViewer: (String) -> Unit = {},
+    onNavigateToNoteDetail: (String) -> Unit = {},
+    onNavigateToSubscription: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     // Corregido: Se añaden los métodos delegados correctos mediante los imports de Compose runtime
@@ -125,7 +127,7 @@ fun HomeScreen(
                             Text("Te quedan 5 capturas este mes.", style = MaterialTheme.typography.bodyMedium)
                         }
                         Button(
-                            onClick = { /* Navigate to Subscription */ },
+                            onClick = onNavigateToSubscription,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary
                             )
@@ -147,13 +149,15 @@ fun HomeScreen(
                 )
             }
 
-            item {
-                SuggestionCard(
-                    title = "Hoy Khipu recomienda repasar: Teoría de Cuerdas",
-                    subtitle = "Basado en tu última sesión de Física",
-                    description = "Avanzada, este concepto reforzará tu comprensión.",
-                    onStartReview = { /* TODO: Start review */ }
-                )
+            uiState.suggestion?.let { sug ->
+                item {
+                    SuggestionCard(
+                        title = "Hoy Khipu recomienda repasar: ${sug.conceptName}",
+                        subtitle = "Basado en tu última sesión de ${sug.courseName}",
+                        description = "${sug.label}, este concepto reforzará tu comprensión.",
+                        onStartReview = { onNavigateToTab(2) }
+                    )
+                }
             }
 
             item {
@@ -220,7 +224,13 @@ fun HomeScreen(
                         timeAgo = file.timeAgo,
                         icon = if (file.type == FileType.AUDIO) Icons.Default.Mic else Icons.Default.Description,
                         color = MaterialTheme.colorScheme.secondary,
-                        onClick = { onNavigateToFileViewer(java.net.URLEncoder.encode(file.id, "UTF-8")) }
+                        onClick = {
+                            if (!file.uploadId.isNullOrEmpty()) {
+                                onNavigateToFileViewer(java.net.URLEncoder.encode(file.uploadId, "UTF-8"))
+                            } else {
+                                onNavigateToNoteDetail(file.id)
+                            }
+                        }
                     )
                 }
             }

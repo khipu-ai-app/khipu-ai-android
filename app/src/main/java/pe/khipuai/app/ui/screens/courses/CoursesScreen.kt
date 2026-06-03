@@ -4,11 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +16,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,50 +43,79 @@ fun CoursesScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // User Avatar
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                        )
-                        Text("Khipu AI", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                .background(Color(0xFFE8DEF8), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Perfil",
+                                tint = Color(0xFF4F378B),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Text("Khipu AI", fontWeight = FontWeight.Bold, color = Color(0xFF4F378B))
                     }
                 },
                 actions = {
                     IconButton(onClick = { /* Notificaciones */ }) {
-                        Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notificaciones")
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notificaciones",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { paddingValues ->
-        // Usamos LazyVerticalGrid con celdas adaptativas para lograr el Bento Grid responsivo
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 320.dp),
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-
-            // Sección de Encabezado de Página (Ocupa todo el ancho disponible)
-            item(span = { GridItemSpan(maxLineSpan) }) {
+            // Sección de Encabezado de Página
+            item {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text("Mis Cursos", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                            Text("Gestiona tu aprendizaje y progreso estructurado.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = "Mis Cursos",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Gestiona tu aprendizaje y progreso estructurado.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
+                        // Botón morado oscuro tipo píldora
                         Button(
                             onClick = onCreateCourseClick,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            shape = RoundedCornerShape(9999.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF4F378B),
+                                contentColor = Color.White
+                            ),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null)
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Crear nuevo curso", style = MaterialTheme.typography.labelLarge)
                         }
@@ -93,8 +123,8 @@ fun CoursesScreen(
                 }
             }
 
-            // Carrusel de Filtros Organizacionales (Ocupa todo el ancho)
-            item(span = { GridItemSpan(maxLineSpan) }) {
+            // Carrusel de Filtros Organizacionales
+            item {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -104,22 +134,79 @@ fun CoursesScreen(
                         FilterChip(
                             selected = isSelected,
                             onClick = { viewModel.changeFilter(filter) },
-                            label = { Text(filter.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                            label = {
+                                val labelText = when (filter) {
+                                    CourseFilter.TODOS -> "Todos"
+                                    CourseFilter.ACTIVOS -> "Activos"
+                                    CourseFilter.COMPLETADOS -> "Completados"
+                                    CourseFilter.ARCHIVADOS -> "Archivados"
+                                }
+                                Text(
+                                    text = labelText,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                            },
+                            shape = RoundedCornerShape(9999.dp),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = MaterialTheme.colorScheme.outlineVariant,
+                                selectedBorderColor = Color.Transparent,
+                                borderWidth = 1.dp,
+                                selectedBorderWidth = 0.dp
+                            ),
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                containerColor = Color.Transparent,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                selectedContainerColor = Color(0xFF4F378B),
+                                selectedLabelColor = Color.White
                             )
+
                         )
                     }
                 }
             }
 
-            // Renderizado de las Tarjetas Bento Reales
+            // Indicador de carga
+            if (uiState.isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFF4F378B))
+                    }
+                }
+            }
+
+            // Empty state
+            if (uiState.courses.isEmpty() && !uiState.isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No se encontraron cursos en esta sección.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            // Renderizado de las Tarjetas Bento Reales en lista de una columna
             items(uiState.courses) { course ->
+                var menuExpanded by remember { mutableStateOf(false) }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(290.dp)
                         .clickable { onCourseClick(course.id) },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
@@ -127,146 +214,202 @@ fun CoursesScreen(
                 ) {
                     Column(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
+                            .fillMaxWidth()
+                            .padding(16.dp)
                     ) {
-                        Column {
-                            // Fila Superior: Icono y Menú
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                        // Fila Superior: Icono y Menú
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .background(Color(0xFFE8DEF8), CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = when(course.iconName) {
-                                            "memory" -> Icons.Default.Memory
-                                            "psychology" -> Icons.Default.Psychology
-                                            else -> Icons.Default.HistoryEdu
-                                        },
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                IconButton(onClick = { /* Menú contextual */ }) {
+                                Icon(
+                                    imageVector = when(course.iconName) {
+                                        "history" -> Icons.Default.HistoryEdu
+                                        "calculate" -> Icons.Default.Calculate
+                                        "science" -> Icons.Default.Science
+                                        "computer" -> Icons.Default.Computer
+                                        else -> Icons.Default.Book
+                                    },
+                                    contentDescription = null,
+                                    tint = Color(0xFF4F378B),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            
+                            Box {
+                                IconButton(onClick = { menuExpanded = true }) {
                                     Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
                                 }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Información Textual
-                            Text(
-                                text = course.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = course.description,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Etiquetas Relacionales
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                BadgeTag(text = course.categoryTag)
-                                BadgeTag(text = course.semesterTag)
-                                if (course.priorityTag != null) {
-                                    BadgeTag(
-                                        text = course.priorityTag,
-                                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                                        textColor = MaterialTheme.colorScheme.onErrorContainer
-                                    )
+                                DropdownMenu(
+                                    expanded = menuExpanded,
+                                    onDismissRequest = { menuExpanded = false }
+                                ) {
+                                    if (course.isActive) {
+                                        DropdownMenuItem(
+                                            text = { Text("Archivar curso") },
+                                            onClick = {
+                                                viewModel.archiveCourse(course.id)
+                                                menuExpanded = false
+                                            },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.Archive, contentDescription = null)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // Sección Inferior Relacional (Métricas de Conocimiento)
-                        Column(
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Información Textual
+                        Text(
+                            text = course.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = course.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Etiquetas Relacionales
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            BadgeTag(text = course.categoryTag, containerColor = Color(0xFFF3EDF7), textColor = Color(0xFF4F378B))
+                            BadgeTag(text = course.semesterTag, containerColor = Color(0xFFE8DEF8), textColor = Color(0xFF1D1B20))
+                            if (course.priorityTag != null) {
+                                val isHigh = course.priorityTag.contains("Alta", ignoreCase = true)
+                                val containerColor = if (isHigh) Color(0xFFFFDAD9) else Color(0xFFE8F5E9)
+                                val textColor = if (isHigh) Color(0xFF410002) else Color(0xFF2E7D32)
+                                BadgeTag(text = course.priorityTag, containerColor = containerColor, textColor = textColor)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Sección de Progreso
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Progreso de Conocimiento",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${course.progressPercentage}%",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LinearProgressIndicator(
+                            progress = { course.progressPercentage / 100f },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                .padding(12.dp)
+                                .height(8.dp)
+                                .clip(CircleShape),
+                            color = Color(0xFF4CAF50),
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Métricas
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Progreso de Conocimiento", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${course.progressPercentage}%", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = { course.progressPercentage / 100f },
-                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                                color = MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            LabelMetric(
+                                icon = Icons.Default.CheckCircle,
+                                text = "${course.masteredCount} Dominados",
+                                tint = Color(0xFF4CAF50)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                LabelMetric(icon = Icons.Default.CheckCircle, text = "${course.masteredCount} Dominados")
-                                LabelMetric(icon = Icons.Default.Pending, text = "${course.pendingCount} Pendientes")
-                            }
+                            LabelMetric(
+                                icon = Icons.Default.Pending,
+                                text = "${course.pendingCount} Pendientes",
+                                tint = Color(0xFFFF9800)
+                            )
                         }
                     }
                 }
             }
 
-            // Botón de Trazo Discontinuo: Nuevo Espacio / Quick Add
+            // Tarjeta de borde punteado: Nuevo Espacio
             item {
-                OutlinedButton(
-                    onClick = { /* Crear Espacio Inteligente */ },
+                val outlineColor = MaterialTheme.colorScheme.outlineVariant
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(290.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant)
+                        .height(140.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { /* Crear Espacio Inteligente */ }
+                        .drawBehind {
+                            val stroke = Stroke(
+                                width = 1.5.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+                            )
+                            drawRoundRect(
+                                color = outlineColor,
+                                style = stroke,
+                                cornerRadius = CornerRadius(16.dp.toPx())
+                            )
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AddCircle,
                                 contentDescription = null,
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(24.dp),
                                 tint = MaterialTheme.colorScheme.outline
-                            )                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text("Nuevo Espacio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            )
+                            Text(
+                                text = "Nuevo Espacio",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Crea una nueva carpeta inteligente para organizar tus temas.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Text(
+                            text = "Crea una nueva carpeta inteligente para organizar tus temas.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
                     }
                 }
             }
-
-            item(span = { GridItemSpan(maxLineSpan) }) { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }
 }
@@ -287,12 +430,21 @@ private fun BadgeTag(
 }
 
 @Composable
-private fun LabelMetric(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+private fun LabelMetric(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    tint: Color
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = tint
+        )
         Text(text = text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

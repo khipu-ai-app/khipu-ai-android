@@ -19,7 +19,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.ui.platform.LocalUriHandler
+import coil.compose.AsyncImage
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileViewerScreen(
@@ -66,27 +69,77 @@ fun FileViewerScreen(
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
-                // Placeholder para un visor PDF real o Coil AsyncImage para imagen
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFFE0E0E0)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Description,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = Color.Gray
+                val isImage = when (uiState.fileType?.lowercase()) {
+                    "png", "jpg", "jpeg", "webp" -> true
+                    else -> uiState.fileUrl?.let { url ->
+                        val cleanUrl = url.substringBefore("?")
+                        cleanUrl.endsWith(".png") || cleanUrl.endsWith(".jpg") || 
+                        cleanUrl.endsWith(".jpeg") || cleanUrl.endsWith(".webp")
+                    } ?: false
+                }
+
+                if (isImage) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = uiState.fileUrl,
+                            contentDescription = uiState.filename ?: "Imagen original",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Renderizador Nativo Placeholder\n${uiState.fileUrl}",
-                            color = Color.DarkGray,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
+                    }
+                } else {
+                    val uriHandler = LocalUriHandler.current
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PictureAsPdf,
+                                contentDescription = null,
+                                modifier = Modifier.size(80.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = uiState.filename ?: "Documento PDF",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Este archivo es un documento PDF y se abrirá a través del visor externo del sistema.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Button(
+                                onClick = { uiState.fileUrl?.let { uriHandler.openUri(it) } },
+                                shape = RoundedCornerShape(99.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.OpenInNew,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Abrir PDF en el Navegador")
+                            }
+                        }
                     }
                 }
             }

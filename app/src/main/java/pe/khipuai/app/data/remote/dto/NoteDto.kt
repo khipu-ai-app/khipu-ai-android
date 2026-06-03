@@ -8,7 +8,8 @@ data class NoteResponse(
     @SerialName("id") val id: String,
     @SerialName("title") val title: String,
     @SerialName("course_id") val courseId: String?,
-    @SerialName("created_at") val createdAt: String
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("upload_id") val uploadId: String? = null
 )
 
 @Serializable
@@ -21,5 +22,6 @@ data class NoteDetailResponse(
     @SerialName("course_id") val courseId: String?,
     @SerialName("course_name") val courseName: String? = null,
     @SerialName("difficulty_level") val difficultyLevel: String,
-    @SerialName("difficulty_progress") val difficultyProgress: Float
+    @SerialName("difficulty_progress") val difficultyProgress: Float,
+    @SerialName("upload_id") val uploadId: String? = null
 )

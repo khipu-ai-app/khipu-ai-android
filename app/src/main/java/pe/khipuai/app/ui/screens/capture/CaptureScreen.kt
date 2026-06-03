@@ -31,6 +31,7 @@ import java.io.File
 fun CaptureScreen(
     onNavigateToTab: (Int) -> Unit,
     onNavigateToProcessing: (String) -> Unit = {},
+    onNavigateToSubscription: () -> Unit = {},
     viewModel: CaptureViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -134,7 +135,7 @@ fun CaptureScreen(
                         Text("Te quedan 5 capturas este mes.", style = MaterialTheme.typography.bodyMedium)
                     }
                     Button(
-                        onClick = { /* Navigate to Subscription */ },
+                        onClick = onNavigateToSubscription,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("Ser Pro")

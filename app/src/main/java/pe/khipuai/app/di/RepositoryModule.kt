@@ -21,8 +21,10 @@ object RepositoryModule {
     @Singleton
     fun provideAuthRepository(
         apiService: KhipuApiService,
-        sessionDataStore: SessionDataStore
-    ): AuthRepository = AuthRepository(apiService, sessionDataStore)
+        sessionDataStore: SessionDataStore,
+        appDatabase: pe.khipuai.app.data.local.database.AppDatabase
+    ): AuthRepository = AuthRepository(apiService, sessionDataStore, appDatabase)
+
 
     @Provides
     @Singleton

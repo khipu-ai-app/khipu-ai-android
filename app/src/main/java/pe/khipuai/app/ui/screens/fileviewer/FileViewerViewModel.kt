@@ -8,12 +8,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import pe.khipuai.app.BuildConfig
+import pe.khipuai.app.core.datastore.SessionDataStore
 import pe.khipuai.app.data.repository.UploadRepository
 import javax.inject.Inject
 
 data class FileViewerUiState(
     val fileUrl: String? = null,
+    val fileType: String? = null,
+    val filename: String? = null,
     val isPipelineActive: Boolean = false,
     val isLoading: Boolean = true,
     val errorMessage: String? = null
@@ -22,6 +27,7 @@ data class FileViewerUiState(
 @HiltViewModel
 class FileViewerViewModel @Inject constructor(
     private val uploadRepository: UploadRepository,
+    private val sessionDataStore: SessionDataStore,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -30,20 +36,18 @@ class FileViewerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(FileViewerUiState())
     val uiState: StateFlow<FileViewerUiState> = _uiState.asStateFlow()
 
-
-
     private fun loadFileDetails() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            // Simulamos obtener la URL raw del archivo según el ID subido
             try {
-                // val result = uploadRepository.getUploadStatus(uploadId).getOrThrow()
-                // _uiState.value = _uiState.value.copy(fileUrl = result.fileUrl, isLoading = false)
-                
-                // MOCK hasta que haya endpoint raw
-                delay(800)
+                // Obtener el estado del upload para saber el nombre y tipo del archivo
+                val status = uploadRepository.checkProcessingStatus(uploadId).getOrThrow()
+                val token = sessionDataStore.tokenFlow.first() ?: ""
+                val fileUrl = "${BuildConfig.BASE_URL}v1/uploads/$uploadId/file?token=$token"
                 _uiState.value = _uiState.value.copy(
-                    fileUrl = "https://example.com/raw_document_$uploadId.pdf",
+                    fileUrl = fileUrl,
+                    fileType = status.fileType,
+                    filename = status.filename,
                     isLoading = false
                 )
             } catch (e: Exception) {

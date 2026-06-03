@@ -16,6 +16,16 @@ data class CourseEntity(
     @ColumnInfo(name = "color")
     val color: String,
 
+    @ColumnInfo(name = "is_active")
+    val isActive: Boolean = true,
+
+    @ColumnInfo(name = "is_from_catalog")
+    val isFromCatalog: Boolean = false,
+
+    @ColumnInfo(name = "catalog_key")
+    val catalogKey: String? = null,
+
     @ColumnInfo(name = "cached_at")
     val cachedAt: Long = System.currentTimeMillis()
 )
+

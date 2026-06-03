@@ -32,9 +32,16 @@ class CourseRepository @Inject constructor(
             val remote = apiService.getMyCourses()
             // Persistir en Room inmediatamente
             val entities = remote.map { dto ->
-                CourseEntity(id = dto.id, name = dto.name, color = dto.color)
+                CourseEntity(
+                    id = dto.id,
+                    name = dto.name,
+                    color = dto.color ?: "#7F7F7F",
+                    isActive = dto.isActive,
+                    isFromCatalog = dto.isFromCatalog,
+                    catalogKey = dto.catalogKey
+                )
             }
-            courseDao.upsertAll(entities)
+            courseDao.clearAndInsert(entities)
             Result.success(remote)
         } catch (e: Exception) {
             Result.failure(e)
@@ -44,7 +51,16 @@ class CourseRepository @Inject constructor(
     suspend fun createCourse(name: String, color: String): Result<CourseResponse> {
         return try {
             val response = apiService.createCourse(CourseCreateRequest(name = name, color = color))
-            courseDao.upsertAll(listOf(CourseEntity(id = response.id, name = response.name, color = response.color)))
+            courseDao.upsertAll(listOf(
+                CourseEntity(
+                    id = response.id,
+                    name = response.name,
+                    color = response.color ?: "#7F7F7F",
+                    isActive = response.isActive,
+                    isFromCatalog = response.isFromCatalog,
+                    catalogKey = response.catalogKey
+                )
+            ))
             Result.success(response)
         } catch (e: Exception) {
             Result.failure(e)
@@ -54,7 +70,16 @@ class CourseRepository @Inject constructor(
     suspend fun updateCourse(courseId: String, name: String?, color: String?): Result<CourseResponse> {
         return try {
             val response = apiService.updateCourse(courseId, CourseUpdateRequest(name = name, color = color))
-            courseDao.upsertAll(listOf(CourseEntity(id = response.id, name = response.name, color = response.color)))
+            courseDao.upsertAll(listOf(
+                CourseEntity(
+                    id = response.id,
+                    name = response.name,
+                    color = response.color ?: "#7F7F7F",
+                    isActive = response.isActive,
+                    isFromCatalog = response.isFromCatalog,
+                    catalogKey = response.catalogKey
+                )
+            ))
             Result.success(response)
         } catch (e: Exception) {
             Result.failure(e)

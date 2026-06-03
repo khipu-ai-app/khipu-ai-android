@@ -55,8 +55,8 @@ class NoteDetailViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         noteId = detail.id,
-                        // El id de la nota se usa como referencia al archivo original
-                        uploadId = detail.id,
+                        // El id de la carga (PDF original) se usa como referencia para visualizarlo
+                        uploadId = detail.uploadId ?: "",
                         title = detail.title,
                         capturedDate = formatDate(detail.createdAt),
                         courseName = detail.courseName ?: "",
