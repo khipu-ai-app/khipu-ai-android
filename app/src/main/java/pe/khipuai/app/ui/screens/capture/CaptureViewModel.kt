@@ -7,12 +7,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.repository.CourseRepository
 import pe.khipuai.app.data.repository.UploadRepository
 import java.io.File
 import javax.inject.Inject
 
+data class CourseOption(
+    val id: String,
+    val name: String
+)
+
 data class CaptureUiState(
     val selectedDestination: String = "Autoclasificar con IA",
+    val selectedDestinationId: String? = null,
+    val courses: List<CourseOption> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val captureMode: CaptureMode = CaptureMode.CAMERA,
@@ -25,14 +33,32 @@ enum class CaptureMode {
 
 @HiltViewModel
 class CaptureViewModel @Inject constructor(
-    private val uploadRepository: UploadRepository
+    private val uploadRepository: UploadRepository,
+    private val courseRepository: CourseRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CaptureUiState())
     val uiState: StateFlow<CaptureUiState> = _uiState.asStateFlow()
 
-    fun updateDestination(destination: String) {
-        _uiState.value = _uiState.value.copy(selectedDestination = destination)
+    init {
+        viewModelScope.launch {
+            courseRepository.observeAll().collect { localCourses ->
+                val activeCourses = localCourses.filter { it.isActive }.map {
+                    CourseOption(id = it.id, name = it.name)
+                }.sortedBy { it.name }
+                _uiState.value = _uiState.value.copy(courses = activeCourses)
+            }
+        }
+        viewModelScope.launch {
+            courseRepository.fetchMyCourses()
+        }
+    }
+
+    fun updateDestination(destinationName: String, destinationId: String?) {
+        _uiState.value = _uiState.value.copy(
+            selectedDestination = destinationName,
+            selectedDestinationId = destinationId
+        )
     }
 
     // Procesa el envío de archivos de imagen capturados por la cámara del celular
@@ -44,7 +70,7 @@ class CaptureViewModel @Inject constructor(
                 captureMode = CaptureMode.CAMERA
             )
 
-            val currentCourseId = if (_uiState.value.selectedDestination == "Autoclasificar con IA") null else _uiState.value.selectedDestination
+            val currentCourseId = _uiState.value.selectedDestinationId
             val result = uploadRepository.uploadFile(file, mimeType = "image/jpeg", courseId = currentCourseId)
 
             result.onSuccess { response ->
@@ -72,7 +98,7 @@ class CaptureViewModel @Inject constructor(
                 captureMode = CaptureMode.UPLOAD
             )
 
-            val currentCourseId = if (_uiState.value.selectedDestination == "Autoclasificar con IA") null else _uiState.value.selectedDestination
+            val currentCourseId = _uiState.value.selectedDestinationId
             val result = uploadRepository.uploadFile(file, mimeType, courseId = currentCourseId)
 
             result.onSuccess { response ->

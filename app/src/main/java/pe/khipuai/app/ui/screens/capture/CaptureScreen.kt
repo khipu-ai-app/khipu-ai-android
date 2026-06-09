@@ -146,6 +146,7 @@ fun CaptureScreen(
             // Destination section
             DestinationSection(
                 selectedDestination = uiState.selectedDestination,
+                courses = uiState.courses,
                 onDestinationChange = viewModel::updateDestination
             )
 
@@ -178,7 +179,8 @@ fun CaptureScreen(
 @Composable
 private fun DestinationSection(
     selectedDestination: String,
-    onDestinationChange: (String) -> Unit
+    courses: List<CourseOption>,
+    onDestinationChange: (String, String?) -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.Start,
@@ -230,18 +232,18 @@ private fun DestinationSection(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                listOf(
-                    "Autoclasificar con IA",
-                    "Matemáticas",
-                    "Historia",
-                    "Psicología",
-                    "Física",
-                    "Química"
-                ).forEach { option ->
+                DropdownMenuItem(
+                    text = { Text("Autoclasificar con IA") },
+                    onClick = {
+                        onDestinationChange("Autoclasificar con IA", null)
+                        expanded = false
+                    }
+                )
+                courses.forEach { course ->
                     DropdownMenuItem(
-                        text = { Text(option) },
+                        text = { Text(course.name) },
                         onClick = {
-                            onDestinationChange(option)
+                            onDestinationChange(course.name, course.id)
                             expanded = false
                         }
                     )

@@ -130,7 +130,11 @@ class HomeViewModel @Inject constructor(
                         color = entity.color.ifBlank { "#4B00B2" },
                         icon = "calculate"
                     )
-                }
+                }.sortedWith(
+                    compareByDescending<Course> { it.filesCount }
+                        .thenBy { it.name }
+                ).take(3)
+
 
                 val courseMap = localCourses.associateBy { it.id }
                 val filesMapped = localNotes.map { entity ->
