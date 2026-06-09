@@ -13,6 +13,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -93,7 +96,9 @@ fun FileViewerScreen(
                         )
                     }
                 } else {
-                    val uriHandler = LocalUriHandler.current
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    var isDownloading by remember { mutableStateOf(false) }
+
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -121,23 +126,62 @@ fun FileViewerScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Este archivo es un documento PDF y se abrirá a través del visor externo del sistema.",
+                                text = "Este archivo se descargará en segundo plano y se abrirá automáticamente en tu lector de PDF preferido.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(24.dp))
                             Button(
-                                onClick = { uiState.fileUrl?.let { uriHandler.openUri(it) } },
+                                onClick = {
+                                    isDownloading = true
+                                    viewModel.downloadAndGetUri(
+                                        context = context,
+                                        onReady = { uri ->
+                                            isDownloading = false
+                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                                setDataAndType(uri, "application/pdf")
+                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            try {
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    "No tienes una aplicación instalada para abrir archivos PDF",
+                                                    android.widget.Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        },
+                                        onError = { error ->
+                                            isDownloading = false
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                "Error al abrir PDF: $error",
+                                                android.widget.Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    )
+                                },
+                                enabled = !isDownloading,
                                 shape = RoundedCornerShape(99.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.OpenInNew,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                if (isDownloading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.OpenInNew,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Abrir PDF en el Navegador")
+                                Text(if (isDownloading) "Abriendo..." else "Abrir en Visualizador de PDF")
                             }
                         }
                     }

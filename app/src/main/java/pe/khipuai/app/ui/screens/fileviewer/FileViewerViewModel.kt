@@ -10,6 +10,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.IOException
 import pe.khipuai.app.BuildConfig
 import pe.khipuai.app.core.datastore.SessionDataStore
 import pe.khipuai.app.data.repository.UploadRepository
@@ -28,6 +34,7 @@ data class FileViewerUiState(
 class FileViewerViewModel @Inject constructor(
     private val uploadRepository: UploadRepository,
     private val sessionDataStore: SessionDataStore,
+    private val okHttpClient: OkHttpClient,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -55,6 +62,54 @@ class FileViewerViewModel @Inject constructor(
                     isLoading = false,
                     errorMessage = "Error al cargar el archivo: ${e.message}"
                 )
+            }
+        }
+    }
+
+    fun downloadAndGetUri(
+        context: android.content.Context,
+        onReady: (android.net.Uri) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val url = _uiState.value.fileUrl ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .build()
+
+                val response = okHttpClient.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    throw IOException("Error del servidor: ${response.code}")
+                }
+
+                val body = response.body ?: throw IOException("Cuerpo de respuesta vacío")
+
+                // Crear un archivo temporal en el cache
+                val filename = _uiState.value.filename ?: "documento.pdf"
+                val tempFile = File(context.cacheDir, filename)
+
+                body.byteStream().use { inputStream ->
+                    tempFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+
+                // Obtener la URI usando FileProvider
+                val authority = "${context.packageName}.fileprovider"
+                val contentUri = androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    authority,
+                    tempFile
+                )
+
+                withContext(Dispatchers.Main) {
+                    onReady(contentUri)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onError(e.message ?: "Error desconocido")
+                }
             }
         }
     }
