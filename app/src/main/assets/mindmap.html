@@ -4,13 +4,35 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
+        :root {
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --label-color: #334155;
+            --label-shadow: rgba(255, 255, 255, 0.9);
+            --link-color: rgba(0, 0, 0, 0.15);
+            --link-label: #64748b;
+            --link-label-shadow: rgba(255, 255, 255, 0.9);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #121212;
+                --text-color: #ffffff;
+                --label-color: #e2e8f0;
+                --label-shadow: rgba(0, 0, 0, 0.9);
+                --link-color: rgba(255, 255, 255, 0.15);
+                --link-label: #9ca3af;
+                --link-label-shadow: rgba(0, 0, 0, 0.8);
+            }
+        }
+
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background: #121212;
+            background: var(--bg-color);
             font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            color: #ffffff;
+            color: var(--text-color);
             user-select: none;
             -webkit-user-select: none;
             width: 100vw;
@@ -20,7 +42,7 @@
             width: 100vw;
             height: 100vh;
             display: block;
-            background: #121212;
+            background: var(--bg-color);
         }
         .node {
             cursor: pointer;
@@ -42,10 +64,16 @@
         .label {
             font-size: 11px;
             font-weight: 500;
-            fill: #e2e8f0;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+            fill: var(--label-color);
+            text-shadow: 0 2px 4px var(--label-shadow);
             pointer-events: none;
             transition: fill 0.2s;
+        }
+        .link-labels text {
+            font-size: 8px;
+            fill: var(--link-label);
+            text-shadow: 0 1px 2px var(--link-label-shadow);
+            text-anchor: middle;
         }
         .glow {
             filter: drop-shadow(0px 0px 8px var(--glow-color));
@@ -85,6 +113,61 @@
         simulation.force("center", d3.forceCenter(w / 2, h / 2));
     });
 
+    let nodeGroupGlobal = null;
+    let linkGlobal = null;
+    let linkLabelGlobal = null;
+    let isConnectedGlobal = null;
+    let selectedNode = null;
+
+    function searchNode(query) {
+        if (!query || query.trim() === "") {
+            if (selectedNode) {
+                selectedNode = null;
+                if (nodeGroupGlobal) nodeGroupGlobal.style("opacity", 1).style("filter", "");
+                if (linkGlobal) linkGlobal.style("opacity", 1);
+                if (linkLabelGlobal) linkLabelGlobal.style("opacity", 1);
+            }
+            return false;
+        }
+        
+        const q = query.toLowerCase();
+        let foundNode = null;
+        
+        if (nodeGroupGlobal) {
+            nodeGroupGlobal.each(function(d) {
+                if (!foundNode && d.label && d.label.toLowerCase().includes(q)) {
+                    foundNode = d;
+                }
+            });
+        }
+        
+        if (foundNode) {
+            selectedNode = foundNode;
+            
+            if (nodeGroupGlobal) {
+                nodeGroupGlobal.style("opacity", o => isConnectedGlobal(foundNode, o) ? 1 : 0.1)
+                         .style("filter", o => o.id === foundNode.id ? "brightness(1.5)" : "");
+            }
+            if (linkGlobal) {
+                linkGlobal.style("opacity", o => (o.source.id === foundNode.id || o.target.id === foundNode.id) ? 1 : 0.05);
+            }
+            if (linkLabelGlobal) {
+                linkLabelGlobal.style("opacity", o => (o.source.id === foundNode.id || o.target.id === foundNode.id) ? 1 : 0.05);
+            }
+            
+            const scale = 1.5;
+            const x = width / 2 - foundNode.x * scale;
+            const y = height / 2 - foundNode.y * scale;
+            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(scale));
+            
+            if (window.AndroidBridge && typeof window.AndroidBridge.onConceptSelected === 'function') {
+                window.AndroidBridge.onConceptSelected(foundNode.id);
+            }
+            return true;
+        }
+        return false;
+    }
+
     function loadGraph(nodesJsonStr, edgesJsonStr) {
         let decodedNodes = nodesJsonStr;
         let decodedEdges = edgesJsonStr;
@@ -111,8 +194,61 @@
         }
         g.selectAll("*").remove();
 
-        const nodes = JSON.parse(nodesJsonStr);
-        const links = JSON.parse(edgesJsonStr);
+        const defs = g.append("defs");
+        defs.append("marker")
+            .attr("id", "arrow")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 22)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "rgba(59, 130, 246, 0.6)");
+
+        const nodesRaw = JSON.parse(nodesJsonStr);
+        const linksRaw = JSON.parse(edgesJsonStr);
+
+        const nodes = nodesRaw.filter(n => n.type !== "note");
+        const courseNode = nodes.find(n => n.type === "course");
+
+        let links = linksRaw.filter(l => l.type !== "HAS_NOTE" && l.type !== "MENTIONS");
+
+        const targetIds = new Set(links.filter(l => l.type === 'RELATED_TO').map(l => l.target));
+
+        if (courseNode) {
+            nodes.forEach(n => {
+                // Solo conectar conceptos "raíz" (que no son dependencias de otros) al nodo del curso central
+                if (n.type === "concept" && !targetIds.has(n.id)) {
+                    links.push({
+                        source: n.id,
+                        target: courseNode.id,
+                        type: "BELONGS_TO"
+                    });
+                }
+            });
+        }
+
+        const linkedByIndex = {};
+        links.forEach(d => {
+            linkedByIndex[`${d.source},${d.target}`] = true;
+            linkedByIndex[`${d.target},${d.source}`] = true;
+        });
+
+        function isConnected(a, b) {
+            return linkedByIndex[`${a.id},${b.id}`] || a.id === b.id;
+        }
+        isConnectedGlobal = isConnected;
+
+        svg.on("click", () => {
+            if (selectedNode) {
+                selectedNode = null;
+                nodeGroup.style("opacity", 1).style("filter", "");
+                link.style("opacity", 1);
+                if (linkLabel) linkLabel.style("opacity", 1);
+            }
+        });
 
         const link = g.append("g")
             .attr("class", "links")
@@ -122,9 +258,20 @@
             .attr("class", "link")
             .style("stroke", d => {
                 if (d.type === "MENTIONS") return "rgba(147, 51, 234, 0.4)";
-                if (d.type === "RELATED_TO") return "rgba(59, 130, 246, 0.4)";
-                return "rgba(255, 255, 255, 0.15)";
-            });
+                if (d.type === "BELONGS_TO") return "rgba(168, 85, 247, 0.2)";
+                if (d.type === "RELATED_TO") return "rgba(59, 130, 246, 0.6)";
+                return "var(--link-color)";
+            })
+            .attr("marker-end", d => d.type === "RELATED_TO" ? "url(#arrow)" : "");
+        linkGlobal = link;
+
+        const linkLabel = g.append("g")
+            .attr("class", "link-labels")
+            .selectAll("text")
+            .data(links.filter(d => d.label))
+            .enter().append("text")
+            .text(d => d.label);
+        linkLabelGlobal = linkLabel;
 
         const nodeGroup = g.append("g")
             .attr("class", "nodes")
@@ -136,10 +283,26 @@
                 .on("drag", dragged)
                 .on("end", dragended))
             .on("click", (event, d) => {
+                event.stopPropagation();
+                
+                if (selectedNode === d) {
+                    selectedNode = null;
+                    nodeGroup.style("opacity", 1).style("filter", "");
+                    link.style("opacity", 1);
+                    if (linkLabelGlobal) linkLabelGlobal.style("opacity", 1);
+                } else {
+                    selectedNode = d;
+                    nodeGroup.style("opacity", o => isConnected(d, o) ? 1 : 0.1)
+                             .style("filter", o => o.id === d.id ? "brightness(1.5)" : "");
+                    link.style("opacity", o => (o.source.id === d.id || o.target.id === d.id) ? 1 : 0.05);
+                    if (linkLabelGlobal) linkLabelGlobal.style("opacity", o => (o.source.id === d.id || o.target.id === d.id) ? 1 : 0.05);
+                }
+
                 if (window.AndroidBridge && typeof window.AndroidBridge.onConceptSelected === 'function') {
                     window.AndroidBridge.onConceptSelected(d.id);
                 }
             });
+        nodeGroupGlobal = nodeGroup;
 
         nodeGroup.append("circle")
             .attr("class", "node glow")
@@ -188,6 +351,12 @@
                 .attr("y1", d => d.source.y)
                 .attr("x2", d => d.target.x)
                 .attr("y2", d => d.target.y);
+
+            if (linkLabel) {
+                linkLabel
+                    .attr("x", d => (d.source.x + d.target.x) / 2)
+                    .attr("y", d => (d.source.y + d.target.y) / 2);
+            }
 
             nodeGroup
                 .attr("transform", d => `translate(${d.x}, ${d.y})`);

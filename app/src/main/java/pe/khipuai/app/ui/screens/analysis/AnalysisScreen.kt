@@ -105,54 +105,77 @@ fun AnalysisScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
+                            .height(280.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Image,
-                                contentDescription = "Imagen capturada",
-                                modifier = Modifier.size(80.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            if (uiState.showLocalGraph) {
+                                androidx.compose.ui.viewinterop.AndroidView(
+                                    factory = { context ->
+                                        android.webkit.WebView(context).apply {
+                                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                            )
+                                            setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+                                            settings.javaScriptEnabled = true
+                                            settings.domStorageEnabled = true
+                                            settings.allowFileAccess = true
+                                            settings.allowContentAccess = true
+                                            settings.allowFileAccessFromFileURLs = true
+                                            settings.allowUniversalAccessFromFileURLs = true
+                                            settings.setSupportZoom(true)
+                                            settings.builtInZoomControls = true
+                                            settings.displayZoomControls = false
 
-                            Row(
+                                            webViewClient = object : android.webkit.WebViewClient() {
+                                                override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+                                                    super.onPageFinished(view, url)
+                                                    val nodesB64 = android.util.Base64.encodeToString(uiState.d3NodesJson.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+                                                    val edgesB64 = android.util.Base64.encodeToString(uiState.d3EdgesJson.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+                                                    view?.evaluateJavascript(
+                                                        "loadGraph('$nodesB64', '$edgesB64')",
+                                                        null
+                                                    )
+                                                }
+                                            }
+                                            loadUrl("file:///android_asset/mindmap.html")
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Image,
+                                        contentDescription = "Imagen capturada",
+                                        modifier = Modifier.size(80.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            // Toggle button overlay
+                            FloatingActionButton(
+                                onClick = { viewModel.toggleLocalGraph() },
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    .padding(12.dp)
+                                    .size(48.dp),
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ) {
-                                FloatingActionButton(
-                                    onClick = { viewModel.loadNoteDetail() },
-                                    modifier = Modifier.size(40.dp),
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Refresh,
-                                        contentDescription = "Actualizar",
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                FloatingActionButton(
-                                    onClick = { /* TODO: Copy */ },
-                                    modifier = Modifier.size(40.dp),
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    contentColor = MaterialTheme.colorScheme.onSurface
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Copiar",
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
+                                Icon(
+                                    imageVector = if (uiState.showLocalGraph) Icons.Default.Image else Icons.Default.Hub,
+                                    contentDescription = "Alternar vista",
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                         }
                     }

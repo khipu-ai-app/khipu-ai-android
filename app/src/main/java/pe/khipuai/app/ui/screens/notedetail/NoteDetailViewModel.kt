@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import pe.khipuai.app.data.repository.NoteRepository
 import pe.khipuai.app.data.remote.dto.NoteResponse
 import javax.inject.Inject
@@ -35,7 +37,12 @@ data class NoteDetailUiState(
     val isBookmarked: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val availableCourses: List<pe.khipuai.app.data.local.entity.CourseEntity> = emptyList()
+    val availableCourses: List<pe.khipuai.app.data.local.entity.CourseEntity> = emptyList(),
+    // Grafo local
+    val d3NodesJson: String = "[]",
+    val d3EdgesJson: String = "[]",
+    val showLocalGraph: Boolean = false,
+    val isGraphLoading: Boolean = false
 )
 
 @HiltViewModel
@@ -103,6 +110,36 @@ class NoteDetailViewModel @Inject constructor(
 
     fun toggleBookmark() {
         _uiState.value = _uiState.value.copy(isBookmarked = !_uiState.value.isBookmarked)
+    }
+
+    fun toggleLocalGraph() {
+        val newState = !_uiState.value.showLocalGraph
+        _uiState.value = _uiState.value.copy(showLocalGraph = newState)
+        // Carga el grafo la primera vez que se abre
+        if (newState && _uiState.value.d3NodesJson == "[]") {
+            fetchLocalGraph()
+        }
+    }
+
+    private fun fetchLocalGraph() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isGraphLoading = true)
+            noteRepository.getNoteLocalGraph(noteId)
+                .onSuccess { graph ->
+                    _uiState.value = _uiState.value.copy(
+                        d3NodesJson = Json.encodeToString(graph.nodes),
+                        d3EdgesJson = Json.encodeToString(graph.edges),
+                        isGraphLoading = false
+                    )
+                }
+                .onFailure {
+                    _uiState.value = _uiState.value.copy(
+                        d3NodesJson = "[]",
+                        d3EdgesJson = "[]",
+                        isGraphLoading = false
+                    )
+                }
+        }
     }
 
     fun deleteNote(onSuccess: () -> Unit) {

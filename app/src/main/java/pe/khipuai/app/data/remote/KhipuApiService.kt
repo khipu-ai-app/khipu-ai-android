@@ -49,6 +49,11 @@ interface KhipuApiService {
         @Path("note_id") noteId: String
     ): NoteDetailResponse
 
+    @GET("v1/notes/{note_id}/graph")
+    suspend fun getNoteLocalGraph(
+        @Path("note_id") noteId: String
+    ): GraphResponse
+
     @GET("v1/notes/{note_id}/study-guide")
     suspend fun getStudyGuide(@Path("note_id") noteId: String): StudyGuideResponse
 

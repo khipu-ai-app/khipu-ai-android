@@ -279,7 +279,7 @@ fun NoteDetailScreen(
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
-            // SECCIÓN 1: Contenedor de la Tarjeta de Imagen Original/Mock
+            // SECCIÓN 1: Contenedor con toggle Documento / Grafo Local
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -287,25 +287,121 @@ fun NoteDetailScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Column {
+                        // Área principal con toggle
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(IntrinsicSize.Min)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
-                            contentAlignment = Alignment.BottomEnd
+                                .height(240.dp)
                         ) {
-                            // Representación matemática abstracta de Khipu UI
-                            Box(
-                                modifier = Modifier
-                                    .padding(12.dp)
-                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), RoundedCornerShape(99.dp))
-                                    .clickable { onViewOriginalClick(java.net.URLEncoder.encode(uiState.uploadId, "UTF-8")) }
-                                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                                    Text(stringResource(id = R.string.label_view_original), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            if (uiState.showLocalGraph) {
+                                // Vista del Grafo Local D3.js
+                                if (uiState.isGraphLoading) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            CircularProgressIndicator(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(40.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text(
+                                                "Cargando grafo de conocimiento...",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    val nodesJson = uiState.d3NodesJson
+                                    val edgesJson = uiState.d3EdgesJson
+                                    androidx.compose.ui.viewinterop.AndroidView(
+                                        factory = { ctx ->
+                                            android.webkit.WebView(ctx).apply {
+                                                layoutParams = android.view.ViewGroup.LayoutParams(
+                                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                                )
+                                                setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+                                                settings.javaScriptEnabled = true
+                                                settings.domStorageEnabled = true
+                                                settings.allowFileAccess = true
+                                                settings.allowContentAccess = true
+                                                settings.allowFileAccessFromFileURLs = true
+                                                settings.allowUniversalAccessFromFileURLs = true
+                                                settings.setSupportZoom(true)
+                                                settings.builtInZoomControls = true
+                                                settings.displayZoomControls = false
+
+                                                webViewClient = object : android.webkit.WebViewClient() {
+                                                    override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+                                                        super.onPageFinished(view, url)
+                                                        val nb64 = android.util.Base64.encodeToString(
+                                                            nodesJson.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP
+                                                        )
+                                                        val eb64 = android.util.Base64.encodeToString(
+                                                            edgesJson.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP
+                                                        )
+                                                        view?.evaluateJavascript("loadGraph('$nb64', '$eb64')", null)
+                                                    }
+                                                }
+                                                loadUrl("file:///android_asset/mindmap.html")
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
                                 }
+                            } else {
+                                // Vista por defecto: icono de documento
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Description,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(48.dp),
+                                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                        )
+                                        // Botón Ver Original
+                                        Box(
+                                            modifier = Modifier
+                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), RoundedCornerShape(99.dp))
+                                                .clickable { onViewOriginalClick(java.net.URLEncoder.encode(uiState.uploadId, "UTF-8")) }
+                                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                                Text(stringResource(id = R.string.label_view_original), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // FAB toggle en la esquina inferior derecha
+                            FloatingActionButton(
+                                onClick = { viewModel.toggleLocalGraph() },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(10.dp)
+                                    .size(44.dp),
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                elevation = FloatingActionButtonDefaults.elevation(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.showLocalGraph) Icons.Default.Description else Icons.Default.Hub,
+                                    contentDescription = if (uiState.showLocalGraph) "Ver documento" else "Ver grafo de conocimiento",
+                                    modifier = Modifier.size(22.dp)
+                                )
                             }
                         }
 

@@ -98,9 +98,42 @@ fun MapsScreen(
                 // Filtros de curso y retención
                 FilterSection(
                     selectedCourse = uiState.selectedCourseName,
+                    courses = uiState.courses,
                     selectedDifficulty = uiState.selectedDifficulty,
-                    onCourseChange = { name -> viewModel.updateCourse(uiState.selectedCourseId, name) },
+                    onCourseChange = viewModel::updateCourse,
                     onDifficultyChange = viewModel::updateDifficulty
+                )
+
+                // Buscador de nodos
+                var searchQuery by remember { mutableStateOf("") }
+                
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { 
+                        searchQuery = it
+                        webViewRef.value?.evaluateJavascript("searchNode('$it')", null)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    placeholder = { Text("Buscar concepto...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = { 
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { 
+                                searchQuery = ""
+                                webViewRef.value?.evaluateJavascript("searchNode('')", null)
+                            }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Limpiar")
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    )
                 )
 
                 // Área principal del grafo
@@ -231,8 +264,9 @@ fun MapsScreen(
 @Composable
 private fun FilterSection(
     selectedCourse: String,
+    courses: List<CourseOption>,
     selectedDifficulty: String,
-    onCourseChange: (String) -> Unit,
+    onCourseChange: (String, String) -> Unit,
     onDifficultyChange: (String) -> Unit
 ) {
     Row(
@@ -252,6 +286,7 @@ private fun FilterSection(
                 value = selectedCourse,
                 onValueChange = { },
                 readOnly = true,
+                singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(
@@ -270,11 +305,11 @@ private fun FilterSection(
                 expanded = courseExpanded,
                 onDismissRequest = { courseExpanded = false }
             ) {
-                listOf("Anatomía Humana", "Microeconomía Avanzada", "Álgebra Lineal").forEach { course ->
+                courses.forEach { course ->
                     DropdownMenuItem(
-                        text = { Text(course) },
+                        text = { Text(course.name) },
                         onClick = {
-                            onCourseChange(course)
+                            onCourseChange(course.id, course.name)
                             courseExpanded = false
                         }
                     )
@@ -293,6 +328,7 @@ private fun FilterSection(
                 value = selectedDifficulty,
                 onValueChange = { },
                 readOnly = true,
+                singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(

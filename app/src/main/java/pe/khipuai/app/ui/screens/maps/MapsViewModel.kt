@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import pe.khipuai.app.data.local.dao.CourseDao
-import pe.khipuai.app.data.remote.dto.CourseResponse
 import pe.khipuai.app.data.remote.dto.GraphResponse
 import pe.khipuai.app.data.repository.CourseRepository
 import pe.khipuai.app.data.repository.GraphRepository
@@ -20,13 +19,18 @@ import javax.inject.Inject
 import kotlin.math.cos
 import kotlin.math.sin
 
+data class CourseOption(
+    val id: String,
+    val name: String
+)
+
 // ─── UI State ─────────────────────────────────────────────────────────────
 
 data class MapsUiState(
-    // Sin curso seleccionado por defecto — se carga dinámicamente desde Room
     val selectedCourseId: String = "",
     val selectedCourseName: String = "",
     val selectedDifficulty: String = "Todas",
+    val courses: List<CourseOption> = emptyList(),
     val concepts: List<Concept> = emptyList(),
     val selectedConcept: Concept? = null,
     val isLoading: Boolean = false,
@@ -65,8 +69,6 @@ class MapsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(MapsUiState())
     val uiState: StateFlow<MapsUiState> = _uiState.asStateFlow()
-
-
 
     fun updateCourse(courseId: String, courseName: String) {
         _uiState.value = _uiState.value.copy(selectedCourseId = courseId, selectedCourseName = courseName)
@@ -223,21 +225,35 @@ class MapsViewModel @Inject constructor(
     }
 
     init {
-        // Cargar el primer curso real disponible en Room.
-        // Sin cursos → estado vacío, sin fallback inventado.
+        // Observamos cursos reactivamente desde Room
         viewModelScope.launch {
-            courseRepository.fetchMyCourses().getOrNull()?.firstOrNull()?.let { first ->
+            courseRepository.observeAll().collect { localCourses ->
+                val activeCourses = localCourses.filter { it.isActive }.map {
+                    CourseOption(id = it.id, name = it.name)
+                }.sortedBy { it.name }
+
+                val currentId = _uiState.value.selectedCourseId
+                var nextId = currentId
+                var nextName = _uiState.value.selectedCourseName
+
+                if (currentId.isBlank() && activeCourses.isNotEmpty()) {
+                    val first = activeCourses.first()
+                    nextId = first.id
+                    nextName = first.name
+                    loadGraphForCourseId(first.id)
+                }
+
                 _uiState.value = _uiState.value.copy(
-                    selectedCourseId = first.id,
-                    selectedCourseName = first.name
-                )
-                loadGraphForCourseId(first.id)
-            } ?: run {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "No tienes cursos activos. Sube tu primer PDF para comenzar."
+                    courses = activeCourses,
+                    selectedCourseId = nextId,
+                    selectedCourseName = nextName
                 )
             }
+        }
+
+        // Sincronizar desde la API en segundo plano sin bloquear
+        viewModelScope.launch {
+            courseRepository.fetchMyCourses()
         }
     }
 }

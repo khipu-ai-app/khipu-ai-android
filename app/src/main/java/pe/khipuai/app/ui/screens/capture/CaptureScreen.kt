@@ -205,6 +205,7 @@ private fun DestinationSection(
                 value = selectedDestination,
                 onValueChange = { },
                 readOnly = true,
+                singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(

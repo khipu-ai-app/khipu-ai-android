@@ -25,6 +25,14 @@ class NoteRepository @Inject constructor(
         }
     }
 
+    suspend fun getNoteLocalGraph(noteId: String): Result<GraphResponse> {
+        return try {
+            Result.success(apiService.getNoteLocalGraph(noteId))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchStudyGuide(noteId: String): Result<StudyGuideResponse> {
         return try {
             Result.success(apiService.getStudyGuide(noteId))

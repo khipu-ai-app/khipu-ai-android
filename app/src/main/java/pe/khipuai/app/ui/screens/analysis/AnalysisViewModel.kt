@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import pe.khipuai.app.data.repository.NoteRepository
 import javax.inject.Inject
 
@@ -20,7 +22,10 @@ data class AnalysisUiState(
     val difficultyLevel: String = "Intermedio",
     val difficultyProgress: Float = 0.5f,
     val aiSuggestion: String = "He preparado este material para ti. ¿Hay alguna parte específica que te gustaría que desglosemos?",
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val d3NodesJson: String = "[]",
+    val d3EdgesJson: String = "[]",
+    val showLocalGraph: Boolean = false
 )
 
 @HiltViewModel
@@ -65,7 +70,27 @@ class AnalysisViewModel @Inject constructor(
                         errorMessage = "No se pudo cargar el análisis: ${e.localizedMessage}"
                     )
                 }
+
+            // Fetch Local Graph in parallel or right after
+            noteRepository.getNoteLocalGraph(id)
+                .onSuccess { graph ->
+                    _uiState.value = _uiState.value.copy(
+                        d3NodesJson = Json.encodeToString(graph.nodes),
+                        d3EdgesJson = Json.encodeToString(graph.edges)
+                    )
+                }
+                .onFailure { e ->
+                    // Optionally log error but don't crash the whole screen
+                    _uiState.value = _uiState.value.copy(
+                        d3NodesJson = "[]",
+                        d3EdgesJson = "[]"
+                    )
+                }
         }
+    }
+
+    fun toggleLocalGraph() {
+        _uiState.value = _uiState.value.copy(showLocalGraph = !_uiState.value.showLocalGraph)
     }
 
     init {
