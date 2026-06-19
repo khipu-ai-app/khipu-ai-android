@@ -27,6 +27,7 @@ import pe.khipuai.app.ui.screens.notedetail.NoteDetailScreen
 import pe.khipuai.app.ui.screens.quiz.QuizCreationScreen
 import pe.khipuai.app.ui.screens.subscription.SubscriptionScreen
 import pe.khipuai.app.ui.screens.fileviewer.FileViewerScreen
+import pe.khipuai.app.ui.screens.review.ReviewSessionScreen
 
 @Composable
 fun KhipuNavigation(
@@ -276,17 +277,29 @@ fun KhipuNavigation(
         composable(
             route = "${Screen.NoteDetail.route}/{noteId}",
             arguments = listOf(navArgument("noteId") { type = NavType.StringType })
-        ) {
+        ) { backStackEntry ->
+            val noteId = backStackEntry.arguments?.getString("noteId") ?: ""
             NoteDetailScreen(
                 onBackClick = { navController.popBackStack() },
-                onReviewClick = { /* Acción para repaso */ },
+                onReviewClick = {
+                    navController.navigate("${Screen.ReviewSession.route}/$noteId")
+                },
                 onAskTutorClick = {
-                    // Navigate to tutor with a generated session id or hardcoded one since we just need it to open
                     navController.navigate("${Screen.Tutor.route}/new_session")
                 },
                 onViewOriginalClick = { encodedPath ->
                     navController.navigate("${Screen.FileViewer.route}/$encodedPath")
                 }
+            )
+        }
+
+        composable(
+            route = "${Screen.ReviewSession.route}/{noteId}",
+            arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+        ) {
+            ReviewSessionScreen(
+                onBackClick = { navController.popBackStack() },
+                onComplete = { navController.popBackStack() },
             )
         }
 
@@ -356,4 +369,5 @@ sealed class Screen(val route: String) {
     object Subscription : Screen("subscription")
     object FileViewer : Screen("file_viewer")
     object Calendar : Screen("calendar")
+    object ReviewSession : Screen("review_session")
 }

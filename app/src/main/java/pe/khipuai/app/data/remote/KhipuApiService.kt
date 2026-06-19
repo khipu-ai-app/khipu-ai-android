@@ -57,6 +57,12 @@ interface KhipuApiService {
     @GET("v1/notes/{note_id}/study-guide")
     suspend fun getStudyGuide(@Path("note_id") noteId: String): StudyGuideResponse
 
+    @GET("v1/notes/{note_id}/review-session")
+    suspend fun getNoteReviewSession(@Path("note_id") noteId: String): ReviewSessionResponse
+
+    @GET("v1/notes/{note_id}/review-history")
+    suspend fun getNoteReviewHistory(@Path("note_id") noteId: String): List<ReviewHistoryItemResponse>
+
     @GET("v1/planner/today")
     suspend fun getTodayPlanner(): List<DueConceptResponse>
 

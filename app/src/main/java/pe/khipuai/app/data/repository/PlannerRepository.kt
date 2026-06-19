@@ -21,9 +21,9 @@ class PlannerRepository @Inject constructor(
         }
     }
 
-    suspend fun submitReviewRating(conceptId: String, rating: Int): Result<Unit> {
+    suspend fun submitReviewRating(conceptId: String, rating: Int, noteId: String? = null): Result<Unit> {
         return try {
-            apiService.submitConceptReview(ReviewRequest(conceptId, rating))
+            apiService.submitConceptReview(ReviewRequest(conceptId, rating, noteId))
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

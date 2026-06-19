@@ -20,7 +20,8 @@ data class DueConceptResponse(
 @Serializable
 data class ReviewRequest(
     @SerialName("concept_id") val conceptId: String,
-    @SerialName("rating") val rating: Int
+    @SerialName("rating") val rating: Int,
+    @SerialName("note_id") val noteId: String? = null,
 )
 
 // ─── Agenda semanal (GET /planner/schedule) ────────────────────────────────

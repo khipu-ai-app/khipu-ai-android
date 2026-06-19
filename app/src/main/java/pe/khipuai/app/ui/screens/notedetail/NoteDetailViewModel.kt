@@ -78,6 +78,14 @@ class NoteDetailViewModel @Inject constructor(
 
             noteRepository.getNoteDetail(noteId)
                 .onSuccess { detail ->
+                    val timeline = mutableListOf(
+                        HistoryItemUiModel(
+                            id = "nota_creada_${detail.id}",
+                            title = "Nota Creada",
+                            description = formatDate(detail.createdAt),
+                            type = HistoryItemType.NOTA_CREADA
+                        )
+                    )
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         noteId = detail.id,
@@ -89,15 +97,9 @@ class NoteDetailViewModel @Inject constructor(
                         aiSummary = detail.summary,
                         extractedText = "",
                         keyConcepts = detail.topics.map { it.name },
-                        historyTimeline = listOf(
-                            HistoryItemUiModel(
-                                id = "nota_creada_${detail.id}",
-                                title = "Nota Creada",
-                                description = formatDate(detail.createdAt),
-                                type = HistoryItemType.NOTA_CREADA
-                            )
-                        )
+                        historyTimeline = timeline
                     )
+                    loadReviewHistory()
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
@@ -137,6 +139,26 @@ class NoteDetailViewModel @Inject constructor(
                         d3NodesJson = "[]",
                         d3EdgesJson = "[]",
                         isGraphLoading = false
+                    )
+                }
+        }
+    }
+
+    private fun loadReviewHistory() {
+        viewModelScope.launch {
+            noteRepository.getNoteReviewHistory(noteId)
+                .onSuccess { history ->
+                    val reviewItems = history.map { item ->
+                        HistoryItemUiModel(
+                            id = item.id,
+                            title = "Repaso: ${item.conceptName}",
+                            description = "${item.reviewedAt.take(10)} — Puntuación: ${item.rating}/5",
+                            type = HistoryItemType.REPASO_COMPLETADO
+                        )
+                    }
+                    val existingTimeline = _uiState.value.historyTimeline
+                    _uiState.value = _uiState.value.copy(
+                        historyTimeline = existingTimeline + reviewItems
                     )
                 }
         }
