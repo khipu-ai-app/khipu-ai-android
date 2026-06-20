@@ -104,7 +104,14 @@ fun KhipuNavigation(
             )
         }
 
-        composable(Screen.Capture.route) {
+        composable(
+            route = "${Screen.Capture.route}?preselectedCourseId={preselectedCourseId}",
+            arguments = listOf(navArgument("preselectedCourseId") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) {
             CaptureScreen(
                 onNavigateToTab = { tabIndex ->
                     when (tabIndex) {
@@ -141,7 +148,15 @@ fun KhipuNavigation(
             )
         }
 
-        composable(Screen.Maps.route) {
+        composable(
+            route = "${Screen.Maps.route}?preselectedCourseId={preselectedCourseId}",
+            arguments = listOf(navArgument("preselectedCourseId") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { backStackEntry ->
+            val preselectedCourseId = backStackEntry.arguments?.getString("preselectedCourseId")
             MapsScreen(
                 onNavigateToTab = { tabIndex ->
                     when (tabIndex) {
@@ -151,7 +166,8 @@ fun KhipuNavigation(
                         3 -> { /* Already on Maps */ }
                         4 -> navController.navigate(Screen.Profile.route)
                     }
-                }
+                },
+                preselectedCourseId = preselectedCourseId
             )
         }
 
@@ -334,17 +350,24 @@ fun KhipuNavigation(
         composable(
             route = "${Screen.CourseDetail.route}/{courseId}",
             arguments = listOf(navArgument("courseId") { type = NavType.StringType })
-        ) {
+        ) { backStackEntry ->
+            val courseId = backStackEntry.arguments?.getString("courseId") ?: ""
             CourseDetailScreen(
                 onBackClick = { navController.popBackStack() },
                 onNoteClick = { noteId ->
                     navController.navigate("${Screen.NoteDetail.route}/$noteId")
                 },
                 onExpandMapClick = {
-                    navController.navigate(Screen.Maps.route)
+                    navController.navigate("${Screen.Maps.route}?preselectedCourseId=$courseId")
+                },
+                onNavigateToCapture = { courseId ->
+                    navController.navigate("${Screen.Capture.route}?preselectedCourseId=$courseId")
                 },
                 onNavigateToTutor = { courseId ->
                     navController.navigate("tutor_history?contextType=course&contextId=$courseId")
+                },
+                onNavigateToReview = { conceptId ->
+                    navController.navigate("tutor_history?contextType=concept&contextId=$conceptId")
                 }
             )
         }
@@ -359,14 +382,8 @@ fun KhipuNavigation(
                 onReviewClick = {
                     navController.navigate("${Screen.ReviewSession.route}/$noteId")
                 },
-                onAskTutorClick = { courseId ->
-                    val cId = courseId ?: "general"
-                    val route = if (cId == "general") {
-                        "${Screen.Tutor.route}/new_session?contextType=general"
-                    } else {
-                        "tutor_history?contextType=course&contextId=$cId"
-                    }
-                    navController.navigate(route)
+                onAskTutorClick = { _ ->
+                    navController.navigate("tutor_history?contextType=note&contextId=$noteId")
                 },
                 onStudyGuideClick = {
                     navController.navigate("${Screen.StudyGuide.route}/$noteId")

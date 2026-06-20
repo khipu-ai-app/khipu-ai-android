@@ -41,7 +41,7 @@ class CourseRepository @Inject constructor(
                     catalogKey = dto.catalogKey
                 )
             }
-            courseDao.clearAndInsert(entities)
+            courseDao.upsertAll(entities)
             Result.success(remote)
         } catch (e: Exception) {
             Result.failure(e)

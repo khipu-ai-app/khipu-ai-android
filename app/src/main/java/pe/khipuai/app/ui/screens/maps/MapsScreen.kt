@@ -28,6 +28,7 @@ import pe.khipuai.app.ui.components.BottomNavigationBar
 @Composable
 fun MapsScreen(
     onNavigateToTab: (Int) -> Unit,
+    preselectedCourseId: String? = null,
     viewModel: MapsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()

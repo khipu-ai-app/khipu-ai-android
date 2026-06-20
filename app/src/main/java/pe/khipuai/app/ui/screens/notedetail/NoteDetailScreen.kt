@@ -183,13 +183,6 @@ fun NoteDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.toggleBookmark() }) {
-                        Icon(
-                            imageVector = if (uiState.isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            contentDescription = stringResource(id = R.string.action_save),
-                            tint = if (uiState.isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                     Box {
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(imageVector = Icons.Default.MoreVert, contentDescription = stringResource(id = R.string.action_options))
@@ -214,15 +207,6 @@ fun NoteDetailScreen(
                                 },
                                 leadingIcon = { Icon(Icons.Default.Class, contentDescription = null) }
                             )
-                            DropdownMenuItem(
-                                text = { Text("Crear Quiz") },
-                                onClick = {
-                                    onNavigateToQuizCreation()
-                                    menuExpanded = false
-                                },
-                                leadingIcon = { Icon(Icons.Default.Quiz, contentDescription = null) }
-                            )
-                            HorizontalDivider()
                             DropdownMenuItem(
                                 text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
                                 onClick = {
@@ -289,7 +273,7 @@ fun NoteDetailScreen(
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
-            // SECCIÓN 1: Contenedor con toggle Documento / Grafo Local
+            // SECCIÓN 1: Mini Mapa de Conocimiento Local
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -297,31 +281,42 @@ fun NoteDetailScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Column {
-                        // Área principal con toggle
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                Text("Mapa de Conocimiento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            }
+                            
+                            // Botón Ver Original
+                            Box(
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(99.dp))
+                                    .clickable { onViewOriginalClick(java.net.URLEncoder.encode(uiState.uploadId, "UTF-8")) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    Text("Ver Documento", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(240.dp)
+                                .background(MaterialTheme.colorScheme.surface)
                         ) {
                             if (uiState.showLocalGraph) {
-                                // Vista del Grafo Local D3.js
                                 if (uiState.isGraphLoading) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            CircularProgressIndicator(
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(40.dp)
-                                            )
-                                            Spacer(modifier = Modifier.height(12.dp))
-                                            Text(
-                                                "Cargando grafo de conocimiento...",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(modifier = Modifier.size(40.dp))
                                     }
                                 } else {
                                     val nodesJson = uiState.d3NodesJson
@@ -336,8 +331,6 @@ fun NoteDetailScreen(
                                                 setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                                                 settings.javaScriptEnabled = true
                                                 settings.domStorageEnabled = true
-                                                settings.allowFileAccess = true
-                                                settings.allowContentAccess = true
                                                 settings.allowFileAccessFromFileURLs = true
                                                 settings.allowUniversalAccessFromFileURLs = true
                                                 settings.setSupportZoom(true)
@@ -363,63 +356,25 @@ fun NoteDetailScreen(
                                     )
                                 }
                             } else {
-                                // Vista por defecto: icono de documento
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
+                                    modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    Button(
+                                        onClick = { viewModel.toggleLocalGraph() },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Description,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(48.dp),
-                                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                                        )
-                                        // Botón Ver Original
-                                        Box(
-                                            modifier = Modifier
-                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), RoundedCornerShape(99.dp))
-                                                .clickable { onViewOriginalClick(java.net.URLEncoder.encode(uiState.uploadId, "UTF-8")) }
-                                                .padding(horizontal = 14.dp, vertical = 6.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                                                Text(stringResource(id = R.string.label_view_original), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
+                                        Icon(Icons.Default.AccountTree, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Cargar Grafo de Conceptos")
                                     }
                                 }
                             }
-
-                            // FAB toggle en la esquina inferior derecha
-                            FloatingActionButton(
-                                onClick = { viewModel.toggleLocalGraph() },
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(10.dp)
-                                    .size(44.dp),
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                elevation = FloatingActionButtonDefaults.elevation(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (uiState.showLocalGraph) Icons.Default.Description else Icons.Default.Hub,
-                                    contentDescription = if (uiState.showLocalGraph) "Ver documento" else "Ver grafo de conocimiento",
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
                         }
 
-                        // Footer de Metadatos Documentales
+                        // Footer
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -458,54 +413,37 @@ fun NoteDetailScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 20.sp
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = onStudyGuideClick,
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Ver Guía de Estudio Completa")
+                                Button(
+                                    onClick = onStudyGuideClick,
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Guía de Estudio")
+                                }
+                                
+                                Button(
+                                    onClick = onNavigateToQuizCreation,
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                                ) {
+                                    Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Crear Quiz")
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // SECCIÓN 3: Caja de Texto Extraído (Motor OCR Monoespaciado)
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(stringResource(id = R.string.title_extracted_text), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 140.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                                .padding(12.dp)
-                        ) {
-                            Text(
-                                text = uiState.extractedText,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    lineHeight = 16.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.verticalScroll(rememberScrollState())
-                            )
-                        }
-                    }
-                }
-            }
-
-            // SECCIÓN 4: Burbujas de Conceptos Clave
+            // SECCIÓN 3: Burbujas de Conceptos Clave (Eliminamos texto extraído y lo hacemos interactivo)
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -532,9 +470,13 @@ fun NoteDetailScreen(
                                 Box(
                                     modifier = Modifier
                                         .background(chipColor, RoundedCornerShape(99.dp))
+                                        .clickable { onAskTutorClick(concept) } // Mandamos el concepto como contexto especial
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
-                                    Text(text = concept, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
+                                        Text(text = concept, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
+                                    }
                                 }
                             }
                         }
@@ -542,7 +484,7 @@ fun NoteDetailScreen(
                 }
             }
 
-            // SECCIÓN 5: Historial de Repaso (Línea de Tiempo Vectorial Nativa)
+            // SECCIÓN 4: Historial de Repaso (Línea de Tiempo Vectorial Nativa)
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),

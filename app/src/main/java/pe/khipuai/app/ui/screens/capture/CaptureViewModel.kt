@@ -34,8 +34,11 @@ enum class CaptureMode {
 @HiltViewModel
 class CaptureViewModel @Inject constructor(
     private val uploadRepository: UploadRepository,
-    private val courseRepository: CourseRepository
+    private val courseRepository: CourseRepository,
+    savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
+
+    private val preselectedCourseId: String? = savedStateHandle.get<String>("preselectedCourseId")
 
     private val _uiState = MutableStateFlow(CaptureUiState())
     val uiState: StateFlow<CaptureUiState> = _uiState.asStateFlow()
@@ -46,7 +49,23 @@ class CaptureViewModel @Inject constructor(
                 val activeCourses = localCourses.filter { it.isActive }.map {
                     CourseOption(id = it.id, name = it.name)
                 }.sortedBy { it.name }
-                _uiState.value = _uiState.value.copy(courses = activeCourses)
+                
+                var defaultDestName = "Autoclasificar con IA"
+                var defaultDestId: String? = null
+                
+                if (preselectedCourseId != null) {
+                    val preselected = activeCourses.find { it.id == preselectedCourseId }
+                    if (preselected != null) {
+                        defaultDestName = preselected.name
+                        defaultDestId = preselected.id
+                    }
+                }
+                
+                _uiState.value = _uiState.value.copy(
+                    courses = activeCourses,
+                    selectedDestination = if (_uiState.value.selectedDestinationId == null && _uiState.value.selectedDestination == "Autoclasificar con IA") defaultDestName else _uiState.value.selectedDestination,
+                    selectedDestinationId = if (_uiState.value.selectedDestinationId == null && _uiState.value.selectedDestination == "Autoclasificar con IA") defaultDestId else _uiState.value.selectedDestinationId
+                )
             }
         }
         viewModelScope.launch {

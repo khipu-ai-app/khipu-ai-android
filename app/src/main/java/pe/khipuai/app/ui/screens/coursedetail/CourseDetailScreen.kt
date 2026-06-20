@@ -35,7 +35,9 @@ fun CourseDetailScreen(
     onBackClick: () -> Unit,
     onNoteClick: (String) -> Unit,
     onExpandMapClick: () -> Unit,
+    onNavigateToCapture: (String) -> Unit = {},
     onNavigateToTutor: (String) -> Unit = {},
+    onNavigateToReview: (String) -> Unit = {},
     viewModel: CourseDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -55,16 +57,6 @@ fun CourseDetailScreen(
                     }
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { /* Iniciar Flujo de Captura / Nueva Nota */ },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar Nota", modifier = Modifier.size(28.dp))
-            }
         }
     ) { paddingValues ->
         LazyColumn(
@@ -114,7 +106,7 @@ fun CourseDetailScreen(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Progreso", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Dominio", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text("${uiState.courseProgress}%", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -140,7 +132,22 @@ fun CourseDetailScreen(
                                 Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 Text("Tus Notas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             }
-                            TextButton(onClick = { /* Ver todas */ }) { Text("Ver todas") }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Button(
+                                    onClick = { onNavigateToCapture(uiState.courseId) },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Agregar")
+                                }
+                                if (uiState.totalNotesCount > 5) {
+                                    TextButton(onClick = { viewModel.toggleShowAllNotes() }) { 
+                                        Text(if (uiState.showAllNotes) "Ocultar" else "Ver todas (${uiState.totalNotesCount})") 
+                                    }
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -156,7 +163,8 @@ fun CourseDetailScreen(
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                uiState.notes.forEach { note ->
+                                val displayedNotes = if (uiState.showAllNotes) uiState.notes else uiState.notes.take(5)
+                                displayedNotes.forEach { note ->
                                     var menuExpanded by remember { mutableStateOf(false) }
                                     var renameDialogExpanded by remember { mutableStateOf(false) }
                                     var renameText by remember { mutableStateOf(note.title) }
@@ -496,8 +504,8 @@ fun CourseDetailScreen(
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.EventAvailable, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text("Próximos Repasos adaptativos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.School, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Conceptos a Dominar Hoy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -539,11 +547,15 @@ fun CourseDetailScreen(
                                         }
                                     }
 
-                                    IconButton(
-                                        onClick = { viewModel.completeReviewTask(task.id) },
-                                        modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape).size(32.dp)
+                                    Button(
+                                        onClick = { onNavigateToReview(task.id) },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (task.isUrgent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                        )
                                     ) {
-                                        Icon(Icons.Default.Check, contentDescription = "Hecho", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.outline)
+                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Estudiar con IA")
                                     }
                                 }
                                 if (index < uiState.upcomingReviews.lastIndex) {

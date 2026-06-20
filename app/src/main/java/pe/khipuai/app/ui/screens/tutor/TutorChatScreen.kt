@@ -237,12 +237,12 @@ fun TutorChatScreen(
                             Card(
                                 colors = CardDefaults.cardColors(
                                     containerColor = if (isUser) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surface
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                 ),
                                 elevation = CardDefaults.cardElevation(
-                                    defaultElevation = if (isUser) 0.dp else 2.dp
+                                    defaultElevation = 0.dp
                                 ),
-                                border = if (!isUser) BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+                                border = if (!isUser) BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) else null,
                                 shape = RoundedCornerShape(
                                     topStart = 20.dp,
                                     topEnd = 20.dp,
@@ -359,27 +359,35 @@ fun InlineKnowledgeNodeCard(
 fun formatMarkdownBold(text: String): androidx.compose.ui.text.AnnotatedString {
     val builder = androidx.compose.ui.text.AnnotatedString.Builder()
     var currentIndex = 0
-    val regex = Regex("\\*\\*(.*?)\\*\\*")
+    val regex = Regex("\\*\\*(.*?)\\*\\*|`(.*?)`")
     
     val matches = regex.findAll(text)
     for (match in matches) {
         val start = match.range.first
         val end = match.range.last + 1
         
-        // Add normal text before the bold part
         if (start > currentIndex) {
             builder.append(text.substring(currentIndex, start))
         }
         
-        // Add bold text without the ** markers
-        builder.pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold))
-        builder.append(match.groupValues[1])
-        builder.pop()
+        if (match.groupValues[1].isNotEmpty()) {
+            // Es bold
+            builder.pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold))
+            builder.append(match.groupValues[1])
+            builder.pop()
+        } else if (match.groupValues[2].isNotEmpty()) {
+            // Es código monoespaciado
+            builder.pushStyle(androidx.compose.ui.text.SpanStyle(
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                background = Color.Gray.copy(alpha = 0.2f)
+            ))
+            builder.append(match.groupValues[2])
+            builder.pop()
+        }
         
         currentIndex = end
     }
     
-    // Add remaining normal text
     if (currentIndex < text.length) {
         builder.append(text.substring(currentIndex))
     }

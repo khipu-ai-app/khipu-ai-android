@@ -50,6 +50,8 @@ data class CourseDetailUiState(
     val courseColor: String = "#7B1FA2",
     val courseProgress: Int = 0,
     val notes: List<CompactNoteUiModel> = emptyList(),
+    val totalNotesCount: Int = 0,
+    val showAllNotes: Boolean = false,
     val upcomingReviews: List<ReviewItemUiModel> = emptyList(),
     // El mini-mapa muestra estado vacío hasta que el grafo real responda
     val previewNodes: List<GraphNodeUiModel> = emptyList(),
@@ -72,6 +74,10 @@ class CourseDetailViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CourseDetailUiState(isLoading = true))
     val uiState: StateFlow<CourseDetailUiState> = _uiState.asStateFlow()
+
+    fun toggleShowAllNotes() {
+        _uiState.value = _uiState.value.copy(showAllNotes = !_uiState.value.showAllNotes)
+    }
 
     private fun loadCourseData() {
         if (courseId.isBlank()) {
@@ -130,7 +136,8 @@ class CourseDetailViewModel @Inject constructor(
         offlineFirstNoteRepository.observeByCourse(courseId)
             .onEach { noteEntities ->
                 _uiState.value = _uiState.value.copy(
-                    notes = noteEntities.take(4).map { it.toUiModel() },
+                    notes = noteEntities.map { it.toUiModel() },
+                    totalNotesCount = noteEntities.size,
                     isLoading = false
                 )
             }
@@ -178,8 +185,12 @@ class CourseDetailViewModel @Inject constructor(
 
         graphRepository.fetchCourseGraph(courseId)
             .onSuccess { graph ->
-                val nodes = graph.nodes
-                    .filter { it.type == "concept" }
+                val conceptNodes = graph.nodes.filter { it.type == "concept" }
+                val totalConcepts = conceptNodes.size
+                val masteredConcepts = conceptNodes.count { (it.easeFactor ?: 0f) >= 2.5f }
+                val progress = if (totalConcepts > 0) ((masteredConcepts.toFloat() / totalConcepts) * 100).toInt() else 0
+
+                val nodes = conceptNodes
                     .take(5)
                     .mapIndexed { index, node ->
                         val (x, y) = positions[index]
@@ -200,7 +211,10 @@ class CourseDetailViewModel @Inject constructor(
                             yOffsetFraction = y
                         )
                     }
-                _uiState.value = _uiState.value.copy(previewNodes = nodes)
+                _uiState.value = _uiState.value.copy(
+                    previewNodes = nodes,
+                    courseProgress = progress
+                )
             }
             // onFailure: mini-mapa queda vacío, la pantalla no crashea
     }

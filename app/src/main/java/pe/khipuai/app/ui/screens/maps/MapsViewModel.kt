@@ -64,8 +64,11 @@ enum class ConceptDifficulty { BASIC, INTERMEDIATE, ADVANCED }
 class MapsViewModel @Inject constructor(
     private val graphRepository: GraphRepository,
     private val courseRepository: CourseRepository,
-    private val courseDao: CourseDao
+    private val courseDao: CourseDao,
+    savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
+
+    private val preselectedCourseId: String? = savedStateHandle.get<String>("preselectedCourseId")
 
     private val _uiState = MutableStateFlow(MapsUiState())
     val uiState: StateFlow<MapsUiState> = _uiState.asStateFlow()
@@ -237,10 +240,15 @@ class MapsViewModel @Inject constructor(
                 var nextName = _uiState.value.selectedCourseName
 
                 if (currentId.isBlank() && activeCourses.isNotEmpty()) {
-                    val first = activeCourses.first()
-                    nextId = first.id
-                    nextName = first.name
-                    loadGraphForCourseId(first.id)
+                    // Si hay un curso preseleccionado y está en la lista activa, úsalo.
+                    val targetCourse = if (preselectedCourseId != null) {
+                        activeCourses.find { it.id == preselectedCourseId } ?: activeCourses.first()
+                    } else {
+                        activeCourses.first()
+                    }
+                    nextId = targetCourse.id
+                    nextName = targetCourse.name
+                    loadGraphForCourseId(nextId)
                 }
 
                 _uiState.value = _uiState.value.copy(

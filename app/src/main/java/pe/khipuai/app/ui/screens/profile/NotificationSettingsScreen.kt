@@ -142,9 +142,7 @@ fun NotificationSettingsScreen(
                             reminderHour = reminderHour.toInt()
                         )
                         viewModel.updateProfile(
-                            // We shouldn't overwrite other fields, we need a way to only update notification_preferences.
-                            // The backend does a PATCH, so only sent fields are updated.
-                            fullName = null // Wait, I need to pass NotificationPreferences to the update
+                            notificationPreferences = prefs
                         )
                         onNavigateBack()
                     },

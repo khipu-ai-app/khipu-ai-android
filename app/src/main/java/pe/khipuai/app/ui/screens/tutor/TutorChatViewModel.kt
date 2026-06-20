@@ -67,8 +67,9 @@ class TutorChatViewModel @Inject constructor(
     private fun initializeNewSession() {
         viewModelScope.launch(exceptionHandler) {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            val cType = contextTypeArg ?: "general"
-            val cId = contextIdArg
+            
+            val cType = if (courseIdArg != null) "course" else (contextTypeArg ?: "general")
+            val cId = courseIdArg ?: contextIdArg
             
             tutorRepository.createSession(cType, cId)
                 .onSuccess { session ->
@@ -167,8 +168,8 @@ class TutorChatViewModel @Inject constructor(
         viewModelScope.launch(exceptionHandler) {
             var fullTextAccumulated = ""
             
-            val cType = contextTypeArg ?: "general"
-            val cId = contextIdArg
+            val cType = if (courseIdArg != null) "course" else (contextTypeArg ?: "general")
+            val cId = courseIdArg ?: contextIdArg
             tutorRepository.streamChatMessages(sessionId, query, cType, cId)
                 .collect { event ->
                     when (event) {

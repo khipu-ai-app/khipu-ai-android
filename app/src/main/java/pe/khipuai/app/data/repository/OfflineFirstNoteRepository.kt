@@ -39,13 +39,14 @@ class OfflineFirstNoteRepository @Inject constructor(
         return try {
             val remoteNotes = apiService.getMyNotes()
             val entities = remoteNotes.map { dto ->
+                val local = noteDao.getById(dto.id)
                 NoteEntity(
                     id = dto.id,
                     title = dto.title,
-                    summary = "",           // El resumen viene en NoteDetail, no en la lista
+                    summary = local?.summary ?: "",           // El resumen viene en NoteDetail, no en la lista
                     courseId = dto.courseId,
                     createdAt = dto.createdAt,
-                    difficultyLevel = "medium",
+                    difficultyLevel = local?.difficultyLevel ?: "medium",
                     uploadId = dto.uploadId
                 )
             }
