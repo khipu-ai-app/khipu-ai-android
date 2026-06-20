@@ -73,5 +73,49 @@ class NoteRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun submitQuizResult(noteId: String, result: QuizResultRequest): Result<Unit> {
+        return try {
+            apiService.submitQuizResult(noteId, result)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun generateStandaloneQuiz(noteId: String, count: Int, difficulty: String, topics: List<String>): Result<StandaloneQuizResponse> {
+        return try {
+            val request = QuizGenerateRequest(count = count, difficulty = difficulty, topics = topics)
+            Result.success(apiService.generateQuiz(noteId, request))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSavedQuizzes(noteId: String): Result<List<StandaloneQuizResponse>> {
+        return try {
+            Result.success(apiService.getSavedQuizzes(noteId))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun saveQuiz(noteId: String, quiz: StandaloneQuizResponse): Result<Unit> {
+        return try {
+            apiService.saveQuiz(noteId, quiz)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteQuiz(noteId: String, quizId: String): Result<Unit> {
+        return try {
+            apiService.deleteQuiz(noteId, quizId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 

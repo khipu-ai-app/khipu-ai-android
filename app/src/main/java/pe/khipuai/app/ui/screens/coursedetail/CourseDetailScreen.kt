@@ -35,6 +35,7 @@ fun CourseDetailScreen(
     onBackClick: () -> Unit,
     onNoteClick: (String) -> Unit,
     onExpandMapClick: () -> Unit,
+    onNavigateToTutor: (String) -> Unit = {},
     viewModel: CourseDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -46,6 +47,11 @@ fun CourseDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { onNavigateToTutor(uiState.courseId) }) {
+                        Icon(imageVector = Icons.Default.ChatBubble, contentDescription = "Tutor del Curso")
                     }
                 }
             )

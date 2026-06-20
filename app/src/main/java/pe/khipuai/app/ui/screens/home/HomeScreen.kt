@@ -35,6 +35,7 @@ fun HomeScreen(
     onNavigateToFileViewer: (String) -> Unit = {},
     onNavigateToNoteDetail: (String) -> Unit = {},
     onNavigateToSubscription: () -> Unit = {},
+    onNavigateToTutorHistory: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     // Corregido: Se añaden los métodos delegados correctos mediante los imports de Compose runtime
@@ -63,6 +64,13 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToTutorHistory) {
+                        Icon(
+                            imageVector = Icons.Default.ChatBubble,
+                            contentDescription = "Tutor AI",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     IconButton(onClick = { /* TODO: Notifications */ }) {
                         Icon(
                             imageVector = Icons.Default.Notifications,

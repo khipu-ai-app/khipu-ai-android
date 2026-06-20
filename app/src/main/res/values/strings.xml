@@ -4,7 +4,7 @@
     <string name="action_save">Guardar</string>
     <string name="action_options">Opciones</string>
     <string name="action_review_now">Repasar ahora</string>
-    <string name="action_ask_khipu">Preguntar a Khipu</string>
+    <string name="action_ask_khipu">Chat del Curso</string>
     <string name="label_view_original">Ver original</string>
     <string name="label_captured_date">Capturado: %1$s</string>
     <string name="title_khipu_summary">Resumen Khipu</string>

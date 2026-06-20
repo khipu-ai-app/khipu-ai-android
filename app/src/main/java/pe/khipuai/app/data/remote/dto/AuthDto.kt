@@ -18,7 +18,14 @@ data class AuthResponse(
 data class UserProfileResponse(
     @SerialName("email") val email: String,
     @SerialName("full_name") val fullName: String?,
-    @SerialName("profile_type") val profileType: String?
+    @SerialName("profile_type") val profileType: String?,
+    @SerialName("university") val university: String? = null,
+    @SerialName("career") val career: String? = null,
+    @SerialName("semester") val semester: Int? = null,
+    @SerialName("study_goal_minutes") val studyGoalMinutes: Int? = null,
+    @SerialName("study_days") val studyDays: List<Int>? = null,
+    @SerialName("language") val language: String? = null,
+    @SerialName("notification_preferences") val notificationPreferences: NotificationPreferencesDto? = null
 )
 
 @Serializable
@@ -31,5 +38,31 @@ data class UserRegisterRequest(
 @Serializable
 data class UserLoginRequest(
     @SerialName("email") val email: String,
+    @SerialName("password") val password: String
+)
+
+@Serializable
+data class NotificationPreferencesDto(
+    @SerialName("enabled") val enabled: Boolean? = null,
+    @SerialName("review_reminders") val reviewReminders: Boolean? = null,
+    @SerialName("processing_complete") val processingComplete: Boolean? = null,
+    @SerialName("achievements") val achievements: Boolean? = null,
+    @SerialName("reminder_hour") val reminderHour: Int? = null
+)
+
+@Serializable
+data class UserUpdateRequest(
+    @SerialName("full_name") val fullName: String? = null,
+    @SerialName("university") val university: String? = null,
+    @SerialName("career") val career: String? = null,
+    @SerialName("semester") val semester: Int? = null,
+    @SerialName("study_goal_minutes") val studyGoalMinutes: Int? = null,
+    @SerialName("study_days") val studyDays: List<Int>? = null,
+    @SerialName("language") val language: String? = null,
+    @SerialName("notification_preferences") val notificationPreferences: NotificationPreferencesDto? = null
+)
+
+@Serializable
+data class UserDeleteRequest(
     @SerialName("password") val password: String
 )

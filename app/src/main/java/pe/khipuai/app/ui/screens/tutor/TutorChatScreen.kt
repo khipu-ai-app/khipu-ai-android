@@ -1,6 +1,7 @@
 package pe.khipuai.app.ui.screens.tutor
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -32,6 +33,13 @@ fun TutorChatScreen(
     viewModel: TutorChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+    LaunchedEffect(uiState.messages.size, uiState.messages.lastOrNull()?.content?.length) {
+        if (uiState.messages.isNotEmpty()) {
+            listState.animateScrollToItem(uiState.messages.lastIndex)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -183,6 +191,7 @@ fun TutorChatScreen(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
@@ -206,15 +215,18 @@ fun TutorChatScreen(
                             if (!isUser) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
-                                        .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                                        .size(36.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                            CircleShape
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.SmartToy,
                                         contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             } else {
@@ -225,30 +237,36 @@ fun TutorChatScreen(
                             Card(
                                 colors = CardDefaults.cardColors(
                                     containerColor = if (isUser) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    else MaterialTheme.colorScheme.surface
                                 ),
+                                elevation = CardDefaults.cardElevation(
+                                    defaultElevation = if (isUser) 0.dp else 2.dp
+                                ),
+                                border = if (!isUser) BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant) else null,
                                 shape = RoundedCornerShape(
-                                    topStart = 16.dp,
-                                    topEnd = 16.dp,
-                                    bottomStart = if (isUser) 16.dp else 4.dp,
-                                    bottomEnd = if (isUser) 4.dp else 16.dp
+                                    topStart = 20.dp,
+                                    topEnd = 20.dp,
+                                    bottomStart = if (isUser) 20.dp else 4.dp,
+                                    bottomEnd = if (isUser) 4.dp else 20.dp
                                 ),
-                                modifier = Modifier.widthIn(max = 280.dp)
+                                modifier = Modifier.widthIn(max = 300.dp)
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(12.dp),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = message.content.ifEmpty { "Escribiendo..." },
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        text = formatMarkdownBold(message.content.ifEmpty { "Generando respuesta..." }),
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            lineHeight = androidx.compose.ui.unit.TextUnit(22f, androidx.compose.ui.unit.TextUnitType.Sp)
+                                        ),
                                         color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                     )
 
                                     // ✨ Carrusel de Inline Knowledge Node Cards
                                     if (message.referenceNodes.isNotEmpty()) {
                                         HorizontalDivider(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                                             thickness = 1.dp,
                                             modifier = Modifier.padding(vertical = 4.dp)
                                         )
@@ -257,7 +275,7 @@ fun TutorChatScreen(
                                             text = "FUENTES CONSULTADAS",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.secondary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
 
                                         message.referenceNodes.forEach { node ->
@@ -336,4 +354,35 @@ fun InlineKnowledgeNodeCard(
             )
         }
     }
+}
+
+fun formatMarkdownBold(text: String): androidx.compose.ui.text.AnnotatedString {
+    val builder = androidx.compose.ui.text.AnnotatedString.Builder()
+    var currentIndex = 0
+    val regex = Regex("\\*\\*(.*?)\\*\\*")
+    
+    val matches = regex.findAll(text)
+    for (match in matches) {
+        val start = match.range.first
+        val end = match.range.last + 1
+        
+        // Add normal text before the bold part
+        if (start > currentIndex) {
+            builder.append(text.substring(currentIndex, start))
+        }
+        
+        // Add bold text without the ** markers
+        builder.pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold))
+        builder.append(match.groupValues[1])
+        builder.pop()
+        
+        currentIndex = end
+    }
+    
+    // Add remaining normal text
+    if (currentIndex < text.length) {
+        builder.append(text.substring(currentIndex))
+    }
+    
+    return builder.toAnnotatedString()
 }

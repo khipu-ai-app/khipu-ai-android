@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun AnalysisScreen(
     onNavigateBack: () -> Unit,
     onNavigateToStudyGuide: () -> Unit,
+    onNavigateToQuizCreation: () -> Unit,
     viewModel: AnalysisViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -347,7 +348,7 @@ fun AnalysisScreen(
                         }
 
                         OutlinedButton(
-                            onClick = { /* TODO: Create questions */ },
+                            onClick = onNavigateToQuizCreation,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         ) {

@@ -57,6 +57,33 @@ interface KhipuApiService {
     @GET("v1/notes/{note_id}/study-guide")
     suspend fun getStudyGuide(@Path("note_id") noteId: String): StudyGuideResponse
 
+    @POST("v1/notes/{note_id}/quiz-result")
+    suspend fun submitQuizResult(
+        @Path("note_id") noteId: String,
+        @Body request: QuizResultRequest
+    )
+
+    @POST("v1/notes/{note_id}/generate-quiz")
+    suspend fun generateQuiz(
+        @Path("note_id") noteId: String,
+        @Body request: QuizGenerateRequest
+    ): StandaloneQuizResponse
+
+    @GET("v1/notes/{note_id}/quizzes")
+    suspend fun getSavedQuizzes(@Path("note_id") noteId: String): List<StandaloneQuizResponse>
+
+    @POST("v1/notes/{note_id}/quizzes")
+    suspend fun saveQuiz(
+        @Path("note_id") noteId: String,
+        @Body request: StandaloneQuizResponse
+    )
+
+    @DELETE("v1/notes/{note_id}/quizzes/{quiz_id}")
+    suspend fun deleteQuiz(
+        @Path("note_id") noteId: String,
+        @Path("quiz_id") quizId: String
+    )
+
     @GET("v1/notes/{note_id}/review-session")
     suspend fun getNoteReviewSession(@Path("note_id") noteId: String): ReviewSessionResponse
 
@@ -90,6 +117,12 @@ interface KhipuApiService {
     @GET("v1/users/me")
     suspend fun getMyProfile(): UserProfileResponse
 
+    @PATCH("v1/users/me")
+    suspend fun updateMyProfile(@Body request: UserUpdateRequest): UserProfileResponse
+
+    @DELETE("v1/users/me")
+    suspend fun deleteMyAccount(@Body request: UserDeleteRequest)
+
     @DELETE("v1/notes/{note_id}")
     suspend fun deleteNote(@Path("note_id") noteId: String)
 
@@ -120,8 +153,14 @@ interface KhipuApiService {
     suspend fun createChatSession(@Body request: ChatSessionCreateRequest): ChatSessionResponse
 
     @GET("v1/tutor/sessions")
-    suspend fun getChatSessions(): List<ChatSessionResponse>
+    suspend fun getChatSessions(
+        @Query("context_type") contextType: String? = null,
+        @Query("context_id") contextId: String? = null
+    ): List<ChatSessionResponse>
 
     @GET("v1/tutor/sessions/{session_id}/messages")
     suspend fun getChatMessages(@Path("session_id") sessionId: String): List<ChatMessageResponse>
+
+    @DELETE("v1/tutor/sessions/{session_id}")
+    suspend fun deleteChatSession(@Path("session_id") sessionId: String)
 }

@@ -28,18 +28,27 @@ class TutorRepository @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val json: Json
 ) {
-    suspend fun createSession(title: String): Result<ChatSessionResponse> {
+    suspend fun createSession(contextType: String, contextId: String? = null): Result<ChatSessionResponse> {
         return try {
-            val req = ChatSessionCreateRequest(title)
+            val req = ChatSessionCreateRequest(contextType, contextId)
             Result.success(apiService.createChatSession(req))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun getSessions(): Result<List<ChatSessionResponse>> {
+    suspend fun deleteSession(sessionId: String): Result<Unit> {
         return try {
-            Result.success(apiService.getChatSessions())
+            apiService.deleteChatSession(sessionId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSessions(contextType: String? = null, contextId: String? = null): Result<List<ChatSessionResponse>> {
+        return try {
+            Result.success(apiService.getChatSessions(contextType, contextId))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -53,12 +62,13 @@ class TutorRepository @Inject constructor(
         }
     }
 
-    fun streamChatMessages(sessionId: String, messageText: String, courseId: String?): Flow<TutorStreamEvent> = callbackFlow {
-        val courseJsonStr = if (courseId != null) "\"$courseId\"" else "null"
+    fun streamChatMessages(sessionId: String, messageText: String, contextType: String, contextId: String?): Flow<TutorStreamEvent> = callbackFlow {
+        val contextIdJsonStr = if (contextId != null) "\"$contextId\"" else "null"
         val requestBody = """
             {
                 "message": "$messageText",
-                "course_id": $courseJsonStr
+                "context_type": "$contextType",
+                "context_id": $contextIdJsonStr
             }
         """.trimIndent().toRequestBody("application/json".toMediaType())
 
@@ -101,7 +111,21 @@ class TutorRepository @Inject constructor(
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
-                trySend(TutorStreamEvent.Error(t?.localizedMessage ?: "Fallo de conexión de red"))
+                var errorMessage = t?.localizedMessage ?: "Fallo de conexión de red"
+                if (response != null && !response.isSuccessful) {
+                    try {
+                        val errorBody = response.body?.string() ?: ""
+                        if (errorBody.isNotEmpty()) {
+                            val jsonObj = json.decodeFromString<JsonObject>(errorBody)
+                            errorMessage = jsonObj["detail"]?.jsonPrimitive?.content ?: errorMessage
+                        } else {
+                            errorMessage = "Error HTTP ${response.code}"
+                        }
+                    } catch (e: Exception) {
+                        errorMessage = "Error HTTP ${response.code}"
+                    }
+                }
+                trySend(TutorStreamEvent.Error(errorMessage))
                 close(t)
             }
 

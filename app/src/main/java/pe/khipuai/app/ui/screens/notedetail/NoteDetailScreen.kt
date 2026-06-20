@@ -35,7 +35,9 @@ import pe.khipuai.app.R
 fun NoteDetailScreen(
     onBackClick: () -> Unit,
     onReviewClick: () -> Unit,
-    onAskTutorClick: () -> Unit,
+    onAskTutorClick: (String?) -> Unit,
+    onStudyGuideClick: () -> Unit = {},
+    onNavigateToQuizCreation: () -> Unit = {},
     onViewOriginalClick: (String) -> Unit = {},
     viewModel: NoteDetailViewModel = hiltViewModel()
 ) {
@@ -212,6 +214,14 @@ fun NoteDetailScreen(
                                 },
                                 leadingIcon = { Icon(Icons.Default.Class, contentDescription = null) }
                             )
+                            DropdownMenuItem(
+                                text = { Text("Crear Quiz") },
+                                onClick = {
+                                    onNavigateToQuizCreation()
+                                    menuExpanded = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Quiz, contentDescription = null) }
+                            )
                             HorizontalDivider()
                             DropdownMenuItem(
                                 text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
@@ -256,7 +266,7 @@ fun NoteDetailScreen(
                     }
 
                     OutlinedButton(
-                        onClick = onAskTutorClick,
+                        onClick = { onAskTutorClick(uiState.courseId) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(99.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
@@ -448,6 +458,16 @@ fun NoteDetailScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 20.sp
                             )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = onStudyGuideClick,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Ver Guía de Estudio Completa")
+                            }
                         }
                     }
                 }

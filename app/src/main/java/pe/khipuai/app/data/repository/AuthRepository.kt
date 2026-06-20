@@ -58,6 +58,23 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun updateMyProfile(request: pe.khipuai.app.data.remote.dto.UserUpdateRequest): Result<UserProfileResponse> {
+        return try {
+            Result.success(apiService.updateMyProfile(request))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteMyAccount(password: String): Result<Unit> {
+        return try {
+            apiService.deleteMyAccount(pe.khipuai.app.data.remote.dto.UserDeleteRequest(password))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun logout() {
         sessionDataStore.clearToken()
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {

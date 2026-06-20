@@ -20,6 +20,7 @@ import pe.khipuai.app.ui.screens.processing.ProcessingScreen
 import pe.khipuai.app.ui.screens.analysis.AnalysisScreen
 import pe.khipuai.app.ui.screens.studyguide.StudyGuideScreen
 import pe.khipuai.app.ui.screens.tutor.TutorChatScreen
+import pe.khipuai.app.ui.screens.tutor.TutorHistoryScreen
 import pe.khipuai.app.ui.screens.courses.CoursesScreen
 import pe.khipuai.app.ui.screens.courses.CreateCourseScreen
 import pe.khipuai.app.ui.screens.coursedetail.CourseDetailScreen
@@ -96,6 +97,9 @@ fun KhipuNavigation(
                 },
                 onNavigateToSubscription = {
                     navController.navigate(Screen.Subscription.route)
+                },
+                onNavigateToTutorHistory = {
+                    navController.navigate("tutor_history?contextType=general")
                 }
             )
         }
@@ -176,11 +180,33 @@ fun KhipuNavigation(
                 onNavigateToSubscription = {
                     navController.navigate(Screen.Subscription.route)
                 },
+                onNavigateToTutorHistory = {
+                    navController.navigate("tutor_history")
+                },
+                onNavigateToNotificationSettings = {
+                    navController.navigate(Screen.NotificationSettings.route)
+                },
+                onNavigateToFaq = {
+                    navController.navigate(Screen.Faq.route)
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true } // Limpieza total del historial
                     }
                 }
+            )
+        }
+
+        composable(Screen.NotificationSettings.route) {
+            pe.khipuai.app.ui.screens.profile.NotificationSettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                viewModel = androidx.hilt.navigation.compose.hiltViewModel<pe.khipuai.app.ui.screens.profile.ProfileViewModel>()
+            )
+        }
+
+        composable(Screen.Faq.route) {
+            pe.khipuai.app.ui.screens.profile.FaqScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -211,6 +237,9 @@ fun KhipuNavigation(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToStudyGuide = {
                     navController.navigate("${Screen.StudyGuide.route}/$noteId")
+                },
+                onNavigateToQuizCreation = {
+                    navController.navigate("${Screen.QuizCreation.route}/$noteId")
                 }
             )
         }
@@ -220,15 +249,28 @@ fun KhipuNavigation(
             arguments = listOf(navArgument("noteId") { type = NavType.StringType })
         ) {
             StudyGuideScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToReview = { reviewNoteId ->
+                    navController.navigate("${Screen.ReviewSession.route}/$reviewNoteId")
+                }
             )
         }
 
         composable(
-            route = "${Screen.Tutor.route}/{sessionId}?courseId={courseId}",
+            route = "${Screen.Tutor.route}/{sessionId}?courseId={courseId}&contextType={contextType}&contextId={contextId}",
             arguments = listOf(
                 navArgument("sessionId") { type = NavType.StringType },
                 navArgument("courseId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("contextType") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("contextId") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
@@ -237,6 +279,36 @@ fun KhipuNavigation(
         ) {
             TutorChatScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "tutor_history?contextType={contextType}&contextId={contextId}",
+            arguments = listOf(
+                navArgument("contextType") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("contextId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val ctxType = backStackEntry.arguments?.getString("contextType") ?: "general"
+            val ctxId = backStackEntry.arguments?.getString("contextId")
+            
+            TutorHistoryScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToSession = { sessionId ->
+                    navController.navigate("${Screen.Tutor.route}/$sessionId")
+                },
+                onNewSession = {
+                    val urlParams = if (ctxId != null) "?contextType=$ctxType&contextId=$ctxId" else "?contextType=$ctxType"
+                    navController.navigate("${Screen.Tutor.route}/new_session$urlParams")
+                }
             )
         }
 
@@ -270,6 +342,9 @@ fun KhipuNavigation(
                 },
                 onExpandMapClick = {
                     navController.navigate(Screen.Maps.route)
+                },
+                onNavigateToTutor = { courseId ->
+                    navController.navigate("tutor_history?contextType=course&contextId=$courseId")
                 }
             )
         }
@@ -284,8 +359,20 @@ fun KhipuNavigation(
                 onReviewClick = {
                     navController.navigate("${Screen.ReviewSession.route}/$noteId")
                 },
-                onAskTutorClick = {
-                    navController.navigate("${Screen.Tutor.route}/new_session")
+                onAskTutorClick = { courseId ->
+                    val cId = courseId ?: "general"
+                    val route = if (cId == "general") {
+                        "${Screen.Tutor.route}/new_session?contextType=general"
+                    } else {
+                        "tutor_history?contextType=course&contextId=$cId"
+                    }
+                    navController.navigate(route)
+                },
+                onStudyGuideClick = {
+                    navController.navigate("${Screen.StudyGuide.route}/$noteId")
+                },
+                onNavigateToQuizCreation = {
+                    navController.navigate("${Screen.QuizCreation.route}/$noteId")
                 },
                 onViewOriginalClick = { encodedPath ->
                     navController.navigate("${Screen.FileViewer.route}/$encodedPath")
@@ -370,4 +457,6 @@ sealed class Screen(val route: String) {
     object FileViewer : Screen("file_viewer")
     object Calendar : Screen("calendar")
     object ReviewSession : Screen("review_session")
+    object NotificationSettings : Screen("notification_settings")
+    object Faq : Screen("faq")
 }

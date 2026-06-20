@@ -50,6 +50,8 @@ class TutorChatViewModel @Inject constructor(
 
     private val sessionIdArg: String? = savedStateHandle["sessionId"]
     private val courseIdArg: String? = savedStateHandle["courseId"]
+    private val contextTypeArg: String? = savedStateHandle["contextType"]
+    private val contextIdArg: String? = savedStateHandle["contextId"]
 
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         _uiState.value = _uiState.value.copy(
@@ -65,10 +67,27 @@ class TutorChatViewModel @Inject constructor(
     private fun initializeNewSession() {
         viewModelScope.launch(exceptionHandler) {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            tutorRepository.createSession("Conversación con Khipu Tutor")
+            val cType = contextTypeArg ?: "general"
+            val cId = contextIdArg
+            
+            tutorRepository.createSession(cType, cId)
                 .onSuccess { session ->
+                    val messagesList = mutableListOf<MessageUiModel>()
+                    session.initialMessage?.let { initialMsg ->
+                        messagesList.add(
+                            MessageUiModel(
+                                id = "initial_msg",
+                                sender = ChatSender.AI,
+                                content = initialMsg,
+                                timestamp = "Ahora"
+                            )
+                        )
+                    }
+                    
                     _uiState.value = _uiState.value.copy(
                         sessionId = session.id,
+                        messages = messagesList,
+                        courseName = session.title,
                         isLoading = false
                     )
                 }
@@ -91,7 +110,14 @@ class TutorChatViewModel @Inject constructor(
                             id = dto.id,
                             sender = if (dto.sender.lowercase() == "user") ChatSender.USER else ChatSender.AI,
                             content = dto.content,
-                            timestamp = "Reciente"
+                            timestamp = "Reciente",
+                            referenceNodes = dto.referenceNodes?.map { ref ->
+                                KnowledgeNodeRef(
+                                    id = ref.noteId,
+                                    title = ref.noteTitle,
+                                    snippet = ref.snippet
+                                )
+                            } ?: emptyList()
                         )
                     }
                     _uiState.value = _uiState.value.copy(messages = mapped, isLoading = false)
@@ -141,7 +167,9 @@ class TutorChatViewModel @Inject constructor(
         viewModelScope.launch(exceptionHandler) {
             var fullTextAccumulated = ""
             
-            tutorRepository.streamChatMessages(sessionId, query, courseIdArg)
+            val cType = contextTypeArg ?: "general"
+            val cId = contextIdArg
+            tutorRepository.streamChatMessages(sessionId, query, cType, cId)
                 .collect { event ->
                     when (event) {
                         is TutorStreamEvent.Chunk -> {
@@ -157,6 +185,7 @@ class TutorChatViewModel @Inject constructor(
                             updateAiMessageFinal(aiPlaceholderId, fullTextAccumulated, refs)
                         }
                         is TutorStreamEvent.Error -> {
+                            updateAiMessageContent(aiPlaceholderId, "❌ " + event.message)
                             _uiState.value = _uiState.value.copy(
                                 isStreaming = false,
                                 errorMessage = event.message
