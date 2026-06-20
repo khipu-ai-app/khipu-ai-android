@@ -131,24 +131,46 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Plan Gratuito", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                            Text("Te quedan 5 capturas este mes.", style = MaterialTheme.typography.bodyMedium)
+                        Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                            if (uiState.isPro) {
+                                Text("Plan Pro", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                Text("Capturas ilimitadas.", style = MaterialTheme.typography.bodyMedium)
+                            } else {
+                                val isExceeded = uiState.capturesUsed >= uiState.capturesLimit
+                                val titleColor = if (isExceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onTertiaryContainer
+                                
+                                Text("Plan Gratuito", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = titleColor)
+                                
+                                if (isExceeded) {
+                                    Text("Hazte Pro para seguir subiendo notas", style = MaterialTheme.typography.bodyMedium, color = titleColor)
+                                } else {
+                                    Text("${uiState.capturesUsed} de ${uiState.capturesLimit} capturas usadas este mes", style = MaterialTheme.typography.bodyMedium, color = titleColor)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    LinearProgressIndicator(
+                                        progress = { if (uiState.capturesLimit > 0) uiState.capturesUsed.toFloat() / uiState.capturesLimit.toFloat() else 0f },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                    )
+                                }
+                            }
                         }
-                        Button(
-                            onClick = onNavigateToSubscription,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            Text("Ser Pro")
+                        if (!uiState.isPro) {
+                            Button(
+                                onClick = onNavigateToSubscription,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Text("Ser Pro")
+                            }
                         }
                     }
                 }
             }
 
             item {
-                GreetingSection()
+                GreetingSection(userName = uiState.userName)
             }
 
             item {
@@ -349,7 +371,14 @@ fun HomeScreen(
 }
 
 @Composable
-private fun GreetingSection() {
+private fun GreetingSection(userName: String) {
+    val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
+    val greeting = when (currentHour) {
+        in 5..11 -> "Buenos días"
+        in 12..18 -> "Buenas tardes"
+        else -> "Buenas noches"
+    }
+
     Column {
         Text(
             text = "Resumen de tu aprendizaje",
@@ -359,7 +388,7 @@ private fun GreetingSection() {
         Spacer(modifier = Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Hola, Estudiante",
+                text = "$greeting, $userName",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface

@@ -66,3 +66,10 @@ data class UserUpdateRequest(
 data class UserDeleteRequest(
     @SerialName("password") val password: String
 )
+
+@Serializable
+data class UsageResponse(
+    @SerialName("captures_used") val capturesUsed: Int,
+    @SerialName("captures_limit") val capturesLimit: Int,
+    @SerialName("is_pro") val isPro: Boolean
+)

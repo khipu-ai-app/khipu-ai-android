@@ -27,7 +27,10 @@ data class HomeUiState(
     val courses: List<Course> = emptyList(),
     val recentFiles: List<RecentFile> = emptyList(),
     val suggestion: Suggestion? = null,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val capturesUsed: Int = 0,
+    val capturesLimit: Int = 5,
+    val isPro: Boolean = false
 )
 
 data class Course(
@@ -55,6 +58,7 @@ enum class FileType {
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    private val authRepository: pe.khipuai.app.data.repository.AuthRepository,
     private val courseRepository: CourseRepository,
     private val offlineFirstNoteRepository: pe.khipuai.app.data.repository.OfflineFirstNoteRepository,
     private val plannerRepository: PlannerRepository
@@ -68,11 +72,15 @@ class HomeViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
                 // Lanzar las llamadas en paralelo incluyendo la agenda diaria para sugerencias
+                val profileDeferred = async { authRepository.fetchMyProfile() }
+                val usageDeferred = async { authRepository.fetchUsage() }
                 val coursesDeferred = async { courseRepository.fetchMyCourses() }
                 val notesDeferred = async { offlineFirstNoteRepository.syncFromNetwork() }
                 val statsDeferred = async { plannerRepository.fetchStats() }
                 val agendaDeferred = async { plannerRepository.fetchDailyAgenda() }
 
+                val profileResult = profileDeferred.await()
+                val usageResult = usageDeferred.await()
                 coursesDeferred.await()
                 notesDeferred.await()
                 val statsResult = statsDeferred.await()
@@ -101,10 +109,17 @@ class HomeViewModel @Inject constructor(
                     }
                 }
 
+                val profile = profileResult.getOrNull()
+                val usage = usageResult.getOrNull()
+
                 _uiState.value = _uiState.value.copy(
+                    userName = profile?.fullName?.split(" ")?.firstOrNull() ?: "Estudiante",
                     streak = streak,
                     dailyProgress = dailyProgress,
                     suggestion = suggestion,
+                    capturesUsed = usage?.capturesUsed ?: 0,
+                    capturesLimit = usage?.capturesLimit ?: 5,
+                    isPro = usage?.isPro ?: false,
                     isLoading = false
                 )
 

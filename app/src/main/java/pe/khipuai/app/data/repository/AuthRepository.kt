@@ -58,6 +58,14 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun fetchUsage(): Result<pe.khipuai.app.data.remote.dto.UsageResponse> {
+        return try {
+            Result.success(apiService.getUsage())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateMyProfile(request: pe.khipuai.app.data.remote.dto.UserUpdateRequest): Result<UserProfileResponse> {
         return try {
             Result.success(apiService.updateMyProfile(request))

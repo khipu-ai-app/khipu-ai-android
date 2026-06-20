@@ -117,6 +117,9 @@ interface KhipuApiService {
     @GET("v1/users/me")
     suspend fun getMyProfile(): UserProfileResponse
 
+    @GET("v1/users/usage")
+    suspend fun getUsage(): UsageResponse
+
     @PATCH("v1/users/me")
     suspend fun updateMyProfile(@Body request: UserUpdateRequest): UserProfileResponse
 
