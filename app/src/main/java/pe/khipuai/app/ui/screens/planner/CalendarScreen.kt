@@ -7,6 +7,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -26,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.remote.dto.ManualScheduleItem
 import pe.khipuai.app.data.remote.dto.PlannerStatsResponse
 import pe.khipuai.app.data.remote.dto.ScheduleDayResponse
 import pe.khipuai.app.data.repository.PlannerRepository
@@ -40,6 +46,7 @@ import javax.inject.Inject
 
 data class CalendarUiState(
     val weekSchedule: List<ScheduleDayResponse> = emptyList(),
+    val manualSchedules: List<ManualScheduleItem> = emptyList(),
     val stats: PlannerStatsResponse? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
@@ -61,16 +68,26 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
+            val today = LocalDate.now()
+            val toDate = today.plusDays(30)
+
             val scheduleResult = plannerRepository.fetchWeeklySchedule()
             val statsResult = plannerRepository.fetchStats()
+            // Pedimos los próximos 30 días de repasos agendados manualmente
+            val manualResult = plannerRepository.fetchManualSchedules(
+                fromIso = today.toString(),
+                toIso = toDate.toString()
+            )
 
             val schedule = scheduleResult.getOrNull() ?: emptyList()
             val stats = statsResult.getOrNull()
+            val manual = manualResult.getOrNull() ?: emptyList()
             val error = scheduleResult.exceptionOrNull()?.localizedMessage
                 ?: statsResult.exceptionOrNull()?.localizedMessage
 
             _uiState.value = CalendarUiState(
                 weekSchedule = schedule,
+                manualSchedules = manual,
                 stats = stats,
                 isLoading = false,
                 errorMessage = if (schedule.isEmpty() && stats == null) error else null
@@ -142,6 +159,11 @@ fun CalendarScreen(
 
                 // ── Calendario semanal de repasos ─────────────────────────
                 WeeklyCalendar(weekSchedule = uiState.weekSchedule)
+
+                // ── Repasos agendados manualmente (próximos 30 días) ────
+                if (uiState.manualSchedules.isNotEmpty()) {
+                    ManualSchedulesList(schedules = uiState.manualSchedules)
+                }
 
                 // ── Mensaje de error si aplica ─────────────────────────────
                 uiState.errorMessage?.let { error ->
@@ -359,6 +381,93 @@ private fun WeeklyCalendar(weekSchedule: List<ScheduleDayResponse>) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ManualSchedulesList(schedules: List<ManualScheduleItem>) {
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy", Locale("es")) }
+
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.CalendarMonth,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = "Repasos agendados",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        schedules.forEach { entry ->
+            val date = runCatching {
+                LocalDate.parse(entry.scheduledDate, DateTimeFormatter.ISO_LOCAL_DATE)
+            }.getOrNull() ?: LocalDate.now()
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.tertiaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EventNote,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = entry.noteTitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = date.format(dateFormatter),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

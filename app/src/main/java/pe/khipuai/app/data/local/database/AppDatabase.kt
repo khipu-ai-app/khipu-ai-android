@@ -18,7 +18,7 @@ import pe.khipuai.app.data.local.entity.UploadQueueEntity
         NoteEntity::class,
         ReviewEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

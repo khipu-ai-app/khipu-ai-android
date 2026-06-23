@@ -8,14 +8,6 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "notes",
-    foreignKeys = [
-        ForeignKey(
-            entity = CourseEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["course_id"],
-            onDelete = ForeignKey.SET_NULL
-        )
-    ],
     indices = [Index(value = ["course_id"])]
 )
 data class NoteEntity(

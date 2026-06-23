@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import pe.khipuai.app.data.local.dao.CourseDao
+import pe.khipuai.app.data.remote.dto.ConceptDetailResponse
 import pe.khipuai.app.data.remote.dto.GraphResponse
 import pe.khipuai.app.data.repository.CourseRepository
 import pe.khipuai.app.data.repository.GraphRepository
@@ -33,6 +34,8 @@ data class MapsUiState(
     val courses: List<CourseOption> = emptyList(),
     val concepts: List<Concept> = emptyList(),
     val selectedConcept: Concept? = null,
+    val selectedConceptDetail: ConceptDetailResponse? = null,
+    val isLoadingDetail: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     /** JSON serializado para inyectar en la WebView D3.js */
@@ -92,14 +95,52 @@ class MapsViewModel @Inject constructor(
 
     /** Selección desde el BottomSheet (dismiss o selección manual en lista) */
     fun selectConcept(concept: Concept?) {
-        _uiState.value = _uiState.value.copy(selectedConcept = concept)
+        _uiState.value = _uiState.value.copy(
+            selectedConcept = concept,
+            // Limpiamos el detalle cuando se cierra/abre para evitar datos viejos
+            selectedConceptDetail = if (concept == null) null else _uiState.value.selectedConceptDetail
+        )
+        if (concept != null) {
+            loadConceptDetail(concept.title)
+        } else {
+            _uiState.value = _uiState.value.copy(selectedConceptDetail = null)
+        }
     }
 
     /** Selección desde el puente JavaScript → Kotlin de la WebView */
     fun selectConceptById(conceptId: String) {
         val concept = _uiState.value.concepts.find { it.id == conceptId }
         _uiState.value = _uiState.value.copy(selectedConcept = concept)
+        if (concept != null) {
+            loadConceptDetail(concept.title)
+        }
     }
+
+    /**
+     * Carga la información extendida del concepto (notas fuente + vecinos) desde
+     * `GET /graph/concept/{name}`. Alimenta los botones "Ir a la nota" y el
+     * picker de notas múltiples del ConceptBottomSheet.
+     */
+    private fun loadConceptDetail(conceptName: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingDetail = true)
+            graphRepository.fetchConceptDetail(conceptName)
+                .onSuccess { detail ->
+                    _uiState.value = _uiState.value.copy(
+                        selectedConceptDetail = detail,
+                        isLoadingDetail = false
+                    )
+                }
+                .onFailure {
+                    // No es crítico: el bottom sheet sigue mostrando el concepto
+                    _uiState.value = _uiState.value.copy(isLoadingDetail = false)
+                }
+        }
+    }
+
+    /** Helper que devuelve la primera nota fuente del concepto seleccionado. */
+    fun firstNoteIdOfSelected(): String? =
+        _uiState.value.selectedConceptDetail?.notes?.firstOrNull()?.id
 
     private fun loadGraphForCourseId(courseId: String) {
         if (courseId.isBlank()) {
@@ -227,6 +268,8 @@ class MapsViewModel @Inject constructor(
         }
     }
 
+    private var hasAppliedPreselection = false
+
     init {
         // Observamos cursos reactivamente desde Room
         viewModelScope.launch {
@@ -239,16 +282,25 @@ class MapsViewModel @Inject constructor(
                 var nextId = currentId
                 var nextName = _uiState.value.selectedCourseName
 
-                if (currentId.isBlank() && activeCourses.isNotEmpty()) {
-                    // Si hay un curso preseleccionado y está en la lista activa, úsalo.
-                    val targetCourse = if (preselectedCourseId != null) {
-                        activeCourses.find { it.id == preselectedCourseId } ?: activeCourses.first()
-                    } else {
-                        activeCourses.first()
+                if (activeCourses.isNotEmpty()) {
+                    if (!hasAppliedPreselection && preselectedCourseId != null) {
+                        val targetCourse = activeCourses.find { it.id == preselectedCourseId }
+                        if (targetCourse != null) {
+                            nextId = targetCourse.id
+                            nextName = targetCourse.name
+                            loadGraphForCourseId(nextId)
+                        } else if (currentId.isBlank()) {
+                            nextId = activeCourses.first().id
+                            nextName = activeCourses.first().name
+                            loadGraphForCourseId(nextId)
+                        }
+                        hasAppliedPreselection = true
+                    } else if (currentId.isBlank()) {
+                        nextId = activeCourses.first().id
+                        nextName = activeCourses.first().name
+                        loadGraphForCourseId(nextId)
+                        hasAppliedPreselection = true
                     }
-                    nextId = targetCourse.id
-                    nextName = targetCourse.name
-                    loadGraphForCourseId(nextId)
                 }
 
                 _uiState.value = _uiState.value.copy(

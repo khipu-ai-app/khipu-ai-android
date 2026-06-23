@@ -34,7 +34,6 @@ data class NoteDetailUiState(
     val extractedText: String = "",
     val keyConcepts: List<String> = emptyList(),
     val historyTimeline: List<HistoryItemUiModel> = emptyList(),
-    val isBookmarked: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val availableCourses: List<pe.khipuai.app.data.local.entity.CourseEntity> = emptyList(),
@@ -42,7 +41,8 @@ data class NoteDetailUiState(
     val d3NodesJson: String = "[]",
     val d3EdgesJson: String = "[]",
     val showLocalGraph: Boolean = false,
-    val isGraphLoading: Boolean = false
+    val isGraphLoading: Boolean = false,
+    val snackbarMessage: String? = null
 )
 
 @HiltViewModel
@@ -50,6 +50,7 @@ class NoteDetailViewModel @Inject constructor(
     private val noteRepository: pe.khipuai.app.data.repository.NoteRepository,
     private val offlineFirstNoteRepository: pe.khipuai.app.data.repository.OfflineFirstNoteRepository,
     private val courseRepository: pe.khipuai.app.data.repository.CourseRepository,
+    private val plannerRepository: pe.khipuai.app.data.repository.PlannerRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -108,10 +109,6 @@ class NoteDetailViewModel @Inject constructor(
                     )
                 }
         }
-    }
-
-    fun toggleBookmark() {
-        _uiState.value = _uiState.value.copy(isBookmarked = !_uiState.value.isBookmarked)
     }
 
     fun toggleLocalGraph() {
@@ -204,6 +201,21 @@ class NoteDetailViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun scheduleNote(dateStr: String) {
+        viewModelScope.launch {
+            val result = plannerRepository.createManualSchedule(noteId, dateStr)
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(snackbarMessage = "Nota programada para el $dateStr")
+            } else {
+                _uiState.value = _uiState.value.copy(snackbarMessage = "Error al programar nota")
+            }
+        }
+    }
+
+    fun clearSnackbar() {
+        _uiState.value = _uiState.value.copy(snackbarMessage = null)
     }
 
     /** Convierte ISO 8601 (ej: "2024-10-24T12:00:00") → "24 Oct, 2024". */

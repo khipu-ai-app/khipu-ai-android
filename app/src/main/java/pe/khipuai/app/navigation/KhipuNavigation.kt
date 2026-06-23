@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import pe.khipuai.app.ui.screens.auth.LoginScreen
 import pe.khipuai.app.ui.screens.auth.RegisterScreen
 import pe.khipuai.app.ui.screens.auth.OnboardingScreen
+import pe.khipuai.app.ui.screens.auth.ForgotPasswordScreen
 import pe.khipuai.app.ui.screens.home.HomeScreen
 import pe.khipuai.app.ui.screens.capture.CaptureScreen
 import pe.khipuai.app.ui.screens.planner.PlannerScreen
@@ -18,6 +19,9 @@ import pe.khipuai.app.ui.screens.maps.MapsScreen
 import pe.khipuai.app.ui.screens.profile.ProfileScreen
 import pe.khipuai.app.ui.screens.processing.ProcessingScreen
 import pe.khipuai.app.ui.screens.analysis.AnalysisScreen
+import pe.khipuai.app.ui.screens.search.SearchScreen
+import pe.khipuai.app.ui.screens.statistics.StatisticsScreen
+import pe.khipuai.app.ui.screens.achievements.AchievementsScreen
 import pe.khipuai.app.ui.screens.studyguide.StudyGuideScreen
 import pe.khipuai.app.ui.screens.tutor.TutorChatScreen
 import pe.khipuai.app.ui.screens.tutor.TutorHistoryScreen
@@ -47,7 +51,16 @@ fun KhipuNavigation(
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
+                },
+                onNavigateToForgotPassword = {
+                    navController.navigate(Screen.ForgotPassword.route)
                 }
+            )
+        }
+
+        composable(Screen.ForgotPassword.route) {
+            ForgotPasswordScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -100,6 +113,9 @@ fun KhipuNavigation(
                 },
                 onNavigateToTutorHistory = {
                     navController.navigate("tutor_history?contextType=general")
+                },
+                onNavigateToSearch = {
+                    navController.navigate("search")
                 }
             )
         }
@@ -144,19 +160,31 @@ fun KhipuNavigation(
                 },
                 onNavigateToCalendar = {
                     navController.navigate(Screen.Calendar.route)
-                }
+                },
+                onNavigateToNote = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
+                },
+                onNavigateToDailyDeck = { navController.navigate("daily_deck_session") }
             )
         }
 
         composable(
-            route = "${Screen.Maps.route}?preselectedCourseId={preselectedCourseId}",
-            arguments = listOf(navArgument("preselectedCourseId") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            })
+            route = "${Screen.Maps.route}?preselectedCourseId={preselectedCourseId}&highlightConcept={highlightConcept}",
+            arguments = listOf(
+                navArgument("preselectedCourseId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("highlightConcept") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
         ) { backStackEntry ->
             val preselectedCourseId = backStackEntry.arguments?.getString("preselectedCourseId")
+            val highlightConcept = backStackEntry.arguments?.getString("highlightConcept")
             MapsScreen(
                 onNavigateToTab = { tabIndex ->
                     when (tabIndex) {
@@ -167,7 +195,22 @@ fun KhipuNavigation(
                         4 -> navController.navigate(Screen.Profile.route)
                     }
                 },
-                preselectedCourseId = preselectedCourseId
+                preselectedCourseId = preselectedCourseId,
+                highlightConcept = highlightConcept,
+                onNoteClick = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
+                },
+                onStartReview = { conceptName ->
+                    val encoded = java.net.URLEncoder.encode(conceptName, "UTF-8")
+                    navController.navigate("review_session/by-concept?conceptName=$encoded")
+                },
+                onAskTutor = { conceptName ->
+                    val encoded = java.net.URLEncoder.encode(conceptName, "UTF-8")
+                    // Abrimos el chat global con el concepto como prefill
+                    navController.navigate(
+                        "tutor_history?contextType=general&initialConcepts=$encoded"
+                    )
+                }
             )
         }
 
@@ -204,6 +247,12 @@ fun KhipuNavigation(
                 },
                 onNavigateToFaq = {
                     navController.navigate(Screen.Faq.route)
+                },
+                onNavigateToStatistics = {
+                    navController.navigate("statistics")
+                },
+                onNavigateToAchievements = {
+                    navController.navigate("achievements")
                 },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
@@ -256,6 +305,10 @@ fun KhipuNavigation(
                 },
                 onNavigateToQuizCreation = {
                     navController.navigate("${Screen.QuizCreation.route}/$noteId")
+                },
+                onConceptClick = { conceptName ->
+                    val encoded = java.net.URLEncoder.encode(conceptName, "UTF-8")
+                    navController.navigate("${Screen.Maps.route}?highlightConcept=$encoded")
                 }
             )
         }
@@ -273,7 +326,7 @@ fun KhipuNavigation(
         }
 
         composable(
-            route = "${Screen.Tutor.route}/{sessionId}?courseId={courseId}&contextType={contextType}&contextId={contextId}",
+            route = "${Screen.Tutor.route}/{sessionId}?courseId={courseId}&contextType={contextType}&contextId={contextId}&initialConcepts={initialConcepts}&noteContext={noteContext}&noteTitle={noteTitle}",
             arguments = listOf(
                 navArgument("sessionId") { type = NavType.StringType },
                 navArgument("courseId") {
@@ -290,6 +343,21 @@ fun KhipuNavigation(
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
+                },
+                navArgument("initialConcepts") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("noteContext") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("noteTitle") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
                 }
             )
         ) {
@@ -299,7 +367,7 @@ fun KhipuNavigation(
         }
 
         composable(
-            route = "tutor_history?contextType={contextType}&contextId={contextId}",
+            route = "tutor_history?contextType={contextType}&contextId={contextId}&noteContext={noteContext}&noteTitle={noteTitle}&initialConcepts={initialConcepts}",
             arguments = listOf(
                 navArgument("contextType") {
                     type = NavType.StringType
@@ -310,20 +378,47 @@ fun KhipuNavigation(
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
+                },
+                navArgument("noteContext") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("noteTitle") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("initialConcepts") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
                 }
             )
         ) { backStackEntry ->
             val ctxType = backStackEntry.arguments?.getString("contextType") ?: "general"
             val ctxId = backStackEntry.arguments?.getString("contextId")
-            
+            val noteCtx = backStackEntry.arguments?.getString("noteContext")
+            val noteTit = backStackEntry.arguments?.getString("noteTitle")
+            val initConcepts = backStackEntry.arguments?.getString("initialConcepts")
+
+            fun buildQueryParams(): String {
+                val parts = mutableListOf<String>()
+                parts += "contextType=$ctxType"
+                if (ctxId != null) parts += "contextId=$ctxId"
+                if (noteCtx != null) parts += "noteContext=$noteCtx"
+                if (noteTit != null) parts += "noteTitle=${java.net.URLEncoder.encode(noteTit, "UTF-8")}"
+                if (initConcepts != null) parts += "initialConcepts=$initConcepts"
+                return "?${parts.joinToString("&")}"
+            }
+
             TutorHistoryScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToSession = { sessionId ->
-                    navController.navigate("${Screen.Tutor.route}/$sessionId")
+                    navController.navigate("${Screen.Tutor.route}/$sessionId${buildQueryParams()}")
                 },
                 onNewSession = {
-                    val urlParams = if (ctxId != null) "?contextType=$ctxType&contextId=$ctxId" else "?contextType=$ctxType"
-                    navController.navigate("${Screen.Tutor.route}/new_session$urlParams")
+                    navController.navigate("${Screen.Tutor.route}/new_session${buildQueryParams()}")
                 }
             )
         }
@@ -360,14 +455,14 @@ fun KhipuNavigation(
                 onExpandMapClick = {
                     navController.navigate("${Screen.Maps.route}?preselectedCourseId=$courseId")
                 },
-                onNavigateToCapture = { courseId ->
-                    navController.navigate("${Screen.Capture.route}?preselectedCourseId=$courseId")
+                onNavigateToCapture = { cid ->
+                    navController.navigate("${Screen.Capture.route}?preselectedCourseId=$cid")
                 },
-                onNavigateToTutor = { courseId ->
-                    navController.navigate("tutor_history?contextType=course&contextId=$courseId")
+                onNavigateToTutor = { cid ->
+                    navController.navigate("tutor_history?contextType=course&contextId=$cid")
                 },
-                onNavigateToReview = { conceptId ->
-                    navController.navigate("tutor_history?contextType=concept&contextId=$conceptId")
+                onNavigateToStudy = { route ->
+                    navController.navigate(route)
                 }
             )
         }
@@ -382,8 +477,34 @@ fun KhipuNavigation(
                 onReviewClick = {
                     navController.navigate("${Screen.ReviewSession.route}/$noteId")
                 },
-                onAskTutorClick = { _ ->
-                    navController.navigate("tutor_history?contextType=note&contextId=$noteId")
+                onAskTutorClick = { concept, courseId, noteIdFromCb, noteTitle ->
+                    // Nuevo modelo: SIEMPRE abrimos el chat del curso.
+                    // - Si la nota no tiene curso → caemos al chat global.
+                    // - Si viene un concept: prefill con "Explícame el concepto «X»"
+                    // - Si no viene concept: prefill con "Tengo una pregunta sobre la nota «X»"
+                    val encodedNoteId = java.net.URLEncoder.encode(noteIdFromCb, "UTF-8")
+                    val encodedNoteTitle = java.net.URLEncoder.encode(noteTitle, "UTF-8")
+
+                    if (courseId.isNullOrBlank()) {
+                        // Nota sin curso → chat global con hint de la nota
+                        navController.navigate(
+                            "tutor_history?contextType=general" +
+                            "&noteContext=$encodedNoteId&noteTitle=$encodedNoteTitle"
+                        )
+                    } else if (!concept.isNullOrBlank()) {
+                        // Tapped un chip de concepto → prefill con el concepto
+                        val encodedConcept = java.net.URLEncoder.encode(concept, "UTF-8")
+                        navController.navigate(
+                            "tutor_history?contextType=course&contextId=$courseId" +
+                            "&initialConcepts=$encodedConcept"
+                        )
+                    } else {
+                        // Botón "Chat Tutor" general → chat del curso con prefill de la nota
+                        navController.navigate(
+                            "tutor_history?contextType=course&contextId=$courseId" +
+                            "&noteContext=$encodedNoteId&noteTitle=$encodedNoteTitle"
+                        )
+                    }
                 },
                 onStudyGuideClick = {
                     navController.navigate("${Screen.StudyGuide.route}/$noteId")
@@ -393,14 +514,51 @@ fun KhipuNavigation(
                 },
                 onViewOriginalClick = { encodedPath ->
                     navController.navigate("${Screen.FileViewer.route}/$encodedPath")
+                },
+                onScheduleClick = { noteId, noteTitle ->
+                    val encodedTitle = java.net.URLEncoder.encode(noteTitle, "UTF-8")
+                    navController.navigate("${Screen.ScheduleNote.route}/$noteId?noteTitle=$encodedTitle")
                 }
             )
         }
 
         composable(
-            route = "${Screen.ReviewSession.route}/{noteId}",
-            arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+            route = "${Screen.ReviewSession.route}/{noteId}?conceptName={conceptName}",
+            arguments = listOf(
+                navArgument("noteId") { type = NavType.StringType },
+                navArgument("conceptName") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
         ) {
+            ReviewSessionScreen(
+                onBackClick = { navController.popBackStack() },
+                onComplete = { navController.popBackStack() },
+            )
+        }
+
+        // Ruta dedicada para repasos por concepto (F-09, disparado desde el
+        // ConceptBottomSheet del grafo de Maps).
+        composable(
+            route = "review_session/by-concept?conceptName={conceptName}",
+            arguments = listOf(
+                navArgument("conceptName") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) {
+            ReviewSessionScreen(
+                onBackClick = { navController.popBackStack() },
+                onComplete = { navController.popBackStack() },
+            )
+        }
+
+        // Ruta dedicada para el Mazo Diario Global (F-10 Opción 1)
+        composable("daily_deck_session") {
             ReviewSessionScreen(
                 onBackClick = { navController.popBackStack() },
                 onComplete = { navController.popBackStack() },
@@ -419,6 +577,18 @@ fun KhipuNavigation(
         composable(Screen.Subscription.route) {
             SubscriptionScreen(
                 onCloseClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "${Screen.ScheduleNote.route}/{noteId}?noteTitle={noteTitle}",
+            arguments = listOf(
+                navArgument("noteId") { type = NavType.StringType },
+                navArgument("noteTitle") { type = NavType.StringType }
+            )
+        ) {
+            pe.khipuai.app.ui.screens.planner.ScheduleNoteScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -447,12 +617,35 @@ fun KhipuNavigation(
                 }
             )
         }
+        composable("search") {
+            SearchScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToNoteDetail = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
+                },
+                onNavigateToMaps = { conceptName ->
+                    val encodedConcept = java.net.URLEncoder.encode(conceptName, "UTF-8")
+                    navController.navigate("${Screen.Maps.route}?highlightConcept=$encodedConcept")
+                }
+            )
+        }
+        composable("statistics") {
+            StatisticsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("achievements") {
+            AchievementsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
     }
 }
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
+    object ForgotPassword : Screen("forgot_password")
     object Home : Screen("home")
     object Capture : Screen("capture")
     object Planner : Screen("planner")
@@ -473,6 +666,7 @@ sealed class Screen(val route: String) {
     object Subscription : Screen("subscription")
     object FileViewer : Screen("file_viewer")
     object Calendar : Screen("calendar")
+    object ScheduleNote : Screen("schedule_note")
     object ReviewSession : Screen("review_session")
     object NotificationSettings : Screen("notification_settings")
     object Faq : Screen("faq")

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -29,6 +30,10 @@ import pe.khipuai.app.ui.components.BottomNavigationBar
 fun MapsScreen(
     onNavigateToTab: (Int) -> Unit,
     preselectedCourseId: String? = null,
+    highlightConcept: String? = null,
+    onNoteClick: (String) -> Unit = {},
+    onStartReview: (conceptName: String) -> Unit = {},
+    onAskTutor: (conceptName: String) -> Unit = {},
     viewModel: MapsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -184,6 +189,14 @@ fun MapsScreen(
                                                 "loadGraph('$nodesB64', '$edgesB64')",
                                                 null
                                             )
+                                            // Si la navegación vino con un concepto a resaltar,
+                                            // pedimos al WebView que lo centre y destaque
+                                            highlightConcept?.let { concept ->
+                                                view?.evaluateJavascript(
+                                                    "highlightNode('${java.net.URLDecoder.decode(concept, "UTF-8").replace("'", "\\'")}')",
+                                                    null
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -254,7 +267,12 @@ fun MapsScreen(
             uiState.selectedConcept?.let { concept ->
                 ConceptBottomSheet(
                     concept = concept,
-                    onDismiss = { viewModel.selectConcept(null) }
+                    detail = uiState.selectedConceptDetail,
+                    isLoadingDetail = uiState.isLoadingDetail,
+                    onDismiss = { viewModel.selectConcept(null) },
+                    onGoToNote = { noteId -> onNoteClick(noteId) },
+                    onStartReview = { onStartReview(concept.title) },
+                    onAskTutor = { onAskTutor(concept.title) }
                 )
             }
         }
@@ -363,7 +381,17 @@ private fun FilterSection(
 }
 
 @Composable
-private fun ConceptBottomSheet(concept: Concept, onDismiss: () -> Unit) {
+private fun ConceptBottomSheet(
+    concept: Concept,
+    detail: pe.khipuai.app.data.remote.dto.ConceptDetailResponse?,
+    isLoadingDetail: Boolean,
+    onDismiss: () -> Unit,
+    onGoToNote: (String) -> Unit,
+    onStartReview: () -> Unit,
+    onAskTutor: () -> Unit
+) {
+    var showNotePicker by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
@@ -475,7 +503,123 @@ private fun ConceptBottomSheet(concept: Concept, onDismiss: () -> Unit) {
                         }
                     )
                 }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // ── 3 acciones del bottom sheet (F-09) ─────────────────
+                ConceptActions(
+                    isLoadingDetail = isLoadingDetail,
+                    notesCount = detail?.notes?.size ?: 0,
+                    onGoToNote = {
+                        val notes = detail?.notes.orEmpty()
+                        when {
+                            notes.isEmpty() -> { /* no-op, botón deshabilitado */ }
+                            notes.size == 1 -> onGoToNote(notes.first().id)
+                            else -> showNotePicker = true
+                        }
+                    },
+                    onStartReview = onStartReview,
+                    onAskTutor = onAskTutor
+                )
             }
+        }
+    }
+
+    // Picker de notas cuando el concepto está en varias
+    if (showNotePicker && detail != null && detail.notes.size > 1) {
+        AlertDialog(
+            onDismissRequest = { showNotePicker = false },
+            title = { Text("¿A qué nota quieres ir?") },
+            text = {
+                Column {
+                    detail.notes.forEach { note ->
+                        TextButton(
+                            onClick = {
+                                showNotePicker = false
+                                onGoToNote(note.id)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Description,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(note.title, style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showNotePicker = false }) { Text("Cancelar") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ConceptActions(
+    isLoadingDetail: Boolean,
+    notesCount: Int,
+    onGoToNote: () -> Unit,
+    onStartReview: () -> Unit,
+    onAskTutor: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 1. Ir a la nota — solo si el concepto tiene al menos 1 nota
+        FilledTonalButton(
+            onClick = onGoToNote,
+            enabled = !isLoadingDetail && notesCount > 0,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Description,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (notesCount > 1) "Ir a la nota ($notesCount opciones)" else "Ir a la nota",
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        // 2. Iniciar repaso — siempre visible
+        FilledTonalButton(
+            onClick = onStartReview,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Iniciar repaso", fontWeight = FontWeight.SemiBold)
+        }
+
+        // 3. Preguntar a Khipu — siempre visible
+        OutlinedButton(
+            onClick = onAskTutor,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Chat,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Preguntar a Khipu", fontWeight = FontWeight.SemiBold)
         }
     }
 }

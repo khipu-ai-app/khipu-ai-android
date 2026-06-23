@@ -10,7 +10,7 @@ import pe.khipuai.app.data.local.entity.NoteEntity
 @Dao
 interface NoteDao {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     suspend fun upsertAll(notes: List<NoteEntity>)
 
     @Query("SELECT * FROM notes ORDER BY created_at DESC")

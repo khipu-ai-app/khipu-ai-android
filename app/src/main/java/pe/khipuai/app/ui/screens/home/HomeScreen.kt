@@ -36,6 +36,7 @@ fun HomeScreen(
     onNavigateToNoteDetail: (String) -> Unit = {},
     onNavigateToSubscription: () -> Unit = {},
     onNavigateToTutorHistory: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     // Corregido: Se añaden los métodos delegados correctos mediante los imports de Compose runtime
@@ -55,10 +56,10 @@ fun HomeScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = { /* TODO: Open drawer */ }) {
+                    IconButton(onClick = onNavigateToSearch) {
                         Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Perfil",
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Buscar",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }

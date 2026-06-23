@@ -3,6 +3,7 @@ package pe.khipuai.app.data.remote
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import pe.khipuai.app.data.remote.dto.*
+import retrofit2.Response
 import retrofit2.http.*
 
 interface KhipuApiService {
@@ -87,22 +88,42 @@ interface KhipuApiService {
     @GET("v1/notes/{note_id}/review-session")
     suspend fun getNoteReviewSession(@Path("note_id") noteId: String): ReviewSessionResponse
 
+    @GET("v1/planner/review-session")
+    suspend fun getConceptReviewSession(
+        @Query("concept_name") conceptName: String
+    ): List<ReviewConceptResponse>
+
     @GET("v1/notes/{note_id}/review-history")
     suspend fun getNoteReviewHistory(@Path("note_id") noteId: String): List<ReviewHistoryItemResponse>
 
     @GET("v1/planner/today")
     suspend fun getTodayPlanner(): List<DueConceptResponse>
 
+    @GET("v1/planner/daily-deck")
+    suspend fun getDailyDeckSession(): List<ReviewConceptResponse>
+
     @POST("v1/planner/review")
     suspend fun submitConceptReview(
         @Body request: ReviewRequest
     )
+
+    @PATCH("v1/planner/concepts/postpone")
+    suspend fun postponeConcepts(@Body request: PostponeRequest)
 
     @GET("v1/planner/schedule")
     suspend fun getWeeklySchedule(): List<ScheduleDayResponse>
 
     @GET("v1/planner/stats")
     suspend fun getPlannerStats(): PlannerStatsResponse
+
+    @POST("v1/planner/manual-schedule")
+    suspend fun createManualSchedule(@Body request: ManualScheduleRequest)
+
+    @GET("v1/planner/manual-schedules")
+    suspend fun getManualSchedules(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null
+    ): List<ManualScheduleItem>
 
     @GET("v1/graph/course/{course_id}")
     suspend fun getCourseGraph(
@@ -166,4 +187,16 @@ interface KhipuApiService {
 
     @DELETE("v1/tutor/sessions/{session_id}")
     suspend fun deleteChatSession(@Path("session_id") sessionId: String)
+    // Search
+    @GET("v1/search")
+    suspend fun searchGlobal(
+        @Query("q") query: String,
+        @Query("limit") limit: Int = 10
+    ): retrofit2.Response<SearchResponse>
+    // Achievements
+    @POST("v1/achievements/check")
+    suspend fun checkAchievements(): List<AchievementResponse>
+
+    @GET("v1/achievements")
+    suspend fun getAchievements(): List<AchievementResponse>
 }

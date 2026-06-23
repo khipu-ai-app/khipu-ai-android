@@ -34,6 +34,8 @@ fun ProfileScreen(
     onNavigateToTutorHistory: () -> Unit,
     onNavigateToNotificationSettings: () -> Unit,
     onNavigateToFaq: () -> Unit,
+    onNavigateToStatistics: () -> Unit,
+    onNavigateToAchievements: () -> Unit,
     onLogout: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -111,6 +113,10 @@ fun ProfileScreen(
             item {
                 Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
                     Column {
+                        SettingsItem(icon = Icons.Default.TrendingUp, title = "Mi Progreso", onClick = onNavigateToStatistics)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        SettingsItem(icon = Icons.Default.EmojiEvents, title = "Mis Logros", onClick = onNavigateToAchievements)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         SettingsItem(icon = Icons.Default.Person, title = "Información Personal", onClick = { showPersonalInfoDialog = true })
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         SettingsItem(icon = Icons.Default.Chat, title = "Historial de Khipu", onClick = onNavigateToTutorHistory)

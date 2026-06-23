@@ -72,31 +72,68 @@ class ReviewSessionViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            if (noteId != null) {
-                noteRepository.getNoteReviewSession(noteId)
-                    .onSuccess { session ->
-                        val pendingConcepts = session.concepts.filter { it.isDue }
-                        
-                        _uiState.value = _uiState.value.copy(
-                            noteTitle = session.noteTitle,
-                            courseName = session.courseName,
-                            concepts = pendingConcepts,
-                            isLoading = false,
-                            currentIndex = 0,
-                            isComplete = pendingConcepts.isEmpty(),
-                        )
-                    }
-                    .onFailure { error ->
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = error.message ?: "Error al cargar la sesión de repaso",
-                        )
-                    }
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "Modo curso/concepto en desarrollo. Solo soporte por Nota.",
-                )
+            when {
+                noteId != null -> {
+                    noteRepository.getNoteReviewSession(noteId)
+                        .onSuccess { session ->
+                            val pendingConcepts = session.concepts.filter { it.isDue }
+                            _uiState.value = _uiState.value.copy(
+                                noteTitle = session.noteTitle,
+                                courseName = session.courseName,
+                                concepts = pendingConcepts,
+                                isLoading = false,
+                                currentIndex = 0,
+                                isComplete = pendingConcepts.isEmpty(),
+                            )
+                        }
+                        .onFailure { error ->
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                errorMessage = error.message ?: "Error al cargar la sesión de repaso",
+                            )
+                        }
+                }
+                conceptName != null -> {
+                    // Repaso de un solo concepto (F-09: disparado desde ConceptBottomSheet)
+                    noteRepository.getConceptReviewSession(conceptName)
+                        .onSuccess { concepts ->
+                            _uiState.value = _uiState.value.copy(
+                                noteTitle = "Repaso: $conceptName",
+                                courseName = null,
+                                concepts = concepts,
+                                isLoading = false,
+                                currentIndex = 0,
+                                isComplete = concepts.isEmpty(),
+                            )
+                        }
+                        .onFailure { error ->
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                errorMessage = error.message ?: "Error al cargar el concepto",
+                            )
+                        }
+                }
+                else -> {
+                    // Mazo Diario (Daily Deck) F-10 Opción 1
+                    plannerRepository.fetchDailyDeckSession()
+                        .onSuccess { concepts ->
+                            val pendingConcepts = concepts.filter { it.isDue }
+                            _uiState.value = _uiState.value.copy(
+                                noteTitle = "Mazo Diario",
+                                courseName = "Todos los cursos",
+                                concepts = pendingConcepts,
+                                isLoading = false,
+                                currentIndex = 0,
+                                isComplete = pendingConcepts.isEmpty(),
+                            )
+                        }
+                        .onFailure { error ->
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                errorMessage = error.message ?: "Error al cargar el mazo diario",
+                            )
+                        }
+                }
             }
         }
     }
@@ -116,7 +153,7 @@ class ReviewSessionViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            plannerRepository.submitReviewRating(concept.conceptId, rating, noteId)
+            plannerRepository.submitReviewRating(concept.conceptId, rating, noteId ?: conceptIdOrName(concept.conceptName))
                 .onSuccess {
                     if (currentIdx + 1 >= total) {
                         val remembered = conceptResults.count { it.rating >= 3 }
@@ -154,6 +191,13 @@ class ReviewSessionViewModel @Inject constructor(
     fun dismissError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
+
+    /**
+     * Para repasos por concepto (F-09) el `noteId` siempre es null. El backend
+     * acepta `note_id` opcional en `POST /planner/review`, así que le pasamos
+     * null en lugar de inventar un UUID.
+     */
+    private fun conceptIdOrName(@Suppress("UNUSED_PARAMETER") name: String): String? = null
 
     fun restartWithDifficult() {
         val forgottenLabels = conceptResults.filter { it.rating < 3 }.map { it.conceptName }

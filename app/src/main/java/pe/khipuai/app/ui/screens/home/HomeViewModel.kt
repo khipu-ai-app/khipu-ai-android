@@ -61,7 +61,9 @@ class HomeViewModel @Inject constructor(
     private val authRepository: pe.khipuai.app.data.repository.AuthRepository,
     private val courseRepository: CourseRepository,
     private val offlineFirstNoteRepository: pe.khipuai.app.data.repository.OfflineFirstNoteRepository,
-    private val plannerRepository: PlannerRepository
+    private val plannerRepository: PlannerRepository,
+    private val achievementManager: pe.khipuai.app.ui.screens.achievements.AchievementManager,
+    private val apiService: pe.khipuai.app.data.remote.KhipuApiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState(isLoading = true))
@@ -71,6 +73,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
+                // Check achievements in background
+                launch {
+                    achievementManager.checkAchievements(apiService, pe.khipuai.app.ui.screens.achievements.AchievementCatalog.items)
+                }
+
                 // Lanzar las llamadas en paralelo incluyendo la agenda diaria para sugerencias
                 val profileDeferred = async { authRepository.fetchMyProfile() }
                 val usageDeferred = async { authRepository.fetchUsage() }

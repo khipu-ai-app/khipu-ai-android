@@ -52,6 +52,9 @@ class TutorChatViewModel @Inject constructor(
     private val courseIdArg: String? = savedStateHandle["courseId"]
     private val contextTypeArg: String? = savedStateHandle["contextType"]
     private val contextIdArg: String? = savedStateHandle["contextId"]
+    private val initialConceptsArg: String? = savedStateHandle["initialConcepts"]
+    private val noteContextArg: String? = savedStateHandle["noteContext"]
+    private val noteTitleArg: String? = savedStateHandle["noteTitle"]
 
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         _uiState.value = _uiState.value.copy(
@@ -63,43 +66,6 @@ class TutorChatViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(TutorChatUiState())
     val uiState: StateFlow<TutorChatUiState> = _uiState.asStateFlow()
-
-    private fun initializeNewSession() {
-        viewModelScope.launch(exceptionHandler) {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            
-            val cType = if (courseIdArg != null) "course" else (contextTypeArg ?: "general")
-            val cId = courseIdArg ?: contextIdArg
-            
-            tutorRepository.createSession(cType, cId)
-                .onSuccess { session ->
-                    val messagesList = mutableListOf<MessageUiModel>()
-                    session.initialMessage?.let { initialMsg ->
-                        messagesList.add(
-                            MessageUiModel(
-                                id = "initial_msg",
-                                sender = ChatSender.AI,
-                                content = initialMsg,
-                                timestamp = "Ahora"
-                            )
-                        )
-                    }
-                    
-                    _uiState.value = _uiState.value.copy(
-                        sessionId = session.id,
-                        messages = messagesList,
-                        courseName = session.title,
-                        isLoading = false
-                    )
-                }
-                .onFailure { err ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "Error al iniciar tutoría: ${err.localizedMessage}"
-                    )
-                }
-        }
-    }
 
     fun loadMessages(sessionId: String) {
         viewModelScope.launch(exceptionHandler) {
@@ -137,21 +103,22 @@ class TutorChatViewModel @Inject constructor(
     }
 
     fun sendMessage() {
-        val query = _uiState.value.inputText
-        val sessionId = _uiState.value.sessionId
-        if (query.isBlank() || sessionId == null || _uiState.value.isStreaming) return
+        val query = _uiState.value.inputText.trim()
+        if (query.isBlank() || _uiState.value.isStreaming) return
 
-        // 1. Añadir el mensaje del usuario de forma reactiva a la lista
+        val currentSessionId = _uiState.value.sessionId
+        val isNewSession = currentSessionId.isNullOrBlank() ||
+            currentSessionId in listOf("new", "new_session")
+
+        // 1. Render optimista: añadimos el mensaje del usuario + placeholder de la IA
         val userMessage = MessageUiModel(
-            id = System.currentTimeMillis().toString(),
+            id = "user_${System.currentTimeMillis()}",
             sender = ChatSender.USER,
             content = query,
             timestamp = "Ahora"
         )
-        
-        // Añadimos también un mensaje vacío de la IA que se irá completando vía streaming
-        val aiPlaceholderId = (System.currentTimeMillis() + 1).toString()
-        val aiMessagePlaceholder = MessageUiModel(
+        val aiPlaceholderId = "ai_${System.currentTimeMillis() + 1}"
+        val aiPlaceholder = MessageUiModel(
             id = aiPlaceholderId,
             sender = ChatSender.AI,
             content = "",
@@ -159,17 +126,72 @@ class TutorChatViewModel @Inject constructor(
         )
 
         _uiState.value = _uiState.value.copy(
-            messages = _uiState.value.messages + userMessage + aiMessagePlaceholder,
+            messages = _uiState.value.messages + userMessage + aiPlaceholder,
             inputText = "",
             isStreaming = true,
             errorMessage = null
         )
 
+        if (isNewSession) {
+            // Solo creamos la sesión en el backend cuando el usuario efectivamente
+            // envía el primer mensaje. Si navega fuera sin enviar, no queda
+            // ningún chat fantasma en la lista.
+            createSessionAndStream(query, aiPlaceholderId)
+        } else {
+            streamResponse(currentSessionId!!, query, aiPlaceholderId)
+        }
+    }
+
+    private fun createSessionAndStream(query: String, aiPlaceholderId: String) {
         viewModelScope.launch(exceptionHandler) {
-            var fullTextAccumulated = ""
-            
             val cType = if (courseIdArg != null) "course" else (contextTypeArg ?: "general")
             val cId = courseIdArg ?: contextIdArg
+
+            tutorRepository.createSession(cType, cId)
+                .onSuccess { session ->
+                    _uiState.value = _uiState.value.copy(
+                        sessionId = session.id,
+                        courseName = session.title
+                    )
+                    val realCType = if (courseIdArg != null) "course" else (contextTypeArg ?: "general")
+                    val realCId = courseIdArg ?: contextIdArg
+                    streamResponseInternal(session.id, query, aiPlaceholderId, realCType, realCId)
+                }
+                .onFailure { err ->
+                    // Si falla la creación, limpiamos los placeholders para no dejar
+                    // el chat en un estado inconsistente.
+                    _uiState.value = _uiState.value.copy(
+                        messages = _uiState.value.messages.filterNot {
+                            it.id == aiPlaceholderId || it.id.startsWith("user_") &&
+                                it.content == query
+                        },
+                        inputText = query,  // Devolvemos lo que escribió para que no pierda el texto
+                        isStreaming = false,
+                        errorMessage = "No pude iniciar la conversación: ${err.localizedMessage}"
+                    )
+                }
+        }
+    }
+
+    private fun streamResponse(
+        sessionId: String,
+        query: String,
+        aiPlaceholderId: String
+    ) {
+        val cType = if (courseIdArg != null) "course" else (contextTypeArg ?: "general")
+        val cId = courseIdArg ?: contextIdArg
+        streamResponseInternal(sessionId, query, aiPlaceholderId, cType, cId)
+    }
+
+    private fun streamResponseInternal(
+        sessionId: String,
+        query: String,
+        aiPlaceholderId: String,
+        cType: String,
+        cId: String?
+    ) {
+        viewModelScope.launch(exceptionHandler) {
+            var fullTextAccumulated = ""
             tutorRepository.streamChatMessages(sessionId, query, cType, cId)
                 .collect { event ->
                     when (event) {
@@ -179,7 +201,6 @@ class TutorChatViewModel @Inject constructor(
                         }
                         is TutorStreamEvent.Done -> {
                             _uiState.value = _uiState.value.copy(isStreaming = false)
-                            // Al terminar, actualizamos el mensaje final con las referencias
                             val refs = event.references.map {
                                 KnowledgeNodeRef(it.noteId, it.noteTitle, it.snippet)
                             }
@@ -219,12 +240,50 @@ class TutorChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             quickActions = listOf("Explícame más", "Dame un ejemplo", "Hazme una pregunta")
         )
+
         if (sessionIdArg != null && sessionIdArg != "new" && sessionIdArg != "new_session") {
+            // Sesión existente: solo cargamos mensajes. NO pre-rellenamos.
             _uiState.value = _uiState.value.copy(sessionId = sessionIdArg)
             loadMessages(sessionIdArg)
         } else {
-            // Crear sesión de chat nueva de forma dinámica llamando a Postgres
-            initializeNewSession()
+            // Sesión nueva: pre-rellenamos el input si viene contexto, pero
+            // NO creamos la sesión todavía. Se creará cuando el usuario envíe
+            // el primer mensaje (en sendMessage → createSessionAndStream).
+            val prefillText = buildPrefillText(
+                initialConcepts = initialConceptsArg,
+                noteTitle = noteTitleArg
+            )
+            if (prefillText != null) {
+                _uiState.value = _uiState.value.copy(inputText = prefillText)
+            }
+            // sessionId se queda en null — el envío lo creará on-demand.
         }
+    }
+
+    /**
+     * Construye un texto de pre-rellenado para el input cuando se crea una sesión nueva.
+     * Prioriza la lista de conceptos si viene; si no, usa el título de la nota.
+     */
+    private fun buildPrefillText(
+        initialConcepts: String?,
+        noteTitle: String?
+    ): String? {
+        if (!initialConcepts.isNullOrBlank()) {
+            val titles = initialConcepts.split("|")
+                .mapNotNull { java.net.URLDecoder.decode(it, "UTF-8").trim().takeIf(String::isNotEmpty) }
+            if (titles.isNotEmpty()) {
+                return if (titles.size == 1) {
+                    "Explícame el concepto «${titles.first()}» usando mis apuntes."
+                } else {
+                    val list = titles.joinToString(", ") { "«$it»" }
+                    "Hoy voy a estudiar: $list. Empecemos con «${titles.first()}». Explícamelo con ejemplos."
+                }
+            }
+        }
+        if (!noteTitle.isNullOrBlank()) {
+            val decoded = java.net.URLDecoder.decode(noteTitle, "UTF-8")
+            return "Tengo una pregunta sobre la nota «$decoded»: «»"
+        }
+        return null
     }
 }

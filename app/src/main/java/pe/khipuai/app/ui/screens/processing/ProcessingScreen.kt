@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,13 +41,9 @@ fun ProcessingScreen(
         }
     }
 
-    // Auto-navegación segura cuando ocurre un error crítico
-    LaunchedEffect(uiState.isError) {
-        if (uiState.isError) {
-            delay(3000)
-            onErrorEscape()
-        }
-    }
+    // El error ya no redirige automáticamente. Se muestra un botón explícito "Volver al inicio"
+    // para que el usuario pueda leer qué pasó y decidir cuándo salir.
+    val onErrorEscapeOnce by rememberUpdatedState(onErrorEscape)
 
     Column(
         modifier = Modifier
@@ -157,6 +154,21 @@ fun ProcessingScreen(
                     isComplete = uiState.summaryGenerated,
                     isActive = uiState.currentStep == ProcessingStep.SUMMARY
                 )
+            }
+        }
+
+        if (uiState.isError) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = onErrorEscapeOnce,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Volver al inicio")
             }
         }
 

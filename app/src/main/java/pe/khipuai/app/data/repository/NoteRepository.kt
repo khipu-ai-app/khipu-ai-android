@@ -66,6 +66,14 @@ class NoteRepository @Inject constructor(
         }
     }
 
+    suspend fun getConceptReviewSession(conceptName: String): Result<List<ReviewConceptResponse>> {
+        return try {
+            Result.success(apiService.getConceptReviewSession(conceptName))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getNoteReviewHistory(noteId: String): Result<List<ReviewHistoryItemResponse>> {
         return try {
             Result.success(apiService.getNoteReviewHistory(noteId))

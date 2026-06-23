@@ -35,13 +35,22 @@ import pe.khipuai.app.R
 fun NoteDetailScreen(
     onBackClick: () -> Unit,
     onReviewClick: () -> Unit,
-    onAskTutorClick: (String?) -> Unit,
+    onAskTutorClick: (concept: String?, courseId: String?, noteId: String, noteTitle: String) -> Unit,
     onStudyGuideClick: () -> Unit = {},
     onNavigateToQuizCreation: () -> Unit = {},
     onViewOriginalClick: (String) -> Unit = {},
+    onScheduleClick: (String, String) -> Unit,
     viewModel: NoteDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.snackbarMessage) {
+        uiState.snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbar()
+        }
+    }
 
     var menuExpanded by remember { mutableStateOf(false) }
     var renameDialogExpanded by remember { mutableStateOf(false) }
@@ -174,6 +183,7 @@ fun NoteDetailScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(uiState.title, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(0.7f), maxLines = 1) },
@@ -208,6 +218,19 @@ fun NoteDetailScreen(
                                 leadingIcon = { Icon(Icons.Default.Class, contentDescription = null) }
                             )
                             DropdownMenuItem(
+                                text = { Text("Agendar repaso manual") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onScheduleClick(uiState.noteId, uiState.title)
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarToday,
+                                        contentDescription = null
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
                                 onClick = {
                                     deleteDialogExpanded = true
@@ -226,43 +249,6 @@ fun NoteDetailScreen(
                 }
             )
         },
-        bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 8.dp,
-                shadowElevation = 16.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = onReviewClick,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(99.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp)
-                    ) {
-                        Icon(Icons.Default.School, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(id = R.string.action_review_now), fontWeight = FontWeight.Bold)
-                    }
-
-                    OutlinedButton(
-                        onClick = { onAskTutorClick(uiState.courseId) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(99.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
-                        contentPadding = PaddingValues(vertical = 12.dp)
-                    ) {
-                        Icon(Icons.Default.Forum, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(id = R.string.action_ask_khipu), color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
@@ -273,44 +259,160 @@ fun NoteDetailScreen(
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
-            // SECCIÓN 1: Mini Mapa de Conocimiento Local
+            // SECCIÓN: Acciones Principales
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onReviewClick,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Repasar", fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { onAskTutorClick(null, uiState.courseId, uiState.noteId, uiState.title) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Forum, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Chat Tutor", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            // SECCIÓN: Acciones Secundarias
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).padding(4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    TextButton(onClick = { onViewOriginalClick(java.net.URLEncoder.encode(uiState.uploadId, "UTF-8")) }) {
+                        Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Ver Archivo")
+                    }
+                    TextButton(onClick = onStudyGuideClick) {
+                        Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Guía")
+                    }
+                    TextButton(onClick = onNavigateToQuizCreation) {
+                        Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Quiz")
+                    }
+                }
+            }
+
+            // SECCIÓN: Metadatos
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(id = R.string.label_captured_date, uiState.capturedDate), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(uiState.courseName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
+            // SECCIÓN: Resumen Ejecutivo Khipu (IA)
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        // Acento de borde izquierdo semántico
+                        Box(modifier = Modifier.width(4.dp).height(120.dp).background(MaterialTheme.colorScheme.secondaryContainer).align(Alignment.CenterStart))
+
+                        Column(modifier = Modifier.padding(16.dp).padding(start = 8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
+                                Text(stringResource(id = R.string.title_khipu_summary), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = uiState.aiSummary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 20.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            // SECCIÓN: Burbujas de Conceptos Clave (Eliminamos texto extraído y lo hacemos interactivo)
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.LocalOffer, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.outline)
+                            Text(stringResource(id = R.string.title_key_concepts), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            uiState.keyConcepts.forEach { concept ->
+                                SuggestionChip(
+                                    onClick = { onAskTutorClick(concept, uiState.courseId, uiState.noteId, uiState.title) },
+                                    label = { Text(concept) },
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // SECCIÓN: Mini Mapa de Conocimiento Local
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
-                    Column {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Icon(Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                                Text("Mapa de Conocimiento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            }
-                            
-                            // Botón Ver Original
-                            Box(
-                                modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(99.dp))
-                                    .clickable { onViewOriginalClick(java.net.URLEncoder.encode(uiState.uploadId, "UTF-8")) }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                                    Text("Ver Documento", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
-                                }
+                                Text("Mapa de Conceptos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             }
                         }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
                         
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(240.dp)
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(MaterialTheme.colorScheme.surface)
                         ) {
                             if (uiState.showLocalGraph) {
@@ -371,120 +473,11 @@ fun NoteDetailScreen(
                                 }
                             }
                         }
-
-                        // Footer
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(stringResource(id = R.string.label_captured_date, uiState.capturedDate), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(uiState.courseName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
                     }
                 }
             }
 
-            // SECCIÓN 2: Resumen Ejecutivo Khipu (IA)
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        // Acento de borde izquierdo semántico del HTML
-                        Box(modifier = Modifier.width(4.dp).height(120.dp).background(MaterialTheme.colorScheme.secondaryContainer).align(Alignment.CenterStart))
-
-                        Column(modifier = Modifier.padding(16.dp).padding(start = 8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
-                                Text(stringResource(id = R.string.title_khipu_summary), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = uiState.aiSummary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                lineHeight = 20.sp
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Button(
-                                    onClick = onStudyGuideClick,
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                ) {
-                                    Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Guía de Estudio")
-                                }
-                                
-                                Button(
-                                    onClick = onNavigateToQuizCreation,
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                                ) {
-                                    Icon(Icons.Default.Quiz, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Crear Quiz")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // SECCIÓN 3: Burbujas de Conceptos Clave (Eliminamos texto extraído y lo hacemos interactivo)
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.LocalOffer, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.outline)
-                            Text(stringResource(id = R.string.title_key_concepts), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            uiState.keyConcepts.forEachIndexed { index, concept ->
-                                val chipColor = when(index) {
-                                    0 -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                                    1 -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-                                    else -> MaterialTheme.colorScheme.surfaceVariant
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .background(chipColor, RoundedCornerShape(99.dp))
-                                        .clickable { onAskTutorClick(concept) } // Mandamos el concepto como contexto especial
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface)
-                                        Text(text = concept, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // SECCIÓN 4: Historial de Repaso (Línea de Tiempo Vectorial Nativa)
+            // SECCIÓN: Historial de Repaso (Línea de Tiempo Vectorial Nativa)
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -497,53 +490,61 @@ fun NoteDetailScreen(
                         }
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            uiState.historyTimeline.forEachIndexed { index, item ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    // Dibujo Vectorial del Nodo y la Línea Conectora
-                                    val lineColor = MaterialTheme.colorScheme.surfaceVariant
-                                    Box(
-                                        modifier = Modifier
-                                            .width(24.dp)
-                                            .height(IntrinsicSize.Min),
-                                        contentAlignment = Alignment.TopCenter
+                        if (uiState.historyTimeline.isEmpty()) {
+                            Text(
+                                "No hay historial de repaso aún.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                uiState.historyTimeline.forEachIndexed { index, item ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                        verticalAlignment = Alignment.Top
                                     ) {
-                                        if (index < uiState.historyTimeline.lastIndex) {
-                                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                                drawLine(
-                                                    color = lineColor,
-                                                    start = Offset(size.width / 2, 24.dp.toPx()),
-                                                    end = Offset(size.width / 2, size.height),
-                                                    strokeWidth = 2.dp.toPx()
+                                        // Dibujo Vectorial del Nodo y la Línea Conectora
+                                        val lineColor = MaterialTheme.colorScheme.surfaceVariant
+                                        Box(
+                                            modifier = Modifier
+                                                .width(24.dp)
+                                                .height(IntrinsicSize.Min),
+                                            contentAlignment = Alignment.TopCenter
+                                        ) {
+                                            if (index < uiState.historyTimeline.lastIndex) {
+                                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                                    drawLine(
+                                                        color = lineColor,
+                                                        start = Offset(size.width / 2, 24.dp.toPx()),
+                                                        end = Offset(size.width / 2, size.height),
+                                                        strokeWidth = 2.dp.toPx()
+                                                    )
+                                                }
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .background(
+                                                        if (item.type == HistoryItemType.REPASO_COMPLETADO) MaterialTheme.colorScheme.tertiaryContainer
+                                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                                        CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (item.type == HistoryItemType.REPASO_COMPLETADO) Icons.Default.Check else Icons.Default.EditNote,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(12.dp)
                                                 )
                                             }
                                         }
-                                        Box(
-                                            modifier = Modifier
-                                                .size(24.dp)
-                                                .background(
-                                                    if (item.type == HistoryItemType.REPASO_COMPLETADO) MaterialTheme.colorScheme.tertiaryContainer
-                                                    else MaterialTheme.colorScheme.surfaceVariant,
-                                                    CircleShape
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = if (item.type == HistoryItemType.REPASO_COMPLETADO) Icons.Default.Check else Icons.Default.EditNote,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(12.dp)
-                                            )
-                                        }
-                                    }
 
-                                    // Contenido del hito
-                                    Column(modifier = Modifier.padding(bottom = 12.dp)) {
-                                        Text(text = item.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                        Text(text = item.description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        // Contenido del hito
+                                        Column(modifier = Modifier.padding(bottom = 12.dp)) {
+                                            Text(text = item.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                            Text(text = item.description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
                                     }
                                 }
                             }
@@ -552,7 +553,7 @@ fun NoteDetailScreen(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(80.dp)) }
+            item { Spacer(modifier = Modifier.height(40.dp)) }
         }
     }
 }

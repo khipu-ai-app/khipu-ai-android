@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.khipuai.app.data.local.entity.NoteEntity
 import pe.khipuai.app.data.repository.CourseRepository
@@ -28,9 +29,15 @@ data class CompactNoteUiModel(
 data class ReviewItemUiModel(
     val id: String,
     val title: String,
-    val scheduleText: String,
-    val isUrgent: Boolean
+    val courseName: String,
+    val dueLabel: String,
+    val isUrgent: Boolean,
+    val difficulty: ConceptDifficulty,
+    val repetitions: Int,
+    val easeFactor: Float
 )
+
+enum class ConceptDifficulty { HARD, MEDIUM, EASY, UNKNOWN }
 
 data class GraphNodeUiModel(
     val label: String,
@@ -76,25 +83,25 @@ class CourseDetailViewModel @Inject constructor(
     val uiState: StateFlow<CourseDetailUiState> = _uiState.asStateFlow()
 
     fun toggleShowAllNotes() {
-        _uiState.value = _uiState.value.copy(showAllNotes = !_uiState.value.showAllNotes)
+        _uiState.update { it.copy(showAllNotes = !it.showAllNotes) }
     }
 
     private fun loadCourseData() {
         if (courseId.isBlank()) {
-            _uiState.value = _uiState.value.copy(
+            _uiState.update { it.copy(
                 isLoading = false,
                 errorMessage = "No se proporcionó un ID de curso válido."
-            )
+            ) }
             return
         }
 
         // Actualizar el ID en el estado inmediatamente
-        _uiState.value = _uiState.value.copy(courseId = courseId, isLoading = true)
+        _uiState.update { it.copy(courseId = courseId, isLoading = true) }
 
         // Cargar cursos disponibles reactivamente
         viewModelScope.launch {
             courseRepository.observeAll().collect { courses ->
-                _uiState.value = _uiState.value.copy(availableCourses = courses)
+                _uiState.update { it.copy(availableCourses = courses) }
             }
         }
 
@@ -104,11 +111,11 @@ class CourseDetailViewModel @Inject constructor(
             val course = courseRepository.getById(courseId)
             if (course != null) {
                 resolvedCourseName = course.name
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     courseName = course.name,
                     categoryName = course.color, // El backend no retorna categoría aún
                     courseColor = course.color
-                )
+                ) }
             }
 
             // 2. Si no hay datos en Room, sincronizar con la API
@@ -117,10 +124,10 @@ class CourseDetailViewModel @Inject constructor(
                 val freshCourse = courseRepository.getById(courseId)
                 if (freshCourse != null) {
                     resolvedCourseName = freshCourse.name
-                    _uiState.value = _uiState.value.copy(
+                    _uiState.update { it.copy(
                         courseName = freshCourse.name,
                         courseColor = freshCourse.color
-                    )
+                    ) }
                 }
             }
 
@@ -135,11 +142,11 @@ class CourseDetailViewModel @Inject constructor(
         // 5. Observar notas de Room reactivamente — se actualiza cuando la sync termina
         offlineFirstNoteRepository.observeByCourse(courseId)
             .onEach { noteEntities ->
-                _uiState.value = _uiState.value.copy(
-                    notes = noteEntities.map { it.toUiModel() },
+                _uiState.update { it.copy(
+                    notes = noteEntities.map { entity -> entity.toUiModel() },
                     totalNotesCount = noteEntities.size,
                     isLoading = false
-                )
+                ) }
             }
             .launchIn(viewModelScope)
     }
@@ -159,14 +166,24 @@ class CourseDetailViewModel @Inject constructor(
                         ReviewItemUiModel(
                             id = due.conceptId,
                             title = due.conceptName,
-                            scheduleText = buildScheduleText(due.nextReviewDate, due.interval),
-                            // Urgente si el concepto es nuevo (interval ≤ 1) o el ease factor es bajo
-                            isUrgent = due.interval <= 1 || due.easeFactor < 2.0f
+                            courseName = due.courseName,
+                            dueLabel = buildScheduleText(due.nextReviewDate, due.interval),
+                            isUrgent = due.interval <= 1 || due.easeFactor < 2.0f,
+                            difficulty = classifyDifficulty(due.easeFactor, due.repetitions),
+                            repetitions = due.repetitions,
+                            easeFactor = due.easeFactor
                         )
                     }
-                _uiState.value = _uiState.value.copy(upcomingReviews = reviews)
+                _uiState.update { it.copy(upcomingReviews = reviews) }
             }
             // onFailure: lista queda vacía, la pantalla no crashea
+    }
+
+    private fun classifyDifficulty(ease: Float, reps: Int): ConceptDifficulty = when {
+        reps == 0 -> ConceptDifficulty.UNKNOWN
+        ease < 1.8f -> ConceptDifficulty.HARD
+        ease < 2.3f -> ConceptDifficulty.MEDIUM
+        else -> ConceptDifficulty.EASY
     }
 
     /**
@@ -179,26 +196,28 @@ class CourseDetailViewModel @Inject constructor(
             0.5f to 0.2f,
             0.3f to 0.5f,
             0.7f to 0.5f,
-            0.3f to 0.8f,
-            0.7f to 0.8f
+            0.2f to 0.8f,
+            0.8f to 0.8f
         )
 
         graphRepository.fetchCourseGraph(courseId)
             .onSuccess { graph ->
-                val conceptNodes = graph.nodes.filter { it.type == "concept" }
-                val totalConcepts = conceptNodes.size
-                val masteredConcepts = conceptNodes.count { (it.easeFactor ?: 0f) >= 2.5f }
-                val progress = if (totalConcepts > 0) ((masteredConcepts.toFloat() / totalConcepts) * 100).toInt() else 0
+                val conceptNodes = graph.nodes.filter { it.type == "concept" }.take(5)
+                
+                // Calcular progreso mockeado basado en si tienen status
+                var mastered = 0
+                val total = conceptNodes.size.coerceAtLeast(1)
 
                 val nodes = conceptNodes
-                    .take(5)
                     .mapIndexed { index, node ->
-                        val (x, y) = positions[index]
+                        val (x, y) = positions.getOrElse(index) { 0.5f to 0.5f }
                         val status = when {
                             node.reviewPending == true -> NodeStatus.EN_PROGRESO
                             (node.easeFactor ?: 0f) >= 2.5f -> NodeStatus.DOMINADO
                             else -> NodeStatus.BLOQUEADO
                         }
+                        if (status == NodeStatus.DOMINADO) mastered++
+                        
                         GraphNodeUiModel(
                             label = node.label,
                             iconName = when (status) {
@@ -211,6 +230,8 @@ class CourseDetailViewModel @Inject constructor(
                             yOffsetFraction = y
                         )
                     }
+                
+                val progress = ((mastered.toFloat() / total.toFloat()) * 100).toInt()
                 _uiState.value = _uiState.value.copy(
                     previewNodes = nodes,
                     courseProgress = progress
@@ -223,6 +244,7 @@ class CourseDetailViewModel @Inject constructor(
      * Marca un concepto como repasado con rating 4 ("Fácil, recordado con esfuerzo")
      * y lo remueve optimistamente de la lista local al confirmar el servidor.
      */
+    @Suppress("unused")
     fun completeReviewTask(taskId: String) {
         viewModelScope.launch {
             plannerRepository.submitReviewRating(taskId, rating = 4)

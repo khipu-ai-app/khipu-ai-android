@@ -119,6 +119,15 @@
     let isConnectedGlobal = null;
     let selectedNode = null;
 
+    /**
+     * Centra y resalta un nodo por su nombre (llamado desde Android vía evaluateJavascript).
+     * Devuelve true si encontró el nodo, false si no existe en el grafo actual.
+     */
+    function highlightNode(conceptName) {
+        if (!conceptName) return false;
+        return searchNode(conceptName);
+    }
+
     function searchNode(query) {
         if (!query || query.trim() === "") {
             if (selectedNode) {

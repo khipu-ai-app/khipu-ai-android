@@ -1,33 +1,99 @@
 package pe.khipuai.app.ui.screens.coursedetail
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Class
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.OpenInFull
+import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import pe.khipuai.app.ui.theme.KhipuAITheme
+
+// =========================================================================================
+//  Top-level entry point
+// =========================================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,529 +103,973 @@ fun CourseDetailScreen(
     onExpandMapClick: () -> Unit,
     onNavigateToCapture: (String) -> Unit = {},
     onNavigateToTutor: (String) -> Unit = {},
-    onNavigateToReview: (String) -> Unit = {},
+    onNavigateToStudy: (route: String) -> Unit = {},
     viewModel: CourseDetailViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val courseColor = remember(uiState.courseColor) { parseCourseColor(uiState.courseColor) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(uiState.courseName, fontWeight = FontWeight.Bold) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(courseColor)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = uiState.courseName.ifBlank { "Curso" },
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { onNavigateToTutor(uiState.courseId) }) {
-                        Icon(imageVector = Icons.Default.ChatBubble, contentDescription = "Tutor del Curso")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                            contentDescription = "Tutor del curso"
+                        )
                     }
                 }
             )
         }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) { padding ->
+        CourseDetailContent(
+            state = uiState,
+            courseColor = courseColor,
+            padding = padding,
+            onBackClick = onBackClick,
+            onAskTutor = { onNavigateToTutor(uiState.courseId) },
+            onAddNote = { onNavigateToCapture(uiState.courseId) },
+            onNoteClick = onNoteClick,
+            onToggleShowAll = viewModel::toggleShowAllNotes,
+            onRename = viewModel::renameNote,
+            onDelete = viewModel::deleteNote,
+            onReassociate = viewModel::reassociateNote,
+            onExpandMap = onExpandMapClick,
+            onStudySingle = { conceptTitle ->
+                onNavigateToStudy(
+                    onNavigateToStudyWithConcepts(uiState.courseId, listOf(conceptTitle))
+                )
+            },
+            onStudyMultiple = { conceptTitles ->
+                onNavigateToStudy(
+                    onNavigateToStudyWithConcepts(uiState.courseId, conceptTitles)
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun CourseDetailContent(
+    state: CourseDetailUiState,
+    courseColor: Color,
+    padding: PaddingValues,
+    onBackClick: () -> Unit,
+    onAskTutor: () -> Unit,
+    onAddNote: () -> Unit,
+    onNoteClick: (String) -> Unit,
+    onToggleShowAll: () -> Unit,
+    onRename: (String, String) -> Unit,
+    onDelete: (String) -> Unit,
+    onReassociate: (String, String?) -> Unit,
+    onExpandMap: () -> Unit,
+    onStudySingle: (conceptTitle: String) -> Unit,
+    onStudyMultiple: (List<String>) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        item {
+            CourseHeaderCard(
+                courseName = state.courseName,
+                categoryName = state.categoryName,
+                progress = state.courseProgress,
+                accent = courseColor,
+                onAskTutor = onAskTutor
+            )
+        }
+
+        item {
+            NotesSection(
+                notes = state.notes,
+                totalCount = state.totalNotesCount,
+                showAll = state.showAllNotes,
+                onToggleShowAll = onToggleShowAll,
+                onAdd = onAddNote,
+                onNoteClick = onNoteClick,
+                onRename = onRename,
+                onDelete = onDelete,
+                onReassociate = onReassociate,
+                availableCourses = state.availableCourses,
+                currentCourseId = state.courseId
+            )
+        }
+
+        item {
+            KnowledgeGraphSection(
+                nodes = state.previewNodes,
+                accent = courseColor,
+                onExpand = onExpandMap
+            )
+        }
+
+        item {
+            UpcomingReviewsSection(
+                reviews = state.upcomingReviews,
+                isLoading = state.isLoading,
+                onStudySingle = onStudySingle,
+                onStudyMultiple = onStudyMultiple
+            )
+        }
+
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+    }
+}
+
+/**
+ * Helper para construir la URL del tutor con conceptos pre-cargados.
+ * Centraliza el encoding y formato de query params.
+ */
+internal fun onNavigateToStudyWithConcepts(
+    courseId: String,
+    conceptTitles: List<String>
+): String {
+    val conceptParam = conceptTitles
+        .joinToString("|") { java.net.URLEncoder.encode(it, "UTF-8") }
+    return "tutor/new_session?contextType=course&contextId=$courseId&initialConcepts=$conceptParam"
+}
+
+// =========================================================================================
+//  Section 1 — Header
+// =========================================================================================
+
+@Composable
+private fun CourseHeaderCard(
+    courseName: String,
+    categoryName: String,
+    progress: Int,
+    accent: Color,
+    onAskTutor: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                MasteryIndicator(progress = progress, accent = accent)
 
-            // SECCIÓN 1: Banner Header del Curso
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Box(
-                                modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), RoundedCornerShape(99.dp))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(uiState.categoryName.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = uiState.courseName, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(uiState.courseId.take(8), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
+                    // Solo mostramos la categoría si parece texto (no hex como "#4A90E2")
+                    if (categoryName.isNotBlank() && !categoryName.startsWith("#")) {
+                        AssistChip(
+                            onClick = {},
+                            enabled = false,
+                            label = { Text(categoryName.uppercase()) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
+                            border = null
+                        )
+                    }
 
-                        // Widget de Progreso Compacto Interno
-                        Card(
-                            modifier = Modifier.width(140.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Dominio", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("${uiState.courseProgress}%", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                                LinearProgressIndicator(
-                                    progress = { uiState.courseProgress / 100f },
-                                    modifier = Modifier.fillMaxWidth().clip(CircleShape),
-                                    color = MaterialTheme.colorScheme.secondary
+                    Text(
+                        text = courseName.ifBlank { "Sin nombre" },
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Text(
+                        text = if (progress == 0) "Aún no has dominado ningún concepto"
+                        else "$progress% de los conceptos dominados",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (progress in 1..100) {
+                LinearProgressIndicator(
+                    progress = { progress / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = accent,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    strokeCap = StrokeCap.Round
+                )
+            }
+
+            FilledTonalButton(
+                onClick = onAskTutor,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Chatear con el tutor del curso")
+            }
+        }
+    }
+}
+
+@Composable
+private fun MasteryIndicator(progress: Int, accent: Color) {
+    Box(
+        modifier = Modifier.size(72.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            progress = { 1f },
+            modifier = Modifier.size(72.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            strokeWidth = 6.dp,
+            strokeCap = StrokeCap.Round
+        )
+        CircularProgressIndicator(
+            progress = { (progress / 100f).coerceIn(0f, 1f) },
+            modifier = Modifier.size(72.dp),
+            color = accent,
+            strokeWidth = 6.dp,
+            strokeCap = StrokeCap.Round
+        )
+        Text(
+            text = "$progress%",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+// =========================================================================================
+//  Section 2 — Notes
+// =========================================================================================
+
+@Composable
+private fun NotesSection(
+    notes: List<CompactNoteUiModel>,
+    totalCount: Int,
+    showAll: Boolean,
+    onToggleShowAll: () -> Unit,
+    onAdd: () -> Unit,
+    onNoteClick: (String) -> Unit,
+    onRename: (String, String) -> Unit,
+    onDelete: (String) -> Unit,
+    onReassociate: (String, String?) -> Unit,
+    availableCourses: List<pe.khipuai.app.data.local.entity.CourseEntity>,
+    currentCourseId: String
+) {
+    SectionHeader(
+        title = "Tus notas",
+        subtitle = if (totalCount == 0) null else "$totalCount en total",
+        actionIcon = Icons.Default.Add,
+        actionDescription = "Agregar nota",
+        onAction = onAdd
+    )
+
+    if (notes.isEmpty()) {
+        NotesEmptyState(onAdd = onAdd)
+        return
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
+    ) {
+        Column {
+            val displayed = if (showAll) notes else notes.take(5)
+            displayed.forEachIndexed { index, note ->
+                NoteRow(
+                    note = note,
+                    onClick = { onNoteClick(note.id) },
+                    onRename = onRename,
+                    onDelete = onDelete,
+                    onReassociate = onReassociate,
+                    availableCourses = availableCourses,
+                    currentCourseId = currentCourseId
+                )
+                if (index < displayed.lastIndex) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    )
+                }
+            }
+
+            if (notes.size > 5) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+                TextButton(
+                    onClick = onToggleShowAll,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Text(if (showAll) "Ver menos" else "Ver todas (${notes.size})")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoteRow(
+    note: CompactNoteUiModel,
+    onClick: () -> Unit,
+    onRename: (String, String) -> Unit,
+    onDelete: (String) -> Unit,
+    onReassociate: (String, String?) -> Unit,
+    availableCourses: List<pe.khipuai.app.data.local.entity.CourseEntity>,
+    currentCourseId: String
+) {
+    var menuExpanded by rememberSaveable { mutableStateOf(false) }
+    var renameDialogExpanded by rememberSaveable { mutableStateOf(false) }
+    var renameText by rememberSaveable(note.id) { mutableStateOf(note.title) }
+    var deleteDialogExpanded by rememberSaveable { mutableStateOf(false) }
+    var reassociateDialogExpanded by rememberSaveable { mutableStateOf(false) }
+
+    ListItem(
+        modifier = Modifier.clickable(onClick = onClick),
+        leadingContent = {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Description,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        },
+        headlineContent = {
+            Text(
+                text = note.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        supportingContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (note.snippet.isNotBlank()) {
+                    Text(
+                        text = note.snippet,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    ) {
+                        Text(
+                            text = note.subCategory,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Text(
+                        text = "· ${note.dateTag}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        trailingContent = {
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Opciones de la nota",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Renombrar") },
+                        onClick = {
+                            renameText = note.title
+                            renameDialogExpanded = true
+                            menuExpanded = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Cambiar materia") },
+                        onClick = {
+                            reassociateDialogExpanded = true
+                            menuExpanded = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.Class, contentDescription = null) }
+                    )
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            deleteDialogExpanded = true
+                            menuExpanded = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.DeleteForever,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    )
+                }
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+    )
+
+    if (renameDialogExpanded) {
+        AlertDialog(
+            onDismissRequest = { renameDialogExpanded = false },
+            title = { Text("Renombrar apunte") },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    label = { Text("Título") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (renameText.isNotBlank()) onRename(note.id, renameText)
+                        renameDialogExpanded = false
+                    }
+                ) { Text("Guardar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameDialogExpanded = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    if (deleteDialogExpanded) {
+        AlertDialog(
+            onDismissRequest = { deleteDialogExpanded = false },
+            icon = {
+                Icon(
+                    Icons.Default.DeleteForever,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Eliminar apunte") },
+            text = { Text("¿Eliminar permanentemente '${note.title}'? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete(note.id)
+                        deleteDialogExpanded = false
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text("Eliminar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteDialogExpanded = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    if (reassociateDialogExpanded) {
+        ReassociateDialog(
+            currentCourseId = currentCourseId,
+            availableCourses = availableCourses,
+            onDismiss = { reassociateDialogExpanded = false },
+            onConfirm = { newCourseId ->
+                onReassociate(note.id, newCourseId)
+                reassociateDialogExpanded = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun NotesEmptyState(onAdd: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.FolderOpen,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(48.dp)
+            )
+            Text(
+                text = "Aún no tienes notas en este curso",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "Sube tu primer apunte y Khipu lo analizará para extraer conceptos clave.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            FilledTonalButton(onClick = onAdd) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Subir primer apunte")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReassociateDialog(
+    currentCourseId: String,
+    availableCourses: List<pe.khipuai.app.data.local.entity.CourseEntity>,
+    onDismiss: () -> Unit,
+    onConfirm: (String?) -> Unit
+) {
+    var selectedId by rememberSaveable { mutableStateOf<String?>(currentCourseId) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Asociar a materia") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 300.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                RadioRow(
+                    label = "Ninguno (General)",
+                    selected = selectedId == null,
+                    onClick = { selectedId = null }
+                )
+                HorizontalDivider()
+                availableCourses.forEach { course ->
+                    RadioRow(
+                        label = course.name,
+                        selected = selectedId == course.id,
+                        onClick = { selectedId = course.id }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(selectedId) }) { Text("Guardar") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@Composable
+private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+// =========================================================================================
+//  Section 3 — Knowledge graph
+// =========================================================================================
+
+@Composable
+private fun KnowledgeGraphSection(
+    nodes: List<GraphNodeUiModel>,
+    accent: Color,
+    onExpand: () -> Unit
+) {
+    SectionHeader(
+        title = "Mapa del curso",
+        subtitle = "Vista previa · toca para expandir",
+        onAction = null,
+        actionIcon = null,
+        actionDescription = null
+    )
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(240.dp)
+            .clickable(onClick = onExpand),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp
+    ) {
+        if (nodes.isEmpty()) {
+            GraphEmptyState()
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Líneas conectoras entre los nodos consecutivos
+                if (nodes.size > 1) {
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val outlineColor = MaterialTheme.colorScheme.outlineVariant
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            for (i in 0 until nodes.size - 1) {
+                                val start = Offset(
+                                    size.width * nodes[i].xOffsetFraction,
+                                    size.height * nodes[i].yOffsetFraction
+                                )
+                                val end = Offset(
+                                    size.width * nodes[i + 1].xOffsetFraction,
+                                    size.height * nodes[i + 1].yOffsetFraction
+                                )
+                                drawLine(
+                                    color = outlineColor,
+                                    start = start,
+                                    end = end,
+                                    strokeWidth = 2.5f
                                 )
                             }
                         }
                     }
                 }
-            }
 
-            // SECCIÓN 2: Panel Dual (Notas + Mapa de Conocimiento Lateral simulado)
-            item {
-                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-
-                    // Sub-Bloque: Tus Notas
-                    Column {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                Text("Tus Notas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Button(
-                                    onClick = { onNavigateToCapture(uiState.courseId) },
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                    modifier = Modifier.height(36.dp)
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Agregar")
-                                }
-                                if (uiState.totalNotesCount > 5) {
-                                    TextButton(onClick = { viewModel.toggleShowAllNotes() }) { 
-                                        Text(if (uiState.showAllNotes) "Ocultar" else "Ver todas (${uiState.totalNotesCount})") 
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        if (uiState.notes.isEmpty()) {
-                            Text(
-                                text = "Aún no tienes notas en este curso.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        } else {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                val displayedNotes = if (uiState.showAllNotes) uiState.notes else uiState.notes.take(5)
-                                displayedNotes.forEach { note ->
-                                    var menuExpanded by remember { mutableStateOf(false) }
-                                    var renameDialogExpanded by remember { mutableStateOf(false) }
-                                    var renameText by remember { mutableStateOf(note.title) }
-                                    var deleteDialogExpanded by remember { mutableStateOf(false) }
-                                    var reassociateDialogExpanded by remember { mutableStateOf(false) }
-
-                                    if (renameDialogExpanded) {
-                                        AlertDialog(
-                                            onDismissRequest = { renameDialogExpanded = false },
-                                            title = { Text("Renombrar Apunte") },
-                                            text = {
-                                                OutlinedTextField(
-                                                    value = renameText,
-                                                    onValueChange = { renameText = it },
-                                                    label = { Text("Título") },
-                                                    singleLine = true,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                            },
-                                            confirmButton = {
-                                                TextButton(
-                                                    onClick = {
-                                                        if (renameText.isNotBlank()) {
-                                                            viewModel.renameNote(note.id, renameText)
-                                                        }
-                                                        renameDialogExpanded = false
-                                                    }
-                                                ) {
-                                                    Text("Guardar")
-                                                }
-                                            },
-                                            dismissButton = {
-                                                TextButton(onClick = { renameDialogExpanded = false }) {
-                                                    Text("Cancelar")
-                                                }
-                                            }
-                                        )
-                                    }
-
-                                    if (deleteDialogExpanded) {
-                                        AlertDialog(
-                                            onDismissRequest = { deleteDialogExpanded = false },
-                                            title = { Text("Eliminar Apunte") },
-                                            text = { Text("¿Estás seguro de que deseas eliminar permanentemente el apunte '${note.title}'? Esta acción no se puede deshacer.") },
-                                            confirmButton = {
-                                                TextButton(
-                                                    onClick = {
-                                                        viewModel.deleteNote(note.id)
-                                                        deleteDialogExpanded = false
-                                                    },
-                                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                                ) {
-                                                    Text("Eliminar")
-                                                }
-                                            },
-                                            dismissButton = {
-                                                TextButton(onClick = { deleteDialogExpanded = false }) {
-                                                    Text("Cancelar")
-                                                }
-                                            }
-                                        )
-                                    }
-
-                                    if (reassociateDialogExpanded) {
-                                        AlertDialog(
-                                            onDismissRequest = { reassociateDialogExpanded = false },
-                                            title = { Text("Asociar a Materia / Curso") },
-                                            text = {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .heightIn(max = 300.dp)
-                                                        .verticalScroll(rememberScrollState())
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .clickable {
-                                                                viewModel.reassociateNote(note.id, null)
-                                                                reassociateDialogExpanded = false
-                                                            }
-                                                            .padding(vertical = 12.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        RadioButton(
-                                                            selected = uiState.courseId.isBlank(),
-                                                            onClick = {
-                                                                viewModel.reassociateNote(note.id, null)
-                                                                reassociateDialogExpanded = false
-                                                            }
-                                                        )
-                                                        Spacer(modifier = Modifier.width(8.dp))
-                                                        Text("Ninguno (General)")
-                                                    }
-                                                    
-                                                    HorizontalDivider()
-
-                                                    uiState.availableCourses.forEach { course ->
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .clickable {
-                                                                    viewModel.reassociateNote(note.id, course.id)
-                                                                    reassociateDialogExpanded = false
-                                                                }
-                                                                .padding(vertical = 12.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            RadioButton(
-                                                                selected = uiState.courseId == course.id,
-                                                                onClick = {
-                                                                    viewModel.reassociateNote(note.id, course.id)
-                                                                    reassociateDialogExpanded = false
-                                                                }
-                                                            )
-                                                            Spacer(modifier = Modifier.width(8.dp))
-                                                            Text(course.name)
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            confirmButton = {},
-                                            dismissButton = {
-                                                TextButton(onClick = { reassociateDialogExpanded = false }) {
-                                                    Text("Cancelar")
-                                                }
-                                            }
-                                        )
-                                    }
-
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { onNoteClick(note.id) },
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(40.dp)
-                                                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f), CircleShape),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Description,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.secondary,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = note.title,
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(
-                                                    text = note.snippet,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    ) {
-                                                        Text(note.subCategory, style = MaterialTheme.typography.labelSmall)
-                                                    }
-                                                    Text(
-                                                        text = note.dateTag,
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                            }
-                                            Box {
-                                                IconButton(onClick = { menuExpanded = true }) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.MoreVert,
-                                                        contentDescription = "Opciones de la nota",
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                                DropdownMenu(
-                                                    expanded = menuExpanded,
-                                                    onDismissRequest = { menuExpanded = false }
-                                                ) {
-                                                    DropdownMenuItem(
-                                                        text = { Text("Renombrar") },
-                                                        onClick = {
-                                                            renameText = note.title
-                                                            renameDialogExpanded = true
-                                                            menuExpanded = false
-                                                        },
-                                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
-                                                    )
-                                                    DropdownMenuItem(
-                                                        text = { Text("Cambiar Materia") },
-                                                        onClick = {
-                                                            reassociateDialogExpanded = true
-                                                            menuExpanded = false
-                                                        },
-                                                        leadingIcon = { Icon(Icons.Default.Class, contentDescription = null) }
-                                                    )
-                                                    HorizontalDivider()
-                                                    DropdownMenuItem(
-                                                        text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
-                                                        onClick = {
-                                                            deleteDialogExpanded = true
-                                                            menuExpanded = false
-                                                        },
-                                                        leadingIcon = {
-                                                            Icon(
-                                                                imageVector = Icons.Default.DeleteForever,
-                                                                contentDescription = null,
-                                                                tint = MaterialTheme.colorScheme.error
-                                                            )
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                // Nodos
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val widthDp = maxWidth
+                    val heightDp = maxHeight
+                    nodes.forEach { node ->
+                        val xPos = widthDp * node.xOffsetFraction - 28.dp
+                        val yPos = heightDp * node.yOffsetFraction - 16.dp
+                        GraphNodeBubble(
+                            node = node,
+                            accent = accent,
+                            modifier = Modifier.offset(x = xPos, y = yPos)
+                        )
                     }
+                }
 
-                    // Sub-Bloque: Mini Mapa Mental de Neo4j
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.Hub, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Text("Mapa del Curso Semántico", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Lienzo del Grafo con Desenfoque y Overlay
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(240.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
-                        ) {
-
-                            // Renderizado de las relaciones de red (Líneas vectoriales de fondo)
-                            val outlineColor = MaterialTheme.colorScheme.outlineVariant
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                drawLine(color = outlineColor, start = Offset(size.width * 0.5f, size.height * 0.2f), end = Offset(size.width * 0.3f, size.height * 0.5f), strokeWidth = 3f)
-                                drawLine(color = outlineColor, start = Offset(size.width * 0.5f, size.height * 0.2f), end = Offset(size.width * 0.7f, size.height * 0.5f), strokeWidth = 3f)
-                                drawLine(color = outlineColor, start = Offset(size.width * 0.3f, size.height * 0.5f), end = Offset(size.width * 0.5f, size.height * 0.8f), strokeWidth = 3f)
-                                drawLine(color = outlineColor, start = Offset(size.width * 0.7f, size.height * 0.5f), end = Offset(size.width * 0.5f, size.height * 0.8f), strokeWidth = 3f)
-                            }
-
-                            // Posicionamiento absoluto matemático de los Nodos del Grafo
-                            uiState.previewNodes.forEach { node ->
-                                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                                    val xPos = maxWidth * node.xOffsetFraction - 36.dp
-                                    val yPos = maxHeight * node.yOffsetFraction - 24.dp
-
-                                    Column(
-                                        modifier = Modifier.offset(x = xPos, y = yPos),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .background(
-                                                    color = when(node.status) {
-                                                        NodeStatus.DOMINADO -> MaterialTheme.colorScheme.tertiaryContainer
-                                                        NodeStatus.EN_PROGRESO -> MaterialTheme.colorScheme.secondaryContainer
-                                                        NodeStatus.BLOQUEADO -> MaterialTheme.colorScheme.surfaceVariant
-                                                    },
-                                                    shape = CircleShape
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = when(node.iconName) {
-                                                    "check" -> Icons.Default.Check
-                                                    "lock" -> Icons.Default.Lock
-                                                    "circle" -> Icons.Default.Circle
-                                                    else -> Icons.Default.Functions
-                                                },
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp),
-                                                tint = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                        Text(node.label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), RoundedCornerShape(4.dp)).padding(horizontal = 4.dp))
-                                    }
-                                }
-                            }
-
-                            // Capa de Acción de Vidrio Esmerilado (Glass Overlay)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.1f))
-                                    .clickable { onExpandMapClick() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Button(
-                                    onClick = onExpandMapClick,
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                ) {
-                                    Icon(Icons.Default.OpenInFull, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Expandir Grafo Completo")
-                                }
-                            }
-                        }
+                // CTA flotante
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    tonalElevation = 3.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.OpenInFull,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Expandir grafo", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
+        }
+    }
+}
 
-            // SECCIÓN 3: Próximos Repasos (Spaced Repetition Scheduler)
-            item {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.School, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text("Conceptos a Dominar Hoy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
+@Composable
+private fun GraphNodeBubble(node: GraphNodeUiModel, accent: Color, modifier: Modifier = Modifier) {
+    val (bg, fg) = when (node.status) {
+        NodeStatus.DOMINADO -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        NodeStatus.EN_PROGRESO -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        NodeStatus.BLOQUEADO -> MaterialTheme.colorScheme.surfaceContainerHigh to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val icon: ImageVector = when (node.status) {
+        NodeStatus.DOMINADO -> Icons.Default.Check
+        NodeStatus.EN_PROGRESO -> Icons.Default.AutoAwesome
+        NodeStatus.BLOQUEADO -> Icons.Default.Lock
+    }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = bg,
+            modifier = Modifier.size(40.dp),
+            tonalElevation = 2.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = fg,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+        Surface(
+            shape = MaterialTheme.shapes.extraSmall,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            tonalElevation = 1.dp
+        ) {
+            Text(
+                text = node.label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+        }
+    }
+}
 
-                    Card(
+@Composable
+private fun GraphEmptyState() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.Hub,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(40.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Aún no hay conceptos mapeados",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Sube notas para que Khipu conecte tus conceptos.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+// =========================================================================================
+//  Section 4 — Upcoming reviews (Conceptos a dominar)
+// =========================================================================================
+
+@Composable
+private fun UpcomingReviewsSection(
+    reviews: List<ReviewItemUiModel>,
+    isLoading: Boolean,
+    onStudySingle: (conceptTitle: String) -> Unit,
+    onStudyMultiple: (List<String>) -> Unit
+) {
+    // Dos estados independientes:
+    // - selectionMode: si el usuario entró a modo selección (tap en el botón "Seleccionar")
+    // - selectedIds: qué conceptos marcó
+    var selectionMode by rememberSaveable { mutableStateOf(false) }
+    var selectedIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+
+    // Si el usuario sale del modo selección, limpiamos la selección
+    val exitSelection = {
+        selectionMode = false
+        selectedIds = emptySet()
+    }
+
+    val allSelected = reviews.isNotEmpty() && selectedIds.size == reviews.size
+
+    SectionHeader(
+        title = "Conceptos a dominar",
+        subtitle = when {
+            isLoading -> "Cargando…"
+            reviews.isEmpty() -> "Estás al día con este curso 🎉"
+            selectionMode && selectedIds.isNotEmpty() ->
+                "${selectedIds.size} seleccionado${if (selectedIds.size == 1) "" else "s"}"
+            selectionMode -> "Toca los conceptos a estudiar"
+            else -> "${reviews.size} ${if (reviews.size == 1) "concepto" else "conceptos"} pendientes"
+        },
+        actionIcon = when {
+            selectionMode -> Icons.Default.Close
+            reviews.isNotEmpty() -> Icons.Default.Checklist
+            else -> null
+        },
+        actionDescription = when {
+            selectionMode -> "Salir de selección"
+            reviews.isNotEmpty() -> "Seleccionar varios para estudiar con el tutor"
+            else -> null
+        },
+        onAction = when {
+            selectionMode -> { { exitSelection() } }
+            reviews.isNotEmpty() -> { { selectionMode = true } }
+            else -> null
+        }
+    )
+
+    when {
+        isLoading && reviews.isEmpty() -> ReviewsLoadingState()
+
+        reviews.isEmpty() -> Spacer(modifier = Modifier.height(8.dp))
+
+        else -> {
+            val urgent = reviews.filter { it.isUrgent }
+            val upcoming = reviews.filterNot { it.isUrgent }
+
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (selectionMode) {
+                    SelectionToolbar(
+                        allSelected = allSelected,
+                        selectedCount = selectedIds.size,
+                        totalCount = reviews.size,
+                        onSelectAll = {
+                            selectedIds = if (allSelected) emptySet()
+                            else reviews.map { it.id }.toSet()
+                        },
+                        onClear = { selectedIds = emptySet() }
+                    )
+                }
+
+                if (urgent.isNotEmpty()) {
+                    UrgencyGroupHeader(
+                        label = "Vencen hoy",
+                        count = urgent.size,
+                        tone = UrgencyTone.URGENT
+                    )
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 1.dp
                     ) {
                         Column {
-                            uiState.upcomingReviews.forEachIndexed { index, task ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .background(
-                                                    if (task.isUrgent) MaterialTheme.colorScheme.errorContainer
-                                                    else MaterialTheme.colorScheme.surfaceVariant,
-                                                    CircleShape
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = if (task.isUrgent) Icons.Default.PriorityHigh else Icons.AutoMirrored.Filled.MenuBook,
-                                                contentDescription = null,
-                                                tint = if (task.isUrgent) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        Column {
-                                            Text(task.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                            Text(task.scheduleText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-
-                                    Button(
-                                        onClick = { onNavigateToReview(task.id) },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (task.isUrgent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                                        )
-                                    ) {
-                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Estudiar con IA")
-                                    }
+                            urgent.forEachIndexed { index, task ->
+                                ReviewRow(
+                                    task = task,
+                                    isSelected = task.id in selectedIds,
+                                    isSelectionMode = selectionMode,
+                                    onToggleSelection = {
+                                        selectedIds = if (task.id in selectedIds)
+                                            selectedIds - task.id
+                                        else
+                                            selectedIds + task.id
+                                    },
+                                    onStudy = { onStudySingle(task.title) }
+                                )
+                                if (index < urgent.lastIndex) {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    )
                                 }
-                                if (index < uiState.upcomingReviews.lastIndex) {
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            }
+                        }
+                    }
+                }
+
+                if (upcoming.isNotEmpty()) {
+                    UrgencyGroupHeader(
+                        label = "Próximos",
+                        count = upcoming.size,
+                        tone = UrgencyTone.NORMAL
+                    )
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 1.dp
+                    ) {
+                        Column {
+                            upcoming.forEachIndexed { index, task ->
+                                ReviewRow(
+                                    task = task,
+                                    isSelected = task.id in selectedIds,
+                                    isSelectionMode = selectionMode,
+                                    onToggleSelection = {
+                                        selectedIds = if (task.id in selectedIds)
+                                            selectedIds - task.id
+                                        else
+                                            selectedIds + task.id
+                                    },
+                                    onStudy = { onStudySingle(task.title) }
+                                )
+                                if (index < upcoming.lastIndex) {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    )
                                 }
                             }
                         }
@@ -567,7 +1077,565 @@ fun CourseDetailScreen(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(32.dp)) }
+            // Barra inferior con el CTA de "Estudiar N"
+            androidx.compose.animation.AnimatedVisibility(
+                visible = selectionMode && selectedIds.isNotEmpty(),
+                enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+            ) {
+                Spacer(modifier = Modifier.height(12.dp))
+                BulkActionBar(
+                    selectedCount = selectedIds.size,
+                    selectedTitles = reviews.filter { it.id in selectedIds }.map { it.title },
+                    onConfirm = onStudyMultiple,
+                    onCancel = exitSelection
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectionToolbar(
+    allSelected: Boolean,
+    selectedCount: Int,
+    totalCount: Int,
+    onSelectAll: () -> Unit,
+    onClear: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+        tonalElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = if (allSelected) "Todos seleccionados"
+                else "$selectedCount de $totalCount",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                fontWeight = FontWeight.Medium
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (selectedCount > 0) {
+                    TextButton(onClick = onClear) {
+                        Text("Limpiar")
+                    }
+                }
+                TextButton(onClick = onSelectAll) {
+                    Icon(
+                        imageVector = if (allSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(if (allSelected) "Quitar todos" else "Seleccionar todos")
+                }
+            }
+        }
+    }
+}
+
+private enum class UrgencyTone { URGENT, NORMAL }
+
+@Composable
+private fun UrgencyGroupHeader(label: String, count: Int, tone: UrgencyTone) {
+    val color = when (tone) {
+        UrgencyTone.URGENT -> MaterialTheme.colorScheme.error
+        UrgencyTone.NORMAL -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(
+        modifier = Modifier.padding(start = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = color
+        )
+        Text(
+            text = "· $count",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ReviewRow(
+    task: ReviewItemUiModel,
+    isSelected: Boolean,
+    isSelectionMode: Boolean,
+    onToggleSelection: () -> Unit,
+    onStudy: () -> Unit
+) {
+    val containerColor = when (task.difficulty) {
+        ConceptDifficulty.HARD -> MaterialTheme.colorScheme.errorContainer
+        ConceptDifficulty.MEDIUM -> MaterialTheme.colorScheme.tertiaryContainer
+        ConceptDifficulty.EASY -> MaterialTheme.colorScheme.secondaryContainer
+        ConceptDifficulty.UNKNOWN -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    val onContainerColor = when (task.difficulty) {
+        ConceptDifficulty.HARD -> MaterialTheme.colorScheme.onErrorContainer
+        ConceptDifficulty.MEDIUM -> MaterialTheme.colorScheme.onTertiaryContainer
+        ConceptDifficulty.EASY -> MaterialTheme.colorScheme.onSecondaryContainer
+        ConceptDifficulty.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val difficultyLabel = when (task.difficulty) {
+        ConceptDifficulty.HARD -> "Difícil"
+        ConceptDifficulty.MEDIUM -> "Medio"
+        ConceptDifficulty.EASY -> "Fácil"
+        ConceptDifficulty.UNKNOWN -> "Nuevo"
+    }
+
+    val backgroundColor = if (isSelected)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+    else
+        MaterialTheme.colorScheme.surface
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor)
+            .clickable {
+                if (isSelectionMode) onToggleSelection() else onStudy()
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Leading: checkbox (en modo selección) o ícono de estado (en modo normal)
+        if (isSelectionMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onToggleSelection() }
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(containerColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = difficultyLabel.first().toString(),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = onContainerColor
+                )
+            }
+        }
+
+        // Contenido: nombre + meta info
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = task.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                DifficultyChip(label = difficultyLabel, tone = task.difficulty)
+                MetaDot()
+                Text(
+                    text = task.dueLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (task.isUrgent)
+                        MaterialTheme.colorScheme.error
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (task.isUrgent) FontWeight.SemiBold else FontWeight.Normal
+                )
+                if (task.repetitions > 0) {
+                    MetaDot()
+                    Text(
+                        text = "${task.repetitions} repasos",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // Trailing: chevron en modo normal
+        if (!isSelectionMode) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                contentDescription = "Estudiar con el tutor",
+                tint = if (task.isUrgent)
+                    MaterialTheme.colorScheme.error
+                else
+                    MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetaDot() {
+    Box(
+        modifier = Modifier
+            .size(3.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.outlineVariant)
+    )
+}
+
+@Composable
+private fun DifficultyChip(label: String, tone: ConceptDifficulty) {
+    val (bg, fg) = when (tone) {
+        ConceptDifficulty.HARD -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+        ConceptDifficulty.MEDIUM -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        ConceptDifficulty.EASY -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        ConceptDifficulty.UNKNOWN -> MaterialTheme.colorScheme.surfaceContainerHigh to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        shape = MaterialTheme.shapes.extraSmall,
+        color = bg
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = fg,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun BulkActionBar(
+    selectedCount: Int,
+    selectedTitles: List<String>,
+    onConfirm: (List<String>) -> Unit,
+    onCancel: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        tonalElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Estudiar $selectedCount concepto${if (selectedCount == 1) "" else "s"}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Abriré el chat del curso con todo como contexto",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                )
+            }
+            TextButton(
+                onClick = onCancel,
+                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) { Text("Cancelar") }
+            FilledTonalButton(
+                onClick = { onConfirm(selectedTitles) },
+                colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.onPrimary,
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Iniciar")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewsLoadingState() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.5.dp
+            )
+            Text(
+                text = "Buscando repasos pendientes…",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// =========================================================================================
+//  Shared components
+// =========================================================================================
+
+@Composable
+private fun SectionHeader(
+    title: String,
+    subtitle: String? = null,
+    actionIcon: ImageVector? = null,
+    actionDescription: String? = null,
+    onAction: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (actionIcon != null && onAction != null) {
+            IconButton(
+                onClick = onAction,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = actionIcon,
+                    contentDescription = actionDescription,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+// Wrapper privado de Scaffold para que el Preview no requiera hiltViewModel()
+// (definido solo a nivel de archivo para no contaminar la API pública)
+@Composable
+private fun Scaffold(
+    containerColor: Color = MaterialTheme.colorScheme.background,
+    topBar: @Composable () -> Unit,
+    content: @Composable (PaddingValues) -> Unit
+) {
+    androidx.compose.material3.Scaffold(
+        containerColor = containerColor,
+        topBar = topBar,
+        content = content
+    )
+}
+
+// =========================================================================================
+//  Helpers
+// =========================================================================================
+
+private fun parseCourseColor(hex: String?): Color {
+    if (hex.isNullOrBlank()) return Color(0xFF6750A4)
+    return runCatching { Color(android.graphics.Color.parseColor(hex)) }
+        .getOrElse { Color(0xFF6750A4) }
+}
+
+// =========================================================================================
+//  Previews
+// =========================================================================================
+
+private fun previewNotes(): List<CompactNoteUiModel> = listOf(
+    CompactNoteUiModel(
+        id = "n1",
+        title = "Cálculo Diferencial - Cap 3",
+        snippet = "La derivada parcial mide la tasa de cambio de una función respecto a una variable…",
+        dateTag = "15 Jun",
+        subCategory = "Teoría"
+    ),
+    CompactNoteUiModel(
+        id = "n2",
+        title = "Regla de la cadena",
+        snippet = "La regla de la cadena permite derivar funciones compuestas f(g(x))…",
+        dateTag = "12 Jun",
+        subCategory = "Importante"
+    ),
+    CompactNoteUiModel(
+        id = "n3",
+        title = "Ejercicios resueltos",
+        snippet = "12 problemas de derivadas con solución paso a paso…",
+        dateTag = "10 Jun",
+        subCategory = "Práctica"
+    )
+)
+
+private fun previewReviews(): List<ReviewItemUiModel> = listOf(
+    ReviewItemUiModel(
+        id = "r1",
+        title = "Derivada Parcial",
+        courseName = "Cálculo Diferencial",
+        dueLabel = "Vence hoy",
+        isUrgent = true,
+        difficulty = ConceptDifficulty.HARD,
+        repetitions = 2,
+        easeFactor = 1.7f
+    ),
+    ReviewItemUiModel(
+        id = "r2",
+        title = "Regla de la Cadena",
+        courseName = "Cálculo Diferencial",
+        dueLabel = "Vence hoy",
+        isUrgent = true,
+        difficulty = ConceptDifficulty.MEDIUM,
+        repetitions = 3,
+        easeFactor = 2.0f
+    ),
+    ReviewItemUiModel(
+        id = "r3",
+        title = "Integral Definida",
+        courseName = "Cálculo Diferencial",
+        dueLabel = "En 2 días",
+        isUrgent = false,
+        difficulty = ConceptDifficulty.MEDIUM,
+        repetitions = 4,
+        easeFactor = 2.2f
+    ),
+    ReviewItemUiModel(
+        id = "r4",
+        title = "Límites laterales",
+        courseName = "Cálculo Diferencial",
+        dueLabel = "En 5 días",
+        isUrgent = false,
+        difficulty = ConceptDifficulty.EASY,
+        repetitions = 8,
+        easeFactor = 2.5f
+    )
+)
+
+private fun previewNodes(): List<GraphNodeUiModel> = listOf(
+    GraphNodeUiModel("Derivada", "check", NodeStatus.DOMINADO, 0.5f, 0.2f),
+    GraphNodeUiModel("Límite", "check", NodeStatus.DOMINADO, 0.3f, 0.5f),
+    GraphNodeUiModel("Integral", "circle", NodeStatus.EN_PROGRESO, 0.7f, 0.5f),
+    GraphNodeUiModel("Serie", "lock", NodeStatus.BLOQUEADO, 0.2f, 0.8f),
+    GraphNodeUiModel("Continuidad", "circle", NodeStatus.EN_PROGRESO, 0.8f, 0.8f)
+)
+
+@Preview(showBackground = true, widthDp = 380, heightDp = 1500, name = "Estado con datos")
+@Composable
+private fun CourseDetailScreenPreview() {
+    KhipuAITheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            CourseDetailContent(
+                state = CourseDetailUiState(
+                    courseId = "c1",
+                    courseName = "Cálculo Diferencial",
+                    categoryName = "Ingeniería",
+                    courseColor = "#4A90E2",
+                    courseProgress = 78,
+                    notes = previewNotes(),
+                    totalNotesCount = 3,
+                    showAllNotes = false,
+                    upcomingReviews = previewReviews(),
+                    previewNodes = previewNodes(),
+                    isLoading = false
+                ),
+                courseColor = Color(0xFF4A90E2),
+                padding = PaddingValues(0.dp),
+                onBackClick = {},
+                onAskTutor = {},
+                onAddNote = {},
+                onNoteClick = {},
+                onToggleShowAll = {},
+                onRename = { _, _ -> },
+                onDelete = {},
+                onReassociate = { _, _ -> },
+                onExpandMap = {},
+                onStudySingle = {},
+                onStudyMultiple = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 380, heightDp = 800, name = "Estado vacío")
+@Composable
+private fun CourseDetailScreenEmptyPreview() {
+    KhipuAITheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            CourseDetailContent(
+                state = CourseDetailUiState(
+                    courseId = "c1",
+                    courseName = "Cálculo Diferencial",
+                    categoryName = "",
+                    courseColor = "#4A90E2",
+                    courseProgress = 0,
+                    notes = emptyList(),
+                    totalNotesCount = 0,
+                    showAllNotes = false,
+                    upcomingReviews = emptyList(),
+                    previewNodes = emptyList(),
+                    isLoading = false
+                ),
+                courseColor = Color(0xFF4A90E2),
+                padding = PaddingValues(0.dp),
+                onBackClick = {},
+                onAskTutor = {},
+                onAddNote = {},
+                onNoteClick = {},
+                onToggleShowAll = {},
+                onRename = { _, _ -> },
+                onDelete = {},
+                onReassociate = { _, _ -> },
+                onExpandMap = {},
+                onStudySingle = {},
+                onStudyMultiple = {}
+            )
         }
     }
 }

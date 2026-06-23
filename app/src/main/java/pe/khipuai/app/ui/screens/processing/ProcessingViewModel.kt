@@ -55,7 +55,7 @@ class ProcessingViewModel @Inject constructor(
                 var isProcessingFinished = false
                 var pollingAttempts = 0
 
-                while (!isProcessingFinished && pollingAttempts < 30) { // Límite de 1 minuto de resiliencia
+                while (!isProcessingFinished && pollingAttempts < 90) { // Límite de 3 minutos de resiliencia
                     delay(2000) // Consultamos al backend cada 2 segundos
                     pollingAttempts++
 

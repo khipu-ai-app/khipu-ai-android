@@ -32,6 +32,7 @@ import pe.khipuai.app.ui.components.KhipuLogo
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToHome: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -140,6 +141,19 @@ fun LoginScreen(
             ),
             shape = RoundedCornerShape(12.dp)
         )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onNavigateToForgotPassword) {
+                Text(
+                    text = "¿Olvidaste tu contraseña?",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
         
         Spacer(modifier = Modifier.height(32.dp))
         

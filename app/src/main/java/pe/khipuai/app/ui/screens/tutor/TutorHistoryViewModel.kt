@@ -8,18 +8,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pe.khipuai.app.data.remote.dto.ChatSessionResponse
+import pe.khipuai.app.data.repository.CourseRepository
 import pe.khipuai.app.data.repository.TutorRepository
 import javax.inject.Inject
 
 data class TutorHistoryUiState(
     val sessions: List<ChatSessionResponse> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val screenTitle: String = "Conversaciones con Khipu",
+    val courseColorHex: String? = null
 )
 
 @HiltViewModel
 class TutorHistoryViewModel @Inject constructor(
     private val tutorRepository: TutorRepository,
+    private val courseRepository: CourseRepository,
     savedStateHandle: androidx.lifecycle.SavedStateHandle
 ) : ViewModel() {
 
@@ -30,7 +34,37 @@ class TutorHistoryViewModel @Inject constructor(
     val uiState: StateFlow<TutorHistoryUiState> = _uiState.asStateFlow()
 
     init {
+        resolveScreenTitle()
         loadSessions()
+    }
+
+    private fun resolveScreenTitle() {
+        val type = contextTypeArg ?: "general"
+        val id = contextIdArg
+        when (type) {
+            "course" -> {
+                if (id != null) {
+                    viewModelScope.launch {
+                        val course = courseRepository.getById(id)
+                        if (course != null) {
+                            _uiState.value = _uiState.value.copy(
+                                screenTitle = "Chat de ${course.name}",
+                                courseColorHex = course.color
+                            )
+                        } else {
+                            _uiState.value = _uiState.value.copy(
+                                screenTitle = "Chat de curso"
+                            )
+                        }
+                    }
+                } else {
+                    _uiState.value = _uiState.value.copy(screenTitle = "Chat de curso")
+                }
+            }
+            "note" -> _uiState.value = _uiState.value.copy(screenTitle = "Chats de la nota")
+            "concept" -> _uiState.value = _uiState.value.copy(screenTitle = "Chats del concepto")
+            else -> _uiState.value = _uiState.value.copy(screenTitle = "Chat global")
+        }
     }
 
     fun loadSessions() {

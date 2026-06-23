@@ -35,24 +35,22 @@ data class GraphResponse(
 @Serializable
 data class NeighborNode(
     @SerialName("id") val id: String,
-    @SerialName("name") val name: String,
+    @SerialName("label") val label: String,
     @SerialName("strength") val strength: Float? = 1.0f
 )
 
 @Serializable
-data class MentionedNote(
-    @SerialName("note_id") val noteId: String,
+data class ConceptNoteRef(
+    @SerialName("id") val id: String,
     @SerialName("title") val title: String
 )
 
 @Serializable
 data class ConceptDetailResponse(
-    @SerialName("concept_id") val conceptId: String,
-    @SerialName("concept_name") val conceptName: String,
-    @SerialName("ease_factor") val easeFactor: Float,
-    @SerialName("interval") val interval: Int,
-    @SerialName("repetitions") val repetitions: Int,
+    @SerialName("id") val id: String,
+    @SerialName("label") val label: String,
     @SerialName("review_pending") val reviewPending: Boolean,
+    @SerialName("ease_factor") val easeFactor: Float,
     @SerialName("neighbors") val neighbors: List<NeighborNode>,
-    @SerialName("mentioned_in") val mentionedIn: List<MentionedNote>
+    @SerialName("notes") val notes: List<ConceptNoteRef>
 )

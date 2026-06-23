@@ -28,11 +28,48 @@ import pe.khipuai.app.ui.components.BottomNavigationBar
 fun PlannerScreen(
     onNavigateToTab: (Int) -> Unit,
     onNavigateToCalendar: () -> Unit = {},
+    onNavigateToNote: (String) -> Unit = {},
+    onNavigateToDailyDeck: () -> Unit = {},
     viewModel: PlannerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Mostrar snackbar cuando hay mensaje
+    LaunchedEffect(uiState.snackbarMessage) {
+        uiState.snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbar()
+        }
+    }
+
+    // Diálogo de confirmación para "Marcar todo como completado"
+    uiState.confirmCompleteBlockId?.let { blockId ->
+        val block = uiState.studyBlocks.find { it.id == blockId }
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissConfirmMarkAll() },
+            title = { Text("Marcar como completado") },
+            text = {
+                Text(
+                    "Esto marcará ${block?.tasks?.size ?: 0} conceptos como recordados (calidad 4). " +
+                    "El algoritmo SM-2 los reprogramará automáticamente. ¿Continuar?"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmMarkAllCompleted() }) {
+                    Text("Confirmar", color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissConfirmMarkAll() }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -52,7 +89,7 @@ fun PlannerScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "U",
+                            text = uiState.userName.firstOrNull()?.toString()?.uppercase() ?: "U",
                             color = MaterialTheme.colorScheme.onPrimary,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
@@ -103,6 +140,8 @@ fun PlannerScreen(
                 )
             }
         } else {
+            val totalDue = uiState.studyBlocks.sumOf { it.tasks.filter { !it.isCompleted }.size }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -116,7 +155,7 @@ fun PlannerScreen(
                     DailyAgendaHeader(onCalendarClick = onNavigateToCalendar) 
                 }
 
-                if (uiState.studyBlocks.isEmpty()) {
+                if (totalDue == 0) {
                     item {
                         Box(
                             modifier = Modifier
@@ -148,16 +187,34 @@ fun PlannerScreen(
                         }
                     }
                 } else {
+                    item {
+                        StudyDeckLauncherCard(
+                            totalDue = totalDue,
+                            onStartDeck = onNavigateToDailyDeck
+                        )
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "Desglose por cursos",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                     items(uiState.studyBlocks) { block ->
-                        StudyBlockCard(
+                        CourseBreakdownCard(
                             block = block,
-                            onTaskToggle = { taskId ->
-                                viewModel.toggleTask(block.id, taskId)
+                            onTaskClick = { noteId ->
+                                if (noteId != null) {
+                                    onNavigateToNote(noteId)
+                                } else {
+                                    viewModel.setSnackbarMessage("Este concepto no tiene una nota asociada.")
+                                }
                             },
-                            onTaskRating = { taskId, rating ->
-                                viewModel.submitRating(block.id, taskId, rating)
-                            },
-                            onMenuClick = { /* TODO */ }
+                            onPostpone = { viewModel.postponeBlock(block.id) },
+                            onMarkAllCompleted = { viewModel.requestMarkAllCompleted(block.id) }
                         )
                     }
                 }
@@ -186,13 +243,22 @@ private fun DailyAgendaHeader(
             )
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onCalendarClick) {
+                FilledTonalButton(
+                    onClick = onCalendarClick,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.CalendarMonth,
                         contentDescription = "Ver Calendario",
-                        tint = MaterialTheme.colorScheme.primary
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Calendario",
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Surface(
                     color = Color(0xFFE8F5E8),
@@ -221,18 +287,85 @@ private fun DailyAgendaHeader(
 }
 
 @Composable
-private fun StudyBlockCard(
-    block: StudyBlock,
-    onTaskToggle: (String) -> Unit,
-    onTaskRating: (String, Int) -> Unit,
-    onMenuClick: () -> Unit
+private fun StudyDeckLauncherCard(
+    totalDue: Int,
+    onStartDeck: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Style, // Represents a deck of cards
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Tu Mazo de Estudio",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Tienes $totalDue conceptos programados para repasar hoy con SM-2.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth(0.8f)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = onStartDeck,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Comenzar Repaso Diario",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CourseBreakdownCard(
+    block: StudyBlock,
+    onTaskClick: (String?) -> Unit,
+    onPostpone: () -> Unit,
+    onMarkAllCompleted: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -288,16 +421,43 @@ private fun StudyBlockCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(
-                    onClick = onMenuClick,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Más opciones",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
+                Box {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Opciones",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Posponer al mañana") },
+                            onClick = {
+                                menuExpanded = false
+                                onPostpone()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Schedule, contentDescription = null)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Marcar todos como completados") },
+                            onClick = {
+                                menuExpanded = false
+                                onMarkAllCompleted()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.DoneAll, contentDescription = null)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -312,190 +472,47 @@ private fun StudyBlockCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Lista de conceptos con autoevaluación SM-2
+            // Lista simple de conceptos sin autoevaluación (eso va en la sesión)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 block.tasks.forEach { task ->
-                    TaskItem(
+                    SimpleTaskItem(
                         task = task,
-                        onToggle = { onTaskToggle(task.id) },
-                        onSubmitRating = { rating -> onTaskRating(task.id, rating) }
+                        onClick = { onTaskClick(task.noteId) }
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            MentalLoadIndicator(
-                label = "Carga Mental Sugerida",
-                level = block.mentalLoadLevel,
-                color = block.mentalLoadColor
-            )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TaskItem(
-    task: Task,
-    onToggle: () -> Unit,
-    onSubmitRating: (Int) -> Unit
-) {
-    var isExpanded by remember { mutableStateOf(false) }
-    var sliderValue by remember { mutableStateOf(3f) }
-
-    val ratingLabel = when (sliderValue.toInt()) {
-        0 -> "Olvido total"
-        1 -> "Olvido parcial"
-        2 -> "Gran esfuerzo"
-        3 -> "Esfuerzo medio"
-        4 -> "Recordado bien"
-        else -> "Recuerdo instantáneo"
-    }
-
-    val ratingColor = when (sliderValue.toInt()) {
-        0, 1 -> Color(0xFFEF5350)
-        2 -> Color(0xFFFFA726)
-        3 -> Color(0xFFFFEE58)
-        4 -> Color(0xFF66BB6A)
-        else -> Color(0xFF26C6DA)
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        color = if (isExpanded)
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        else
-            Color.Transparent,
-        tonalElevation = if (isExpanded) 2.dp else 0.dp
+private fun SimpleTaskItem(task: Task, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)) {
-            // Fila principal del concepto
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = task.isCompleted,
-                    onCheckedChange = { onToggle() },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (task.isCompleted)
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    else
-                        MaterialTheme.colorScheme.onSurface,
-                    textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(
-                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (isExpanded) "Cerrar evaluación" else "Autoevaluar",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Panel de autoevaluación SM-2 expandible
-            if (isExpanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
-                ) {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Calidad de Retención (SM-2)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Surface(
-                            color = ratingColor.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "${sliderValue.toInt()} — $ratingLabel",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = ratingColor,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Slider(
-                        value = sliderValue,
-                        onValueChange = { sliderValue = it },
-                        valueRange = 0f..5f,
-                        steps = 4,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = SliderDefaults.colors(
-                            thumbColor = ratingColor,
-                            activeTrackColor = ratingColor,
-                            inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
-                        )
-                    )
-
-                    // Etiquetas de los extremos
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "0 · Olvido",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "5 · Perfecto",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Button(
-                        onClick = {
-                            onSubmitRating(sliderValue.toInt())
-                            isExpanded = false
-                        },
-                        modifier = Modifier.align(Alignment.End),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Registrar Repaso",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-            }
-        }
+        Icon(
+            imageVector = Icons.Default.Circle,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+            modifier = Modifier.size(8.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = task.title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = "Ver nota",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp)
+        )
     }
 }
 

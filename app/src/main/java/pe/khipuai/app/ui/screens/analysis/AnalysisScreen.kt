@@ -1,5 +1,10 @@
 package pe.khipuai.app.ui.screens.analysis
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,10 +33,20 @@ fun AnalysisScreen(
     onNavigateBack: () -> Unit,
     onNavigateToStudyGuide: () -> Unit,
     onNavigateToQuizCreation: () -> Unit,
+    onConceptClick: (String) -> Unit = {},
     viewModel: AnalysisViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAIDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Mostrar Snackbar cuando hay mensaje
+    LaunchedEffect(uiState.snackbarMessage) {
+        uiState.snackbarMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.consumeSnackbar()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -63,7 +78,8 @@ fun AnalysisScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
         // Control de estado visual intermedio para evitar parpadeos vacíos
         if (uiState.isLoading) {
@@ -182,50 +198,59 @@ fun AnalysisScreen(
                     }
                 }
 
-                // Course detected badge
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.School,
-                            contentDescription = "Curso",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-
-                        Text(
-                            text = "CURSO DETECTADO",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Surface(
-                            color = Color(0xFFE3F2FD),
-                            shape = RoundedCornerShape(8.dp)
+                // Course detected badge — dinámico: del primer topic (categoría) y
+                // el "! Importante" si algún topic lo es.
+                if (uiState.topics.isNotEmpty()) {
+                    item {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            Icon(
+                                imageVector = Icons.Default.School,
+                                contentDescription = "Curso",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+
                             Text(
-                                text = "Teoría",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                text = "CURSO DETECTADO",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF1976D2),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium
                             )
-                        }
 
-                        Surface(
-                            color = Color(0xFFFFEBEE),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "! Importante",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFFD32F2F),
-                                fontWeight = FontWeight.Medium
-                            )
+                            // Badge 1: categoría del primer topic
+                            uiState.topics.firstOrNull()?.let { firstTopic ->
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = firstTopic.category,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            // Badge 2: "! Importante" si algún topic lo es
+                            if (uiState.topics.any { it.isImportant }) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = "! Importante",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -278,7 +303,7 @@ fun AnalysisScreen(
                         ) {
                             items(uiState.keyConcepts) { concept ->
                                 SuggestionChip(
-                                    onClick = { /* Navigation */ },
+                                    onClick = { onConceptClick(concept) },
                                     label = {
                                         Text(
                                             text = concept,
@@ -362,7 +387,7 @@ fun AnalysisScreen(
                         }
 
                         OutlinedButton(
-                            onClick = { /* TODO: Add to calendar */ },
+                            onClick = { viewModel.openCalendarDialog() },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -377,77 +402,83 @@ fun AnalysisScreen(
                     }
                 }
 
-                // AI Assistant card
+                // AI Assistant card (se oculta con animación si el usuario dismisseó)
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        ),
-                        shape = RoundedCornerShape(16.dp)
+                    AnimatedVisibility(
+                        visible = uiState.showAiSuggestion,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.Top
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.Top
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Psychology,
-                                    contentDescription = "Khipu AI",
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Psychology,
+                                        contentDescription = "Khipu AI",
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Khipu AI",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Khipu AI",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
 
-                                Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
 
-                                Text(
-                                    text = uiState.aiSuggestion,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    lineHeight = 20.sp
-                                )
+                                    Text(
+                                        text = uiState.aiSuggestion,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        lineHeight = 20.sp
+                                    )
 
-                                Spacer(modifier = Modifier.height(12.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(
-                                        onClick = { showAIDialog = true },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                        shape = RoundedCornerShape(20.dp),
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Sí, explícame",
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(
+                                            onClick = { showAIDialog = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                            shape = RoundedCornerShape(20.dp),
+                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Sí, explícame",
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
+                                        }
 
-                                    OutlinedButton(
-                                        onClick = { /* TODO: Dismiss */ },
-                                        shape = RoundedCornerShape(20.dp),
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        Text(
-                                            text = "No, gracias",
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
+                                        OutlinedButton(
+                                            onClick = { viewModel.dismissAiSuggestion() },
+                                            shape = RoundedCornerShape(20.dp),
+                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                                        ) {
+                                            Text(
+                                                text = "No, gracias",
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -481,5 +512,46 @@ fun AnalysisScreen(
                 }
             }
         )
+    }
+
+    // Date Picker para "Agregar al calendario"
+    if (uiState.showCalendarDialog) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { viewModel.closeCalendarDialog() },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val millis = datePickerState.selectedDateMillis
+                        if (millis != null) {
+                            val date = java.time.Instant.ofEpochMilli(millis)
+                                .atZone(java.time.ZoneOffset.UTC)
+                                .toLocalDate()
+                            val iso = date.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+                            viewModel.scheduleManually(iso)
+                        } else {
+                            viewModel.closeCalendarDialog()
+                        }
+                    },
+                    enabled = !uiState.isScheduling
+                ) {
+                    if (uiState.isScheduling) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Programar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.closeCalendarDialog() },
+                    enabled = !uiState.isScheduling
+                ) { Text("Cancelar") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 }

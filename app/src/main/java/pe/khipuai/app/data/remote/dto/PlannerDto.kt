@@ -14,7 +14,8 @@ data class DueConceptResponse(
     @SerialName("interval") val interval: Int,
     @SerialName("repetitions") val repetitions: Int,
     @SerialName("ease_factor") val easeFactor: Float,
-    @SerialName("course_name") val courseName: String
+    @SerialName("course_name") val courseName: String,
+    @SerialName("note_id") val noteId: String? = null
 )
 
 @Serializable
@@ -47,4 +48,26 @@ data class PlannerStatsResponse(
     @SerialName("dominated_concepts") val dominatedConcepts: Int,
     @SerialName("mastery_percentage") val masteryPercentage: Int,
     @SerialName("course_distribution") val courseDistribution: List<CourseDistributionItem>
+)
+
+// ─── Calendarización manual (POST /planner/manual-schedule) ────────────────
+
+@Serializable
+data class ManualScheduleRequest(
+    @SerialName("note_id") val noteId: String,
+    @SerialName("scheduled_date") val scheduledDate: String  // formato YYYY-MM-DD
+)
+
+@Serializable
+data class ManualScheduleItem(
+    @SerialName("id") val id: String,
+    @SerialName("note_id") val noteId: String,
+    @SerialName("note_title") val noteTitle: String,
+    @SerialName("scheduled_date") val scheduledDate: String  // formato YYYY-MM-DD
+)
+
+@Serializable
+data class PostponeRequest(
+    @SerialName("concept_ids") val conceptIds: List<String>,
+    @SerialName("days") val days: Int
 )

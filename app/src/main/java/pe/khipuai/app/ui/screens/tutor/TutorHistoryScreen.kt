@@ -1,18 +1,24 @@
 package pe.khipuai.app.ui.screens.tutor
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,7 +39,29 @@ fun TutorHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Conversaciones con Khipu") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val courseColor = uiState.courseColorHex?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
+                        if (courseColor != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(courseColor)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Chat,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(uiState.screenTitle, fontWeight = FontWeight.Bold)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Atrás")
@@ -54,9 +82,9 @@ fun TutorHistoryScreen(
         } else if (uiState.sessions.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                    Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Aún no has hablado con Khipu. ¡Hazle tu primera pregunta!", style = MaterialTheme.typography.bodyLarge)
+                    Text(emptyStateMessage(uiState.screenTitle), style = MaterialTheme.typography.bodyLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = onNewSession) {
                         Text("Empezar")
@@ -130,7 +158,7 @@ fun TutorHistoryScreen(
                                     val days = ChronoUnit.DAYS.between(date, ZonedDateTime.now())
                                     if (days == 0L) "Hoy" else if (days == 1L) "Ayer" else "Hace $days días"
                                 } catch (e: Exception) { "" }
-                                
+
                                 Text(
                                     text = timeStr,
                                     style = MaterialTheme.typography.labelSmall,
@@ -145,5 +173,13 @@ fun TutorHistoryScreen(
                 }
             }
         }
+    }
+}
+
+private fun emptyStateMessage(title: String): String {
+    return when {
+        title.startsWith("Chat de ") -> "Aún no has hablado con Khipu sobre este curso. ¡Hazle tu primera pregunta!"
+        title == "Chat global" -> "Aquí verás tus conversaciones globales con Khipu. ¡Hazle tu primera pregunta!"
+        else -> "Aún no has hablado con Khipu. ¡Hazle tu primera pregunta!"
     }
 }

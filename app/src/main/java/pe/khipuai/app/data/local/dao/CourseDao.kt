@@ -11,7 +11,7 @@ import pe.khipuai.app.data.local.entity.CourseEntity
 @Dao
 interface CourseDao {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     suspend fun upsertAll(courses: List<CourseEntity>)
 
     @Transaction
