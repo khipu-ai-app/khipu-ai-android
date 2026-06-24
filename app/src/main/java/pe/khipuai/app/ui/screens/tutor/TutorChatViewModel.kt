@@ -60,7 +60,7 @@ class TutorChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             isLoading = false,
             isStreaming = false,
-            errorMessage = "Error de conexión: ${exception.localizedMessage}"
+            errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
         )
     }
 
@@ -92,7 +92,7 @@ class TutorChatViewModel @Inject constructor(
                 .onFailure { err ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "Error al cargar historial: ${err.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(err).message
                     )
                 }
         }
@@ -167,7 +167,7 @@ class TutorChatViewModel @Inject constructor(
                         },
                         inputText = query,  // Devolvemos lo que escribió para que no pierda el texto
                         isStreaming = false,
-                        errorMessage = "No pude iniciar la conversación: ${err.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(err).message
                     )
                 }
         }

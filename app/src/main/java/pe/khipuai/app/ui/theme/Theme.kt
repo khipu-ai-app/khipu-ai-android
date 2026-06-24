@@ -95,11 +95,19 @@ private val DarkColorScheme = darkColorScheme(
 // ── Theme ─────────────────────────────────────────────────────────────────────
 @Composable
 fun KhipuAITheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // T-03: el caller (MainActivity) nos pasa el ThemeMode persistido por
+    // ThemePreferences. Si no llega ninguno, default = SYSTEM.
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     // Dynamic color (Material You) enabled on Android 12+; falls back to brand palette below.
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

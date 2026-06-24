@@ -73,3 +73,8 @@ data class UsageResponse(
     @SerialName("captures_limit") val capturesLimit: Int,
     @SerialName("is_pro") val isPro: Boolean
 )
+
+@Serializable
+data class RefreshTokenRequest(
+    @SerialName("access_token") val accessToken: String
+)

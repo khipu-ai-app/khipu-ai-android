@@ -74,7 +74,7 @@ class NoteRepository @Inject constructor(
         }
     }
 
-    suspend fun getNoteReviewHistory(noteId: String): Result<List<ReviewHistoryItemResponse>> {
+    suspend fun getNoteReviewHistory(noteId: String): Result<List<pe.khipuai.app.data.remote.dto.ReviewSessionResponseDto>> {
         return try {
             Result.success(apiService.getNoteReviewHistory(noteId))
         } catch (e: Exception) {

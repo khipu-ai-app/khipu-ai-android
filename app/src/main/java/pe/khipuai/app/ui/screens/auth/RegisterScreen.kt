@@ -7,6 +7,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -228,6 +229,38 @@ fun RegisterScreen(
         
         Spacer(modifier = Modifier.height(32.dp))
         
+        // Mensaje de error visible (arriba del botón, dismissable)
+        uiState.errorMessage?.let { errorMessage ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = errorMessage,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    IconButton(onClick = { viewModel.clearError() }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar mensaje",
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+        
         // Botón de crear cuenta
         Button(
             onClick = {
@@ -287,35 +320,15 @@ fun RegisterScreen(
         // Botón de Google
         GoogleSignInButton(
             onClick = {
-                // TODO: [SEGURIDAD] Implementar Google CredentialManager API aquí.
-                // 1. Instanciar CredentialManager.create(context)
-                // 2. Construir GetGoogleIdOption con el Web Client ID de GCP
-                // 3. Ejecutar credentialManager.getCredential(...)
-                // 4. Extraer el GoogleIdTokenCredential y pasar su idToken
-                viewModel.signInWithGoogle(idToken = "TODO_REAL_ID_TOKEN_FROM_CREDENTIAL_MANAGER") { success ->
+                // T-09: el ViewModel orquesta el flujo de CredentialManager
+                // internamente. En register, "Iniciar con Google" = login
+                // con Google (usuarios nuevos se crean en el backend).
+                viewModel.signInWithGoogle { success ->
                     if (success) onNavigateToHome()
                 }
             },
             enabled = !uiState.isLoading
         )
-        
-        // Error message
-        uiState.errorMessage?.let { errorMessage ->
-            Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Text(
-                    text = errorMessage,
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
-            }
-        }
         
         Spacer(modifier = Modifier.height(32.dp))
     }

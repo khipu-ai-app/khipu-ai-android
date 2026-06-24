@@ -73,7 +73,7 @@ class StudyGuideViewModel @Inject constructor(
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "Error al conectar con la factoría de guías: ${exception.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
                     )
                 }
         }

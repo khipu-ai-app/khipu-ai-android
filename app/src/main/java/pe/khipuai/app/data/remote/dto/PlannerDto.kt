@@ -33,6 +33,19 @@ data class ScheduleDayResponse(
     @SerialName("count") val count: Int
 )
 
+/**
+ * T-11: respuesta de `GET /planner/day?date=YYYY-MM-DD`. Un concepto
+ * agendado (futuro) o completado (pasado) para una fecha específica.
+ */
+@Serializable
+data class DayConceptResponse(
+    @SerialName("concept_id") val conceptId: String,
+    @SerialName("concept_name") val conceptName: String,
+    @SerialName("course_name") val courseName: String = "",
+    @SerialName("note_id") val noteId: String? = null,
+    @SerialName("completed") val completed: Boolean = false
+)
+
 // ─── Estadísticas del planner (GET /planner/stats) ────────────────────────
 
 @Serializable

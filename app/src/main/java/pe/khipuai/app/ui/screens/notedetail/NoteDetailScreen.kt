@@ -478,82 +478,241 @@ fun NoteDetailScreen(
             }
 
             // SECCIÓN: Historial de Repaso (Línea de Tiempo Vectorial Nativa)
+            // T-06: usa datos reales de GET /notes/{id}/review-history agrupados
+            // por fecha. Verde si avg ≥ 3, naranja si < 3.
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.outline)
-                            Text(stringResource(id = R.string.title_review_history), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        if (uiState.historyTimeline.isEmpty()) {
-                            Text(
-                                "No hay historial de repaso aún.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                uiState.historyTimeline.forEachIndexed { index, item ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                        verticalAlignment = Alignment.Top
-                                    ) {
-                                        // Dibujo Vectorial del Nodo y la Línea Conectora
-                                        val lineColor = MaterialTheme.colorScheme.surfaceVariant
-                                        Box(
-                                            modifier = Modifier
-                                                .width(24.dp)
-                                                .height(IntrinsicSize.Min),
-                                            contentAlignment = Alignment.TopCenter
-                                        ) {
-                                            if (index < uiState.historyTimeline.lastIndex) {
-                                                Canvas(modifier = Modifier.fillMaxSize()) {
-                                                    drawLine(
-                                                        color = lineColor,
-                                                        start = Offset(size.width / 2, 24.dp.toPx()),
-                                                        end = Offset(size.width / 2, size.height),
-                                                        strokeWidth = 2.dp.toPx()
-                                                    )
-                                                }
-                                            }
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(24.dp)
-                                                    .background(
-                                                        if (item.type == HistoryItemType.REPASO_COMPLETADO) MaterialTheme.colorScheme.tertiaryContainer
-                                                        else MaterialTheme.colorScheme.surfaceVariant,
-                                                        CircleShape
-                                                    ),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (item.type == HistoryItemType.REPASO_COMPLETADO) Icons.Default.Check else Icons.Default.EditNote,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(12.dp)
-                                                )
-                                            }
-                                        }
-
-                                        // Contenido del hito
-                                        Column(modifier = Modifier.padding(bottom = 12.dp)) {
-                                            Text(text = item.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                            Text(text = item.description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                ReviewHistoryCard(
+                    sessions = uiState.reviewSessions,
+                    isLoading = uiState.isReviewHistoryLoading,
+                    errorMessage = uiState.reviewHistoryError,
+                    onRetry = { viewModel.retryReviewHistory() }
+                )
             }
 
             item { Spacer(modifier = Modifier.height(40.dp)) }
+        }
+    }
+}
+
+/**
+ * T-06: tarjeta con la línea de tiempo de repasos. Tres estados diferenciados:
+ *  - [sessions] no vacía: timeline con conectores verticales
+ *  - [isLoading]: skeleton/spinner
+ *  - [errorMessage]: card de error con botón "Reintentar"
+ *  - empty (sessions vacía y no loading ni error): mensaje "Aún no has repasado"
+ *
+ * Color del nodo: verde si [ReviewSessionUiModel.isPositive] (avg ≥ 3),
+ * naranja si no.
+ */
+@Composable
+private fun ReviewHistoryCard(
+    sessions: List<ReviewSessionUiModel>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.outline
+                )
+                Text(
+                    text = stringResource(id = R.string.title_review_history),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            when {
+                isLoading -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            strokeWidth = 3.dp
+                        )
+                    }
+                }
+                errorMessage != null -> {
+                    ReviewHistoryError(errorMessage = errorMessage, onRetry = onRetry)
+                }
+                sessions.isEmpty() -> {
+                    Text(
+                        text = "Aún no has repasado conceptos de esta nota. " +
+                            "Toca el botón de repaso en la nota para empezar.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                else -> {
+                    ReviewHistoryTimeline(sessions = sessions)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewHistoryTimeline(sessions: List<ReviewSessionUiModel>) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        sessions.forEachIndexed { index, session ->
+            ReviewHistoryTimelineItem(
+                session = session,
+                isLast = index == sessions.lastIndex
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewHistoryTimelineItem(
+    session: ReviewSessionUiModel,
+    isLast: Boolean
+) {
+    val nodeColor = if (session.isPositive) {
+        MaterialTheme.colorScheme.primary  // verde para avg ≥ 3
+    } else {
+        MaterialTheme.colorScheme.error     // naranja/rojo para avg < 3
+    }
+    val nodeContentColor = if (session.isPositive) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onError
+    }
+    val lineColor = MaterialTheme.colorScheme.surfaceVariant
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        // Columna del nodo + línea conectora
+        Box(
+            modifier = Modifier
+                .width(24.dp)
+                .height(IntrinsicSize.Min),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            if (!isLast) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(size.width / 2, 24.dp.toPx()),
+                        end = Offset(size.width / 2, size.height),
+                        strokeWidth = 2.dp.toPx()
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(nodeColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = nodeContentColor
+                )
+            }
+        }
+
+        // Contenido de la sesión
+        Column(modifier = Modifier.padding(bottom = 12.dp)) {
+            Text(
+                text = session.date,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            val avg = String.format("%.1f", session.averageRating)
+            Text(
+                text = "$avg / 5 — ${session.conceptsReviewed} " +
+                    if (session.conceptsReviewed == 1) "concepto" else "conceptos",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            // T-06: lista compacta de los conceptos repasados
+            if (session.concepts.isNotEmpty()) {
+                val preview = session.concepts.take(3)
+                val remaining = session.concepts.size - preview.size
+                val conceptsText = preview.joinToString(", ") { "${it.name} (${it.rating}/5)" } +
+                    if (remaining > 0) " y $remaining más" else ""
+                Text(
+                    text = conceptsText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            // T-06: próxima fecha de repaso programada
+            if (session.nextReviewDate != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Próximo repaso: " + formatNextReviewDate(session.nextReviewDate),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatNextReviewDate(iso: String): String {
+    // iso viene como "YYYY-MM-DD" del backend
+    val parts = iso.take(10).split("-")
+    if (parts.size != 3) return iso
+    val months = mapOf(
+        1 to "Ene", 2 to "Feb", 3 to "Mar", 4 to "Abr",
+        5 to "May", 6 to "Jun", 7 to "Jul", 8 to "Ago",
+        9 to "Sep", 10 to "Oct", 11 to "Nov", 12 to "Dic"
+    )
+    return "${parts[2]} ${months[parts[1].toInt()] ?: ""}"
+}
+
+@Composable
+private fun ReviewHistoryError(errorMessage: String, onRetry: () -> Unit) {
+    Column {
+        Text(
+            text = errorMessage,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onRetry) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Reintentar")
+            }
         }
     }
 }

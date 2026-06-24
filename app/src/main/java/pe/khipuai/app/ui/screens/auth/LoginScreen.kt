@@ -36,8 +36,6 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
     Column(
@@ -84,8 +82,8 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(8.dp))
         
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
+            value = uiState.email,
+            onValueChange = { viewModel.onEmailChanged(it) },
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text(
@@ -115,8 +113,8 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(8.dp))
         
         OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
+            value = uiState.password,
+            onValueChange = { viewModel.onPasswordChanged(it) },
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text(
@@ -157,10 +155,29 @@ fun LoginScreen(
         
         Spacer(modifier = Modifier.height(32.dp))
         
+        // Mensaje de error visible (arriba del botón). Se cierra solo al
+        // primer keystroke (el usuario está corrigiendo) o al hacer login OK.
+        uiState.errorMessage?.let { errorMessage ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Text(
+                    text = errorMessage,
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+        
         // Botón de iniciar sesión
         Button(
             onClick = {
-                viewModel.login(email, password) { success ->
+                viewModel.login { success ->
                     if (success) onNavigateToHome()
                 }
             },
@@ -216,12 +233,10 @@ fun LoginScreen(
         // Botón de Google
         GoogleSignInButton(
             onClick = {
-                // TODO: [SEGURIDAD] Implementar Google CredentialManager API aquí.
-                // 1. Instanciar CredentialManager.create(context)
-                // 2. Construir GetGoogleIdOption con el Web Client ID de GCP
-                // 3. Ejecutar credentialManager.getCredential(...)
-                // 4. Extraer el GoogleIdTokenCredential y pasar su idToken
-                viewModel.signInWithGoogle(idToken = "TODO_REAL_ID_TOKEN_FROM_CREDENTIAL_MANAGER") { success ->
+                // T-09: el ViewModel ahora orquesta el flujo de CredentialManager
+                // internamente y nos entrega el idToken real. Nosotros solo
+                // decidimos qué hacer con el resultado (navegar a Home).
+                viewModel.signInWithGoogle { success ->
                     if (success) onNavigateToHome()
                 }
             },
@@ -241,25 +256,54 @@ fun LoginScreen(
                 fontWeight = FontWeight.Medium
             )
         }
-        
-        // Error message
-        uiState.errorMessage?.let { errorMessage ->
-            Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
+
+        // DEV-ONLY: Quick login con los 2 usuarios sembrados (free/pro).
+        // Esta sección se quitará antes de release. Marcada con etiqueta
+        // obvia para que el equipo la identifique en code review.
+        Spacer(modifier = Modifier.height(32.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Solo desarrollo",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Acceso rápido a los usuarios sembrados en el backend.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    viewModel.quickLogin("free@khipuai.app") { success ->
+                        if (success) onNavigateToHome()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                enabled = !uiState.isLoading
             ) {
-                Text(
-                    text = errorMessage,
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
+                Text("Entrar como Free")
+            }
+            Button(
+                onClick = {
+                    viewModel.quickLogin("pro@khipuai.app") { success ->
+                        if (success) onNavigateToHome()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                enabled = !uiState.isLoading
+            ) {
+                Text("Entrar como Pro")
             }
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }

@@ -2,7 +2,6 @@ package pe.khipuai.app.ui.screens.subscription
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,20 +12,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import pe.khipuai.app.core.network.NetworkErrorMapper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionScreen(
     onCloseClick: () -> Unit,
+    reason: String? = null,
     viewModel: SubscriptionViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Mensaje contextual en la parte superior: si el usuario llegó aquí
+    // porque llegó al límite de capturas, mostramos un callout destacado.
+    val isLimitReached = reason == "limit_reached"
 
     Scaffold(
         topBar = {
@@ -54,34 +58,48 @@ fun SubscriptionScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            // Sección Hero Explicativa
+            // Plan actual del usuario
+            item {
+                PlanBadge(isPro = uiState.isPro, currentPlan = uiState.currentPlan)
+            }
+
+            // Mensaje contextual cuando se llega desde un bloqueo
+            if (isLimitReached) {
+                item { LimitReachedCallout() }
+            }
+
+            // Hero explicativo
             item {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Potencia tu aprendizaje con Khipu Pro",
-                        style = MaterialTheme.typography.headlineMedium,
+                        text = if (isLimitReached) "Desbloquea capturas ilimitadas"
+                        else "Potencia tu aprendizaje con Khipu Pro",
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Desbloquea el potencial completo de tu entorno de estudio. Más espacio, mejores conexiones y herramientas avanzadas para tu éxito académico.",
+                        text = if (isLimitReached)
+                            "Has alcanzado tu límite de 5 capturas este mes. Hazte Pro para continuar subiendo apuntes sin restricciones."
+                        else
+                            "Más capturas, mejores conexiones y herramientas avanzadas para tu éxito académico.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        textAlign = TextAlign.Center
                     )
                 }
             }
 
-            // Mapeo de Tarjetas Asimétricas de Planes (Bento Style)
+            // Planes
             items(uiState.plans) { plan ->
+                val isCurrent = plan.id == uiState.currentPlan
                 val cardColor = if (plan.isHighlighted) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surface
                 val textColor = if (plan.isHighlighted) MaterialTheme.colorScheme.onPrimaryContainer
@@ -97,176 +115,344 @@ fun SubscriptionScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxWidth()) {
-                        // Badge de Recomendación Superior Derecho
-                        if (plan.badgeText != null) {
+                        // Badge superior derecho
+                        val badge = when {
+                            isCurrent -> "Tu plan"
+                            plan.badgeText != null -> plan.badgeText
+                            else -> null
+                        }
+                        if (badge != null) {
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .background(
-                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        color = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer
+                                        else MaterialTheme.colorScheme.tertiaryContainer,
                                         shape = RoundedCornerShape(bottomStart = 12.dp)
                                     )
                                     .padding(horizontal = 16.dp, vertical = 6.dp)
                             ) {
                                 Text(
-                                    text = plan.badgeText,
+                                    text = badge,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    color = if (isCurrent) MaterialTheme.colorScheme.onSecondaryContainer
+                                    else MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                             }
                         }
 
                         Column(modifier = Modifier.padding(24.dp)) {
-                            Text(text = plan.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = textColor)
+                            Text(
+                                text = plan.name,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = textColor
+                            )
 
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Row(verticalAlignment = Alignment.Bottom) {
-                                Text(text = plan.price, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold, color = if (plan.isHighlighted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
+                                Text(
+                                    text = plan.price,
+                                    style = MaterialTheme.typography.displaySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (plan.isHighlighted) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.primary
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = plan.period, style = MaterialTheme.typography.bodyMedium, color = subTextColor, modifier = Modifier.padding(bottom = 8.dp))
+                                Text(
+                                    text = plan.period,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = subTextColor,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
                             }
 
-                            Text(text = plan.description, style = MaterialTheme.typography.bodySmall, color = subTextColor)
+                            Text(
+                                text = plan.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = subTextColor
+                            )
 
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            val buttonText = when {
+                                isCurrent -> "Plan actual"
+                                uiState.isChangingPlan -> "Cambiando..."
+                                else -> plan.buttonText
+                            }
+                            val buttonEnabled = !isCurrent && !uiState.isChangingPlan
 
                             if (plan.isHighlighted) {
                                 Button(
                                     onClick = { viewModel.selectPlan(plan.id) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    enabled = buttonEnabled,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    ),
                                     shape = RoundedCornerShape(99.dp)
                                 ) {
-                                    Text(plan.buttonText, fontWeight = FontWeight.Bold)
+                                    Text(buttonText, fontWeight = FontWeight.Bold)
                                 }
                             } else {
                                 OutlinedButton(
                                     onClick = { viewModel.selectPlan(plan.id) },
                                     modifier = Modifier.fillMaxWidth(),
+                                    enabled = buttonEnabled,
                                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
                                     shape = RoundedCornerShape(99.dp)
                                 ) {
-                                    Text(plan.buttonText, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Tabla Estructurada de Comparación de Funcionalidades
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column {
-                        // Cabecera de la Tabla
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                                .padding(16.dp)
-                        ) {
-                            Text(
-                                text = "Compara los planes",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-
-                        // Encabezados de Columna
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Funcionalidad", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(2f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Gratis", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Pro", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.primary)
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                        // Filas de Contenido Dinámico
-                        uiState.features.forEach { feature ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Celda: Icono + Nombre
-                                Row(
-                                    modifier = Modifier.weight(2f),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = when (feature.iconName) {
-                                            "map" -> Icons.Default.Map
-                                            "wifi_off" -> Icons.Default.WifiOff
-                                            "school" -> Icons.Default.School
-                                            else -> Icons.Default.Cloud
-                                        },
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.outline
+                                    Text(
+                                        buttonText,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
-                                    Text(text = feature.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                                }
-
-                                // Celda: Estado Gratis
-                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                    if (feature.freeValue.isNotEmpty()) {
-                                        Text(text = feature.freeValue, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    } else {
-                                        Icon(imageVector = Icons.Default.Remove, contentDescription = "No disponible", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.outlineVariant)
-                                    }
-                                }
-
-                                // Celda: Estado Pro
-                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                    if (feature.proHasFeature && feature.freeValue == "Hasta 100") {
-                                        Text(text = "Ilimitado", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                    } else {
-                                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Incluido", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                                    }
                                 }
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                         }
                     }
                 }
             }
 
-            // Pie de Página Genuino: Garantía de Seguridad
+            // Mensaje de error
+            uiState.errorMessage?.let { err ->
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = err,
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+
+            // Tabla de comparación
+            item {
+                FeatureComparisonTable(features = uiState.features)
+            }
+
+            // Footer
             item {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
-                    Text(text = "Cancela en cualquier momento. Sin compromisos ocultos.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = "Cancela en cualquier momento. Sin compromisos ocultos.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.apply { /* Opacidad controlada por Material Theme */ }
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
-                        Text(text = "Pago seguro y cifrado", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "Cambio aplicado de inmediato",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
                     }
                 }
             }
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun PlanBadge(isPro: Boolean, currentPlan: String) {
+    val container = if (isPro) MaterialTheme.colorScheme.tertiaryContainer
+    else MaterialTheme.colorScheme.surfaceVariant
+    val content = if (isPro) MaterialTheme.colorScheme.onTertiaryContainer
+    else MaterialTheme.colorScheme.onSurfaceVariant
+    val text = if (isPro) "Plan Pro activo" else "Plan Free"
+
+    Surface(
+        shape = RoundedCornerShape(99.dp),
+        color = container
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = if (isPro) Icons.Default.Star else Icons.Default.Info,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = content
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = content
+            )
+        }
+    }
+}
+
+@Composable
+private fun LimitReachedCallout() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+            Text(
+                text = "Has alcanzado tu límite de capturas",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+    }
+}
+
+@Composable
+private fun FeatureComparisonTable(features: List<FeatureComparisonUiModel>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Compara los planes",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "Funcionalidad",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(2f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "Gratis",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "Pro",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+            features.forEach { feature ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(2f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = when (feature.iconName) {
+                                "map" -> Icons.Default.Map
+                                "wifi_off" -> Icons.Default.WifiOff
+                                "school" -> Icons.Default.School
+                                else -> Icons.Default.Cloud
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                        Text(
+                            text = feature.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        if (feature.freeValue.isNotEmpty()) {
+                            Text(
+                                text = feature.freeValue,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Remove,
+                                contentDescription = "No disponible",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Incluido",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+            }
         }
     }
 }

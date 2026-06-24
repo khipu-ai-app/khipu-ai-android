@@ -1,6 +1,8 @@
 package pe.khipuai.app.ui.screens.planner
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.remote.dto.DayConceptResponse
 import pe.khipuai.app.data.remote.dto.ManualScheduleItem
 import pe.khipuai.app.data.remote.dto.PlannerStatsResponse
 import pe.khipuai.app.data.remote.dto.ScheduleDayResponse
@@ -49,7 +52,13 @@ data class CalendarUiState(
     val manualSchedules: List<ManualScheduleItem> = emptyList(),
     val stats: PlannerStatsResponse? = null,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    // T-11: día seleccionado (formato YYYY-MM-DD) + conceptos de ese día.
+    // null = ningún día seleccionado. "" = día seleccionado pero cargando.
+    val selectedDate: String? = null,
+    val dayConcepts: List<DayConceptResponse> = emptyList(),
+    val isLoadingDayConcepts: Boolean = false,
+    val dayConceptsError: String? = null
 )
 
 @HiltViewModel
@@ -94,6 +103,46 @@ class CalendarViewModel @Inject constructor(
             )
         }
     }
+
+    /**
+     * T-11: el usuario tocó un día del calendario. Marca el día como
+     * seleccionado y carga sus conceptos via `GET /planner/day?date=`.
+     *
+     * Si el usuario vuelve a tocar el mismo día, lo deselecciona
+     * (UX de toggle).
+     */
+    fun onDayClicked(date: String) {
+        val current = _uiState.value.selectedDate
+        if (current == date) {
+            _uiState.value = _uiState.value.copy(
+                selectedDate = null,
+                dayConcepts = emptyList(),
+                dayConceptsError = null
+            )
+            return
+        }
+        _uiState.value = _uiState.value.copy(
+            selectedDate = date,
+            dayConcepts = emptyList(),
+            dayConceptsError = null,
+            isLoadingDayConcepts = true
+        )
+        viewModelScope.launch {
+            plannerRepository.fetchDayConcepts(date)
+                .onSuccess { concepts ->
+                    _uiState.value = _uiState.value.copy(
+                        dayConcepts = concepts,
+                        isLoadingDayConcepts = false
+                    )
+                }
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingDayConcepts = false,
+                        dayConceptsError = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
+                    )
+                }
+        }
+    }
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────
@@ -102,6 +151,7 @@ class CalendarViewModel @Inject constructor(
 @Composable
 fun CalendarScreen(
     onNavigateToTab: (Int) -> Unit,
+    onConceptClick: (String) -> Unit = {},  // T-11: navegar a NoteDetail/{noteId}
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -158,7 +208,22 @@ fun CalendarScreen(
                 }
 
                 // ── Calendario semanal de repasos ─────────────────────────
-                WeeklyCalendar(weekSchedule = uiState.weekSchedule)
+                WeeklyCalendar(
+                    weekSchedule = uiState.weekSchedule,
+                    selectedDate = uiState.selectedDate,
+                    onDayClick = { date -> viewModel.onDayClicked(date) }
+                )
+
+                // T-11: lista de conceptos del día seleccionado.
+                uiState.selectedDate?.let { selectedDate ->
+                    DayConceptsSection(
+                        date = selectedDate,
+                        concepts = uiState.dayConcepts,
+                        isLoading = uiState.isLoadingDayConcepts,
+                        errorMessage = uiState.dayConceptsError,
+                        onConceptClick = { noteId -> onConceptClick(noteId) }
+                    )
+                }
 
                 // ── Repasos agendados manualmente (próximos 30 días) ────
                 if (uiState.manualSchedules.isNotEmpty()) {
@@ -333,7 +398,11 @@ private fun CourseDistributionRow(courseName: String, count: Int, total: Int) {
 }
 
 @Composable
-private fun WeeklyCalendar(weekSchedule: List<ScheduleDayResponse>) {
+private fun WeeklyCalendar(
+    weekSchedule: List<ScheduleDayResponse>,
+    selectedDate: String?,
+    onDayClick: (String) -> Unit
+) {
     val today = LocalDate.now()
     val maxCount = weekSchedule.maxOfOrNull { it.count } ?: 1
 
@@ -356,6 +425,7 @@ private fun WeeklyCalendar(weekSchedule: List<ScheduleDayResponse>) {
                 }.getOrElse { today }
 
                 val isToday = date == today
+                val isSelected = day.date == selectedDate
                 val barFraction = if (maxCount > 0) day.count.toFloat() / maxCount else 0f
 
                 DayColumn(
@@ -363,7 +433,9 @@ private fun WeeklyCalendar(weekSchedule: List<ScheduleDayResponse>) {
                     dayNumber = date.dayOfMonth.toString(),
                     reviewCount = day.count,
                     barFraction = barFraction,
-                    isToday = isToday
+                    isToday = isToday,
+                    isSelected = isSelected,
+                    onClick = { onDayClick(day.date) }
                 )
             }
         }
@@ -479,14 +551,20 @@ private fun DayColumn(
     dayNumber: String,
     reviewCount: Int,
     barFraction: Float,
-    isToday: Boolean
+    isToday: Boolean,
+    isSelected: Boolean = false,
+    onClick: () -> Unit = {}
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val outline = MaterialTheme.colorScheme.outline
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(52.dp)
+        modifier = Modifier
+            .width(52.dp)
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp)
     ) {
         // Barra de carga
         Box(
@@ -495,8 +573,16 @@ private fun DayColumn(
                 .height(80.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(
-                    if (isToday) primaryColor.copy(alpha = 0.15f)
-                    else surfaceVariant.copy(alpha = 0.5f)
+                    when {
+                        isSelected -> primaryColor.copy(alpha = 0.25f)
+                        isToday -> primaryColor.copy(alpha = 0.15f)
+                        else -> surfaceVariant.copy(alpha = 0.5f)
+                    }
+                )
+                .border(
+                    width = if (isSelected) 2.dp else 0.dp,
+                    color = if (isSelected) primaryColor else Color.Transparent,
+                    shape = RoundedCornerShape(8.dp)
                 ),
             contentAlignment = Alignment.BottomCenter
         ) {
@@ -507,8 +593,11 @@ private fun DayColumn(
                         .fillMaxHeight(barFraction.coerceIn(0.05f, 1f))
                         .clip(RoundedCornerShape(8.dp))
                         .background(
-                            if (isToday) primaryColor
-                            else primaryColor.copy(alpha = 0.55f)
+                            when {
+                                isSelected -> primaryColor
+                                isToday -> primaryColor
+                                else -> primaryColor.copy(alpha = 0.55f)
+                            }
                         )
                 )
             }
@@ -522,17 +611,28 @@ private fun DayColumn(
                 .size(28.dp)
                 .clip(CircleShape)
                 .background(
-                    if (isToday) primaryColor
-                    else Color.Transparent
+                    when {
+                        isToday -> primaryColor
+                        isSelected -> primaryColor.copy(alpha = 0.2f)
+                        else -> Color.Transparent
+                    }
+                )
+                .border(
+                    width = if (isToday || isSelected) 1.dp else 0.dp,
+                    color = if (isToday || isSelected) primaryColor else Color.Transparent,
+                    shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = dayNumber,
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                color = if (isToday) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = when {
+                    isToday -> MaterialTheme.colorScheme.onPrimary
+                    isSelected -> primaryColor
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
                 fontSize = 12.sp
             )
         }
@@ -543,9 +643,9 @@ private fun DayColumn(
         Text(
             text = dayName.uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            color = if (isToday) primaryColor
+            color = if (isToday || isSelected) primaryColor
                     else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Normal,
             fontSize = 9.sp
         )
 
@@ -554,13 +654,13 @@ private fun DayColumn(
         // Contador de repasos
         if (reviewCount > 0) {
             Surface(
-                color = primaryColor.copy(alpha = 0.12f),
+                color = if (isSelected) primaryColor else primaryColor.copy(alpha = 0.12f),
                 shape = CircleShape
             ) {
                 Text(
                     text = "$reviewCount",
                     style = MaterialTheme.typography.labelSmall,
-                    color = primaryColor,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else primaryColor,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     fontSize = 9.sp
@@ -568,6 +668,172 @@ private fun DayColumn(
             }
         } else {
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+/**
+ * T-11: lista los conceptos del día seleccionado. Muestra:
+ *  - "X repasos programados" (día futuro)
+ *  - "X repasos completados" (día pasado/hoy)
+ *  - "Sin repasos" (lista vacía)
+ *  - Loading spinner
+ *  - Error con icono
+ */
+@Composable
+private fun DayConceptsSection(
+    date: String,
+    concepts: List<DayConceptResponse>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onConceptClick: (String) -> Unit
+) {
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", Locale("es")) }
+    val parsedDate = runCatching {
+        LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
+    }.getOrNull() ?: LocalDate.now()
+    val isFuture = parsedDate >= LocalDate.now()
+    val prettyDate = parsedDate.format(dateFormatter)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = prettyDate.replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            when {
+                isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                errorMessage != null -> {
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                concepts.isEmpty() -> {
+                    Text(
+                        text = "No hay repasos para este día.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                else -> {
+                    val headerText = if (concepts.all { it.completed }) {
+                        "${concepts.size} repasos completados"
+                    } else if (isFuture) {
+                        "${concepts.size} repasos programados"
+                    } else {
+                        "${concepts.size} repasos"
+                    }
+                    Text(
+                        text = headerText,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    concepts.forEach { concept ->
+                        DayConceptRow(
+                            concept = concept,
+                            onClick = { concept.noteId?.let(onConceptClick) }
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayConceptRow(
+    concept: DayConceptResponse,
+    onClick: () -> Unit
+) {
+    val clickable = concept.noteId != null
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .then(if (clickable) Modifier.clickable(onClick = onClick) else Modifier)
+            .background(
+                if (concept.completed) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (concept.completed) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.RadioButtonUnchecked,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = concept.conceptName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (concept.courseName.isNotEmpty()) {
+                Text(
+                    text = concept.courseName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (clickable) {
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

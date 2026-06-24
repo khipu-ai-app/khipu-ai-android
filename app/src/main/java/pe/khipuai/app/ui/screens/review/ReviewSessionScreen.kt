@@ -143,6 +143,41 @@ fun ReviewSessionScreen(
                     }
                 }
                 
+                uiState.concepts.isEmpty() && !uiState.isLoading -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoStories,
+                            contentDescription = null,
+                            modifier = Modifier.size(80.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "No se encontraron conceptos",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Esta nota aún no tiene conceptos extraídos para repasar.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Button(
+                            onClick = onBackClick,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Volver")
+                        }
+                    }
+                }
+
                 uiState.isComplete -> {
                     if (uiState.resultsSummary != null) {
                         ReviewResultContent(

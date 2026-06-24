@@ -23,6 +23,30 @@ data class HistoryItemUiModel(
     val type: HistoryItemType
 )
 
+/**
+ * T-06: Una sesión de repasos agrupada por fecha.
+ *
+ * El backend devuelve sesiones ya agrupadas (T-06: el endpoint agrupa en
+ * el server). Esta UiModel es 1-a-1 con la respuesta del DTO.
+ */
+data class ReviewSessionUiModel(
+    val sessionKey: String,           // YYYY-MM-DD — clave de agrupación
+    val date: String,                  // formato "15 Jun, 2026"
+    val averageRating: Double,         // 0.0 - 5.0
+    val conceptsReviewed: Int,         // cantidad de items
+    val nextReviewDate: String?,       // próxima fecha de repaso (la más lejana)
+    val concepts: List<ReviewConceptUiModel>
+) {
+    /** Verde si promedio >= 3, naranja si < 3. Umbral del plan T-06. */
+    val isPositive: Boolean get() = averageRating >= 3.0
+}
+
+data class ReviewConceptUiModel(
+    val name: String,
+    val rating: Int,
+    val nextReviewDate: String?
+)
+
 data class NoteDetailUiState(
     val noteId: String = "",
     val uploadId: String = "",
@@ -42,7 +66,11 @@ data class NoteDetailUiState(
     val d3EdgesJson: String = "[]",
     val showLocalGraph: Boolean = false,
     val isGraphLoading: Boolean = false,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
+    // T-06: historial de repasos por nota
+    val reviewSessions: List<ReviewSessionUiModel> = emptyList(),
+    val isReviewHistoryLoading: Boolean = false,
+    val reviewHistoryError: String? = null
 )
 
 @HiltViewModel
@@ -105,7 +133,7 @@ class NoteDetailViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = error.message ?: "Error al cargar la nota"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message
                     )
                 }
         }
@@ -141,25 +169,53 @@ class NoteDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * T-06: carga el historial de repasos del backend. El endpoint retorna
+     * sesiones YA agrupadas por fecha con promedio, conteo y próxima fecha
+     * de repaso. Mapeo directo del DTO a la UiModel.
+     */
     private fun loadReviewHistory() {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isReviewHistoryLoading = true,
+                reviewHistoryError = null
+            )
             noteRepository.getNoteReviewHistory(noteId)
-                .onSuccess { history ->
-                    val reviewItems = history.map { item ->
-                        HistoryItemUiModel(
-                            id = item.id,
-                            title = "Repaso: ${item.conceptName}",
-                            description = "${item.reviewedAt.take(10)} — Puntuación: ${item.rating}/5",
-                            type = HistoryItemType.REPASO_COMPLETADO
-                        )
-                    }
-                    val existingTimeline = _uiState.value.historyTimeline
+                .onSuccess { sessions ->
                     _uiState.value = _uiState.value.copy(
-                        historyTimeline = existingTimeline + reviewItems
+                        isReviewHistoryLoading = false,
+                        reviewSessions = sessions.map { it.toUiModel() }
+                    )
+                }
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(
+                        isReviewHistoryLoading = false,
+                        reviewHistoryError = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                     )
                 }
         }
     }
+
+    fun retryReviewHistory() {
+        loadReviewHistory()
+    }
+
+    /** DTO → UiModel. */
+    private fun pe.khipuai.app.data.remote.dto.ReviewSessionResponseDto.toUiModel() =
+        ReviewSessionUiModel(
+            sessionKey = sessionKey,
+            date = dateLabel,
+            averageRating = averageRating,
+            conceptsReviewed = conceptsReviewed,
+            nextReviewDate = nextReviewDate,
+            concepts = concepts.map {
+                ReviewConceptUiModel(
+                    name = it.conceptName,
+                    rating = it.rating,
+                    nextReviewDate = it.nextReviewDate
+                )
+            }
+        )
 
     fun deleteNote(onSuccess: () -> Unit) {
         viewModelScope.launch {
@@ -209,7 +265,9 @@ class NoteDetailViewModel @Inject constructor(
             if (result.isSuccess) {
                 _uiState.value = _uiState.value.copy(snackbarMessage = "Nota programada para el $dateStr")
             } else {
-                _uiState.value = _uiState.value.copy(snackbarMessage = "Error al programar nota")
+                _uiState.value = _uiState.value.copy(
+                    snackbarMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(result.exceptionOrNull() ?: Exception()).message
+                )
             }
         }
     }

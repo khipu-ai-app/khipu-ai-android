@@ -16,7 +16,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import pe.khipuai.app.data.local.entity.NoteEntity
 import pe.khipuai.app.data.notification.ManualScheduleScheduler
-import pe.khipuai.app.data.notification.ReminderNotificationHelper
 import pe.khipuai.app.data.remote.dto.ConceptNodeDto
 import pe.khipuai.app.data.repository.NoteRepository
 import pe.khipuai.app.data.repository.PlannerRepository
@@ -58,7 +57,7 @@ class AnalysisViewModel @Inject constructor(
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         _uiState.value = _uiState.value.copy(
             isLoading = false,
-            errorMessage = "Error de red: ${exception.localizedMessage}"
+            errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
         )
     }
 
@@ -90,7 +89,7 @@ class AnalysisViewModel @Inject constructor(
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "No se pudo cargar el análisis: ${e.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                     )
                 }
 
@@ -164,7 +163,8 @@ class AnalysisViewModel @Inject constructor(
 
     init {
         loadNoteDetail()
-        // Nos aseguramos de que el canal de notificaciones exista
-        ReminderNotificationHelper.ensureChannel(context)
+        // T-04: los canales de notificación se crean en KhipuApp.onCreate
+        // via NotificationDispatcher.ensureChannels(). No hace falta
+        // hacerlo aquí también.
     }
 }

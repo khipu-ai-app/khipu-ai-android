@@ -25,12 +25,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import pe.khipuai.app.ui.components.BottomNavigationBar
+import pe.khipuai.app.ui.theme.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onNavigateToTab: (Int) -> Unit,
-    onNavigateToSubscription: () -> Unit,
+    onNavigateToSubscription: (String?) -> Unit,
     onNavigateToTutorHistory: () -> Unit,
     onNavigateToNotificationSettings: () -> Unit,
     onNavigateToFaq: () -> Unit,
@@ -46,6 +47,7 @@ fun ProfileScreen(
     var showUniversityDialog by remember { mutableStateOf(false) }
     var showStudyGoalsDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.successMessage) {
@@ -105,7 +107,7 @@ fun ProfileScreen(
                     career = uiState.career,
                     university = uiState.university,
                     isPro = uiState.isPro,
-                    onProClick = onNavigateToSubscription
+                    onProClick = { onNavigateToSubscription(null) }
                 )
             }
 
@@ -141,7 +143,15 @@ fun ProfileScreen(
             item {
                 Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
                     Column {
-                        SettingsItemWithSwitch(icon = Icons.Default.DarkMode, title = "Modo Oscuro", checked = uiState.isDarkMode, onCheckedChange = viewModel::toggleDarkMode)
+                        // T-03: Modo oscuro con 3 opciones (Sistema / Claro / Oscuro)
+                        // usando el mismo patrón de SettingsItemWithValue que el
+                        // campo Idioma. El dialog muestra la selección actual.
+                        SettingsItemWithValue(
+                            icon = Icons.Default.DarkMode,
+                            title = "Tema",
+                            value = themeModeLabel(uiState.themeMode),
+                            onClick = { showThemeDialog = true }
+                        )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         SettingsItemWithValue(icon = Icons.Default.Language, title = "Idioma", value = uiState.language, onClick = { showLanguageDialog = true })
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -416,6 +426,51 @@ fun ProfileScreen(
         )
     }
 
+    if (showThemeDialog) {
+        // T-03: dialog con 3 opciones. Aplicar persiste inmediatamente vía
+        // ThemePreferences; el DataStore emite y la UI recompone con el
+        // nuevo esquema. Sin recreate() de la Activity.
+        val themeOptions = listOf(
+            ThemeMode.SYSTEM to "Seguir sistema",
+            ThemeMode.LIGHT to "Claro",
+            ThemeMode.DARK to "Oscuro"
+        )
+        var selectedMode by remember { mutableStateOf(uiState.themeMode) }
+
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            title = { Text("Tema de la app") },
+            text = {
+                Column {
+                    themeOptions.forEach { (mode, label) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            RadioButton(
+                                selected = mode == selectedMode,
+                                onClick = { selectedMode = mode }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(label)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.setThemeMode(selectedMode)
+                    showThemeDialog = false
+                }) {
+                    Text("Aplicar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showThemeDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
     if (showDeleteAccountDialog) {
         var step by remember { mutableIntStateOf(1) }
         var password by remember { mutableStateOf("") }
@@ -663,6 +718,16 @@ private fun SettingsItemWithSwitch(
             )
         )
     }
+}
+
+/**
+ * T-03: label en español para el ThemeMode seleccionado. Se muestra como
+ * "value" del SettingsItemWithValue (al lado del título "Tema").
+ */
+private fun themeModeLabel(mode: ThemeMode): String = when (mode) {
+    ThemeMode.SYSTEM -> "Seguir sistema"
+    ThemeMode.LIGHT -> "Claro"
+    ThemeMode.DARK -> "Oscuro"
 }
 
 @Composable

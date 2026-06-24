@@ -11,6 +11,9 @@ interface KhipuApiService {
     @POST("v1/auth/google")
     suspend fun googleAuth(@Body request: AuthRequest): AuthResponse
 
+    @POST("v1/auth/refresh")
+    suspend fun refreshToken(@Body request: RefreshTokenRequest): retrofit2.Response<AuthResponse>
+
     @POST("v1/auth/register")
     suspend fun registerTraditional(@Body request: UserRegisterRequest): AuthResponse
 
@@ -94,7 +97,7 @@ interface KhipuApiService {
     ): List<ReviewConceptResponse>
 
     @GET("v1/notes/{note_id}/review-history")
-    suspend fun getNoteReviewHistory(@Path("note_id") noteId: String): List<ReviewHistoryItemResponse>
+    suspend fun getNoteReviewHistory(@Path("note_id") noteId: String): List<ReviewSessionResponseDto>
 
     @GET("v1/planner/today")
     suspend fun getTodayPlanner(): List<DueConceptResponse>
@@ -115,6 +118,10 @@ interface KhipuApiService {
 
     @GET("v1/planner/stats")
     suspend fun getPlannerStats(): PlannerStatsResponse
+
+    // T-11: conceptos agendados/completados para una fecha específica.
+    @GET("v1/planner/day")
+    suspend fun getDayConcepts(@Query("date") date: String): List<DayConceptResponse>
 
     @POST("v1/planner/manual-schedule")
     suspend fun createManualSchedule(@Body request: ManualScheduleRequest)
@@ -140,6 +147,12 @@ interface KhipuApiService {
 
     @GET("v1/users/usage")
     suspend fun getUsage(): UsageResponse
+
+    @GET("v1/users/subscription")
+    suspend fun getMySubscription(): SubscriptionResponse
+
+    @POST("v1/users/subscription")
+    suspend fun updateMySubscription(@Body request: UpdatePlanRequest): SubscriptionResponse
 
     @PATCH("v1/users/me")
     suspend fun updateMyProfile(@Body request: UserUpdateRequest): UserProfileResponse

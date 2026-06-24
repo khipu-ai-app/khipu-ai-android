@@ -56,7 +56,7 @@ class AchievementsViewModel @Inject constructor(
 
                 _uiState.update { it.copy(isLoading = false, achievements = combined) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error al cargar logros: ${e.localizedMessage}") }
+                _uiState.update { it.copy(isLoading = false, error = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message) }
             }
         }
     }

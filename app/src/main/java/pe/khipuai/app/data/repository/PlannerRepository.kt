@@ -58,6 +58,18 @@ class PlannerRepository @Inject constructor(
         }
     }
 
+    /**
+     * T-11: lista los conceptos agendados (futuro) o completados (pasado)
+     * para una fecha específica. La fecha es ISO YYYY-MM-DD.
+     */
+    suspend fun fetchDayConcepts(date: String): Result<List<pe.khipuai.app.data.remote.dto.DayConceptResponse>> {
+        return try {
+            Result.success(apiService.getDayConcepts(date))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun createManualSchedule(noteId: String, scheduledDate: String): Result<Unit> {
         return try {
             apiService.createManualSchedule(ManualScheduleRequest(noteId, scheduledDate))

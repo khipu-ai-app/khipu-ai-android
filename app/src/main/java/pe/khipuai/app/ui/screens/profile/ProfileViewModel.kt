@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.core.preferences.ThemePreferences
 import pe.khipuai.app.data.repository.AuthRepository
+import pe.khipuai.app.ui.theme.ThemeMode
 import javax.inject.Inject
 
 data class ProfileUiState(
@@ -19,7 +21,7 @@ data class ProfileUiState(
     val studyGoalMinutes: Int = 45,
     val studyDays: List<Int> = listOf(0,1,2,3,4,5,6),
     val isPro: Boolean = false,
-    val isDarkMode: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val language: String = "Español",
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
@@ -29,11 +31,21 @@ data class ProfileUiState(
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val themePreferences: ThemePreferences
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    init {
+        // T-03: reflejar el modo de tema persistido al construir la UI.
+        viewModelScope.launch {
+            themePreferences.themeModeFlow.collect { mode ->
+                _uiState.value = _uiState.value.copy(themeMode = mode)
+            }
+        }
+    }
 
     private fun loadUserProfile() {
         viewModelScope.launch {
@@ -57,7 +69,7 @@ class ProfileViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         userName = "Estudiante Invitado",
                         career = "Desarrollo Local",
-                        errorMessage = error.localizedMessage,
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message,
                         isLoading = false
                     )
                 }
@@ -103,7 +115,7 @@ class ProfileViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
-                        errorMessage = "Error al actualizar perfil: ${error.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message
                     )
                 }
         }
@@ -121,7 +133,7 @@ class ProfileViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
-                        errorMessage = "Contraseña incorrecta o error de conexión."
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error, custom401 = "Contraseña incorrecta.").message
                     )
                 }
         }
@@ -131,8 +143,15 @@ class ProfileViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(errorMessage = null, successMessage = null)
     }
 
-    fun toggleDarkMode(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(isDarkMode = enabled)
+    fun setThemeMode(mode: ThemeMode) {
+        // Optimista: actualizamos el state local antes de persistir para
+        // que la UI del selector reaccione al toque. El DataStore emite y
+        // el init { } re-colecta, así que en la práctica el primer valor
+        // que gana es el que acabamos de guardar.
+        _uiState.value = _uiState.value.copy(themeMode = mode)
+        viewModelScope.launch {
+            themePreferences.setThemeMode(mode)
+        }
     }
 
     fun logout(onLogoutSuccess: () -> Unit) {

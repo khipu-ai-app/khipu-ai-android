@@ -2,6 +2,7 @@ package pe.khipuai.app.ui.screens.planner
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -29,7 +31,9 @@ fun PlannerScreen(
     onNavigateToTab: (Int) -> Unit,
     onNavigateToCalendar: () -> Unit = {},
     onNavigateToNote: (String) -> Unit = {},
+    onNavigateToConcept: (String) -> Unit = {},  // T-10: navegar al grafo del concepto
     onNavigateToDailyDeck: () -> Unit = {},
+    onStartCourseReview: (String) -> Unit = {},  // T-10: noteId de la primera nota del bloque
     viewModel: PlannerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -206,15 +210,41 @@ fun PlannerScreen(
                     items(uiState.studyBlocks) { block ->
                         CourseBreakdownCard(
                             block = block,
-                            onTaskClick = { noteId ->
-                                if (noteId != null) {
-                                    onNavigateToNote(noteId)
+                            onTaskClick = { task ->
+                                if (task.noteId != null) {
+                                    onNavigateToNote(task.noteId)
                                 } else {
-                                    viewModel.setSnackbarMessage("Este concepto no tiene una nota asociada.")
+                                    // El concepto existe pero aún no está
+                                    // en ninguna nota. Mostramos el grafo del
+                                    // concepto para que el usuario explore
+                                    // (o confirme que el concepto no está
+                                    // conectado a nada todavía).
+                                    onNavigateToConcept(task.title)
                                 }
                             },
+                            onSubmitRating = { conceptId, rating ->
+                                viewModel.submitRating(block.id, conceptId, rating)
+                            },
                             onPostpone = { viewModel.postponeBlock(block.id) },
-                            onMarkAllCompleted = { viewModel.requestMarkAllCompleted(block.id) }
+                            onMarkAllCompleted = { viewModel.requestMarkAllCompleted(block.id) },
+                            onStartReview = { _ ->
+                                // T-10: navega a ReviewSession usando la
+                                // primera nota del bloque que tenga noteId.
+                                // Si NINGÚN concepto del bloque tiene nota
+                                // (caso raro, ej. conceptos huérfanos en el
+                                // grafo), igual abrimos la ReviewSession sin
+                                // nota: el backend devolverá un set vacío o
+                                // un error 404 manejable. En ese caso el
+                                // usuario puede cerrar la pantalla.
+                                val firstNoteId = block.tasks.mapNotNull { it.noteId }.firstOrNull()
+                                if (firstNoteId != null) {
+                                    onStartCourseReview(firstNoteId)
+                                } else {
+                                    viewModel.setSnackbarMessage(
+                                        "Este bloque no tiene notas asociadas todavía. Sube apuntes primero."
+                                    )
+                                }
+                            }
                         )
                     }
                 }
@@ -355,9 +385,11 @@ private fun StudyDeckLauncherCard(
 @Composable
 private fun CourseBreakdownCard(
     block: StudyBlock,
-    onTaskClick: (String?) -> Unit,
+    onTaskClick: (Task) -> Unit,
+    onSubmitRating: (conceptId: String, rating: Int) -> Unit,
     onPostpone: () -> Unit,
-    onMarkAllCompleted: () -> Unit
+    onMarkAllCompleted: () -> Unit,
+    onStartReview: (noteId: String?) -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Card(
@@ -472,46 +504,162 @@ private fun CourseBreakdownCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Lista simple de conceptos sin autoevaluación (eso va en la sesión)
+            // T-10: lista de conceptos con autoevaluación inline [0-5] y
+            // long-press para "Ver nota donde aparece".
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 block.tasks.forEach { task ->
-                    SimpleTaskItem(
+                    ConceptTaskItem(
                         task = task,
-                        onClick = { onTaskClick(task.noteId) }
+                        onTap = { onTaskClick(task) },
+                        onSubmitRating = { rating -> onSubmitRating(task.id, rating) }
                     )
+                }
+            }
+
+            // T-10: botón "Iniciar repaso →" al final de cada bloque de curso.
+            // Diferencia con "Comenzar Repaso Diario": este es SOLO los
+            // conceptos pendientes de ESE bloque, no del mazo completo.
+            // El botón aparece si hay tareas pendientes. El noteId se
+            // resuelve dentro del callback (puede ser null si el bloque
+            // es de conceptos huérfanos, en cuyo caso se muestra un
+            // snackbar al usuario).
+            if (block.tasks.any { !it.isCompleted }) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { onStartReview(block.noteId) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Iniciar repaso",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("→")
                 }
             }
         }
     }
 }
 
+/**
+ * T-10: un concepto de un bloque de curso. Autoevaluación inline con
+ * botones [0][1][2][3][4][5] (toca un número = SM-2 rating). El
+ * long-press muestra un menu con "Ver nota donde aparece este concepto".
+ *
+ * Los botones se muestran SIEMPRE (incluso si está completado) para
+ * permitir corregir la calificación. El último rating queda
+ * visualmente resaltado con un fondo más fuerte.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun SimpleTaskItem(task: Task, onClick: () -> Unit) {
-    Row(
+private fun ConceptTaskItem(
+    task: Task,
+    onTap: () -> Unit,
+    onSubmitRating: (Int) -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 8.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (task.isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                else Color.Transparent
+            )
+            .combinedClickable(
+                onClick = onTap,
+                onLongClick = { menuExpanded = true }
+            )
+            .padding(vertical = 6.dp, horizontal = 8.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.Circle,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-            modifier = Modifier.size(8.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = task.title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = "Ver nota",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(16.dp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Checkbox de completado
+            Icon(
+                imageVector = if (task.isCompleted) Icons.Default.CheckCircle
+                              else Icons.Default.RadioButtonUnchecked,
+                contentDescription = if (task.isCompleted) "Completado" else "Pendiente",
+                tint = if (task.isCompleted) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = task.title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.onSurface,
+                textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
+                modifier = Modifier.weight(1f),
+                maxLines = 1
+            )
+        }
+
+        // Botones de autoevaluación [0-5] SM-2. SIEMPRE visibles para
+        // permitir re-calificar (ej. el usuario tap [4] por error y
+        // quiere cambiar a [2]). El botón del último rating queda
+        // más oscuro para feedback visual.
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            listOf(0, 1, 2, 3, 4, 5).forEach { rating ->
+                val color = when (rating) {
+                    0, 1 -> MaterialTheme.colorScheme.error
+                    2 -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.primary
+                }
+                // Si el último rating guardado es este, lo resaltamos
+                val isLast = task.lastRating == rating
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp)
+                        .padding(horizontal = 2.dp)
+                        .clickable { onSubmitRating(rating) },
+                    color = if (isLast) color.copy(alpha = 0.45f) else color.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "$rating",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isLast) FontWeight.ExtraBold else FontWeight.Bold,
+                            color = if (isLast) MaterialTheme.colorScheme.onPrimary
+                                    else color
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Long-press menu: "Ver nota donde aparece"
+    DropdownMenu(
+        expanded = menuExpanded,
+        onDismissRequest = { menuExpanded = false }
+    ) {
+        DropdownMenuItem(
+            text = { Text("Ver nota donde aparece") },
+            onClick = {
+                menuExpanded = false
+                onTap()
+            },
+            leadingIcon = {
+                Icon(Icons.Default.Article, contentDescription = null)
+            }
         )
     }
 }

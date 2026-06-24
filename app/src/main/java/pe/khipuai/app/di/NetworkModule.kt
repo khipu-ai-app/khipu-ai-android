@@ -15,6 +15,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import pe.khipuai.app.BuildConfig
 import pe.khipuai.app.core.datastore.SessionDataStore
+import pe.khipuai.app.core.network.TokenAuthenticator
 import pe.khipuai.app.data.remote.KhipuApiService
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -35,37 +36,50 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuthInterceptor(sessionDataStore: SessionDataStore): Interceptor = Interceptor { chain ->
+        val original = chain.request()
+        val path = original.url.encodedPath
+
+        // No adjuntar el token guardado en endpoints de autenticación pública.
+        // Si lo hiciéramos, un POST /auth/login con credenciales malas
+        // (HTTP 401) activaría el TokenAuthenticator → refresh con token
+        // expirado → 401 → emitir SessionExpired → navegar a Login destruyendo
+        // el formulario y haciendo desaparecer el mensaje de error.
+        if (path.endsWith("/auth/login") ||
+            path.endsWith("/auth/register") ||
+            path.endsWith("/auth/refresh") ||
+            path.endsWith("/auth/google")
+        ) {
+            return@Interceptor chain.proceed(original)
+        }
+
         val token = runBlocking { sessionDataStore.tokenFlow.first() }
-        val requestBuilder = chain.request().newBuilder()
+        val requestBuilder = original.newBuilder()
 
         if (!token.isNullOrEmpty()) {
             requestBuilder.addHeader("Authorization", "Bearer $token")
         }
-        
-        val response = chain.proceed(requestBuilder.build())
-        
-        // Si recibimos 401 (ej. Wipe de BD o token expirado), limpiamos la sesión local
-        if (response.code == 401) {
-            runBlocking { sessionDataStore.clearToken() }
-        }
-        
-        return@Interceptor response
+
+        return@Interceptor chain.proceed(requestBuilder.build())
     }
 
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        authInterceptor: Interceptor
+        authInterceptor: Interceptor,
+        tokenAuthenticator: TokenAuthenticator
     ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = HttpLoggingInterceptor.Level.BASIC
         }
 
         return OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(45, TimeUnit.SECONDS)
             .addInterceptor(loggingInterceptor)
             .addInterceptor(authInterceptor)
+            .authenticator(tokenAuthenticator)
             .build()
     }
 

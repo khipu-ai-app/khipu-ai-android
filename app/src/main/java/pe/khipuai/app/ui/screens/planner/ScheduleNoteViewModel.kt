@@ -65,7 +65,7 @@ class ScheduleNoteViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "Error al cargar la carga semanal"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message
                     )
                 }
         }
@@ -84,7 +84,7 @@ class ScheduleNoteViewModel @Inject constructor(
             } else {
                 _uiState.value = _uiState.value.copy(
                     isScheduling = false,
-                    errorMessage = "Error al programar la nota. Intenta nuevamente."
+                    errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(result.exceptionOrNull() ?: Exception()).message
                 )
             }
         }

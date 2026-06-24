@@ -11,4 +11,10 @@
     <string name="title_extracted_text">Texto Extraído</string>
     <string name="title_key_concepts">Conceptos Clave</string>
     <string name="title_review_history">Historial de Repaso</string>
+
+    <!-- T-09: Web client ID de Google Cloud Console. T-09 plan:
+         este ID va en strings.xml (no hardcodeado). Por ahora es un
+         placeholder; en prod se reemplaza con el ID real del proyecto
+         Firebase/Google Cloud (formato: 123456789-abc.apps.googleusercontent.com). -->
+    <string name="google_web_client_id">REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
 </resources>

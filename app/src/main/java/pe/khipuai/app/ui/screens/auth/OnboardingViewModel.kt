@@ -34,7 +34,7 @@ class OnboardingViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(catalogCourses = list, selectedCourses = list, isLoading = false)
                 }
                 .onFailure { err ->
-                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = err.localizedMessage)
+                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(err).message)
                 }
         }
     }
@@ -62,7 +62,7 @@ class OnboardingViewModel @Inject constructor(
                     onComplete()
                 }
                 .onFailure { err ->
-                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = err.localizedMessage)
+                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(err).message)
                 }
         }
     }

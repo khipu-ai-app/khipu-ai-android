@@ -1,12 +1,19 @@
 package pe.khipuai.app.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import pe.khipuai.app.core.auth.AuthEventBus
+import pe.khipuai.app.core.auth.AuthStartupChecker
+import pe.khipuai.app.core.auth.AuthStartupState
+import pe.khipuai.app.core.deeplink.DeepLinkBus
 import pe.khipuai.app.ui.screens.auth.LoginScreen
 import pe.khipuai.app.ui.screens.auth.RegisterScreen
 import pe.khipuai.app.ui.screens.auth.OnboardingScreen
@@ -36,11 +43,67 @@ import pe.khipuai.app.ui.screens.review.ReviewSessionScreen
 
 @Composable
 fun KhipuNavigation(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    authEventBus: AuthEventBus? = null,
+    deepLinkBus: DeepLinkBus? = null,
+    authStartupChecker: AuthStartupChecker
 ) {
+    // T-07: dispara la decisión de start destination una vez al inicio.
+    LaunchedEffect(authStartupChecker) {
+        authStartupChecker.runOnce()
+    }
+
+    val startupState by authStartupChecker.state.collectAsState()
+
+    // T-08: si el refresh token falla, el Authenticator emite SessionExpired
+    // y navegamos a Login limpiando todo el backstack.
+    LaunchedEffect(authEventBus) {
+        val bus = authEventBus ?: return@LaunchedEffect
+        bus.events.collect { event ->
+            when (event) {
+                AuthEventBus.AuthEvent.SessionExpired -> {
+                    // Guard: si ya estamos en Login, NO navegar. Sin este
+                    // check, un SessionExpired disparado por cualquier
+                    // llamada en background (ej. una request autenticada
+                    // paralela al login) ejecutaría popUpTo(0) sobre el
+                    // LoginScreen actual, destruyéndolo y haciendo perder
+                    // lo que el usuario estaba tipeando.
+                    val currentRoute = navController.currentDestination?.route
+                    if (currentRoute == Screen.Login.route) return@collect
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                    // Resetear el checker para que el próximo arranque
+                    // vuelva a decidir el start destination.
+                    authStartupChecker.reset()
+                }
+            }
+        }
+    }
+
+    // T-04: deep links desde notificaciones (locales o FCM). Mapeamos
+    // el string del deep link a la ruta del NavHost correspondiente.
+    LaunchedEffect(deepLinkBus) {
+        val bus = deepLinkBus ?: return@LaunchedEffect
+        bus.events.collect { deepLink ->
+            handleDeepLink(navController, deepLink)
+        }
+    }
+
+    // T-07: mientras el startupState sea Loading, no mostramos nada.
+    // El sistema operativo muestra el splash screen mientras tanto.
+    if (startupState == AuthStartupState.Loading) {
+        return
+    }
+
+    val startDestination = when (startupState) {
+        AuthStartupState.LoggedIn -> Screen.Home.route
+        else -> Screen.Login.route
+    }
+
     NavHost(
         navController = navController,
-        startDestination = Screen.Login.route
+        startDestination = startDestination
     ) {
         composable(Screen.Login.route) {
             LoginScreen(
@@ -108,8 +171,8 @@ fun KhipuNavigation(
                 onNavigateToNoteDetail = { noteId ->
                     navController.navigate("${Screen.NoteDetail.route}/$noteId")
                 },
-                onNavigateToSubscription = {
-                    navController.navigate(Screen.Subscription.route)
+                onNavigateToSubscription = { reason ->
+                    navController.navigate(Screen.Subscription.create(reason))
                 },
                 onNavigateToTutorHistory = {
                     navController.navigate("tutor_history?contextType=general")
@@ -141,8 +204,8 @@ fun KhipuNavigation(
                 onNavigateToProcessing = { uploadId ->
                     navController.navigate("${Screen.Processing.route}/$uploadId")
                 },
-                onNavigateToSubscription = {
-                    navController.navigate(Screen.Subscription.route)
+                onNavigateToSubscription = { reason ->
+                    navController.navigate(Screen.Subscription.create(reason))
                 }
             )
         }
@@ -164,7 +227,22 @@ fun KhipuNavigation(
                 onNavigateToNote = { noteId ->
                     navController.navigate("${Screen.NoteDetail.route}/$noteId")
                 },
-                onNavigateToDailyDeck = { navController.navigate("daily_deck_session") }
+                // T-10: tap en un concepto SIN nota asociada navega al
+                // grafo del concepto en MapsScreen. El usuario puede ver
+                // si el concepto está conectado a algo o no.
+                onNavigateToConcept = { conceptName ->
+                    val encoded = java.net.URLEncoder.encode(
+                        conceptName,
+                        Charsets.UTF_8.name()
+                    )
+                    navController.navigate("${Screen.Maps.route}?highlightConcept=$encoded")
+                },
+                onNavigateToDailyDeck = { navController.navigate("daily_deck_session") },
+                // T-10: tap en "Iniciar repaso" de un bloque de curso navega
+                // a la ReviewSession de esa nota específica.
+                onStartCourseReview = { noteId ->
+                    navController.navigate("${Screen.ReviewSession.route}/$noteId")
+                }
             )
         }
 
@@ -236,8 +314,8 @@ fun KhipuNavigation(
                         }
                     }
                 },
-                onNavigateToSubscription = {
-                    navController.navigate(Screen.Subscription.route)
+                onNavigateToSubscription = { reason ->
+                    navController.navigate(Screen.Subscription.create(reason))
                 },
                 onNavigateToTutorHistory = {
                     navController.navigate("tutor_history")
@@ -574,9 +652,20 @@ fun KhipuNavigation(
             )
         }
 
-        composable(Screen.Subscription.route) {
+        composable(
+            route = Screen.Subscription.route,
+            arguments = listOf(
+                navArgument("reason") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val reason = backStackEntry.arguments?.getString("reason")
             SubscriptionScreen(
-                onCloseClick = { navController.popBackStack() }
+                onCloseClick = { navController.popBackStack() },
+                reason = reason
             )
         }
 
@@ -614,6 +703,10 @@ fun KhipuNavigation(
                         3 -> navController.navigate(Screen.Maps.route)
                         4 -> navController.navigate(Screen.Profile.route)
                     }
+                },
+                // T-11: tap en un concepto del día navega a su NoteDetail
+                onConceptClick = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
                 }
             )
         }
@@ -642,6 +735,33 @@ fun KhipuNavigation(
     }
 }
 
+/**
+ * T-04: resuelve un deep link emitido por una notificación y navega al destino
+ * correspondiente. Es un top-level function (no @Composable) para no inflar
+ * el recompose del NavHost.
+ *
+ * Convenciones (definidas en `NotificationDeepLinks`):
+ *  - "planner"               → PlannerScreen
+ *  - "analysis/{noteId}"     → AnalysisScreen con noteId
+ *  - "achievements"          → AchievementsScreen
+ */
+private fun handleDeepLink(navController: NavHostController, deepLink: String) {
+    val target = when {
+        deepLink == "planner" -> Screen.Planner.route
+        deepLink.startsWith("analysis/") -> {
+            val noteId = deepLink.removePrefix("analysis/")
+            "${Screen.Analysis.route}/$noteId"
+        }
+        deepLink == "achievements" -> "achievements"
+        else -> return // deep link desconocido, ignorar
+    }
+    navController.navigate(target) {
+        // No hacemos popUpTo: queremos mantener el backstack para que el
+        // botón "Atrás" vuelva a la pantalla anterior.
+        launchSingleTop = true
+    }
+}
+
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
@@ -663,7 +783,12 @@ sealed class Screen(val route: String) {
     object CourseDetail : Screen("course_detail")
     object NoteDetail : Screen("note_detail")
     object QuizCreation : Screen("quiz_creation")
-    object Subscription : Screen("subscription")
+    object Subscription : Screen("subscription?reason={reason}") {
+        // Helper para construir la ruta con el reason opcional.
+        fun create(reason: String? = null): String =
+            if (reason.isNullOrBlank()) "subscription"
+            else "subscription?reason=$reason"
+    }
     object FileViewer : Screen("file_viewer")
     object Calendar : Screen("calendar")
     object ScheduleNote : Screen("schedule_note")

@@ -89,7 +89,7 @@ class ReviewSessionViewModel @Inject constructor(
                         .onFailure { error ->
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
-                                errorMessage = error.message ?: "Error al cargar la sesión de repaso",
+                                errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message,
                             )
                         }
                 }
@@ -109,7 +109,7 @@ class ReviewSessionViewModel @Inject constructor(
                         .onFailure { error ->
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
-                                errorMessage = error.message ?: "Error al cargar el concepto",
+                                errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message,
                             )
                         }
                 }
@@ -130,7 +130,7 @@ class ReviewSessionViewModel @Inject constructor(
                         .onFailure { error ->
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
-                                errorMessage = error.message ?: "Error al cargar el mazo diario",
+                                errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message,
                             )
                         }
                 }
@@ -182,7 +182,7 @@ class ReviewSessionViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
                         isSubmitting = false,
-                        errorMessage = error.message ?: "Error al guardar tu evaluación",
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message,
                     )
                 }
         }

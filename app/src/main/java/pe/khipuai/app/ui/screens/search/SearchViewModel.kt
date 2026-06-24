@@ -75,10 +75,11 @@ class SearchViewModel @Inject constructor(
                         )
                     }
                 } else {
-                    _uiState.update { it.copy(isLoading = false, error = "Error al buscar: ${response.code()}") }
+                    val err = pe.khipuai.app.core.network.NetworkErrorMapper.from(retrofit2.HttpException(response))
+                    _uiState.update { it.copy(isLoading = false, error = err.message) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error de conexión: ${e.localizedMessage}") }
+                _uiState.update { it.copy(isLoading = false, error = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message) }
             }
         }
     }

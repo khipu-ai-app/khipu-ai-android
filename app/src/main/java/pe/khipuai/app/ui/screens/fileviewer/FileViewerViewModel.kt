@@ -60,7 +60,7 @@ class FileViewerViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Error al cargar el archivo: ${e.message}"
+                    errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                 )
             }
         }
@@ -108,7 +108,7 @@ class FileViewerViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    onError(e.message ?: "Error desconocido")
+                    onError(pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message ?: "Error desconocido")
                 }
             }
         }

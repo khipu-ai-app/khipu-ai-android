@@ -72,7 +72,7 @@ class StatisticsViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error al cargar estadísticas: ${e.localizedMessage}") }
+                _uiState.update { it.copy(isLoading = false, error = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message) }
             }
         }
     }

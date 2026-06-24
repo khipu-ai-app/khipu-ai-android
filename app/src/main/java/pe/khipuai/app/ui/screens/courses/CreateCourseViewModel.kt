@@ -64,7 +64,7 @@ class CreateCourseViewModel @Inject constructor(
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isSubmitting = false,
-                    errorMessage = "Error al crear el curso: ${error.localizedMessage}"
+                    errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message
                 )
             }
         }

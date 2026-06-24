@@ -1,14 +1,15 @@
 package pe.khipuai.app.ui.screens.subscription
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.PurchasesUpdatedListener
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import pe.khipuai.app.core.network.NetworkErrorMapper
+import pe.khipuai.app.data.repository.AuthRepository
 import javax.inject.Inject
 
 data class PricingPlanUiModel(
@@ -26,71 +27,118 @@ data class FeatureComparisonUiModel(
     val name: String,
     val iconName: String,
     val freeValue: String,
-    val proHasFeature: Boolean // True muestra check, False muestra una línea/guion
+    val proHasFeature: Boolean
 )
 
 data class SubscriptionUiState(
     val plans: List<PricingPlanUiModel> = emptyList(),
     val features: List<FeatureComparisonUiModel> = emptyList(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isChangingPlan: Boolean = false,
+    val currentPlan: String = "free",
+    val isPro: Boolean = false,
+    val errorMessage: String? = null,
+    val pendingNavigationReason: String? = null
 )
 
 @HiltViewModel
 class SubscriptionViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SubscriptionUiState())
     val uiState: StateFlow<SubscriptionUiState> = _uiState.asStateFlow()
 
-    private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
-        // Lógica de respuesta de Google Play Billing
+    init {
+        loadSubscriptionData()
+        loadCurrentPlan()
     }
 
-    private var billingClient: BillingClient = BillingClient.newBuilder(context)
-        .setListener(purchasesUpdatedListener)
-        .enablePendingPurchases()
-        .build()
-
-
-
     private fun loadSubscriptionData() {
-        _uiState.value = _uiState.value.copy(
-            plans = listOf(
-                PricingPlanUiModel(
-                    id = "monthly",
-                    name = "Mensual",
-                    price = "$9.99",
-                    period = "/ mes",
-                    description = "Flexibilidad total, cancela cuando quieras.",
-                    isHighlighted = false,
-                    buttonText = "Seleccionar Mensual"
+        _uiState.update {
+            it.copy(
+                plans = listOf(
+                    PricingPlanUiModel(
+                        id = "free",
+                        name = "Free",
+                        price = "$0",
+                        period = "/ mes",
+                        description = "5 capturas mensuales, todas las features principales.",
+                        isHighlighted = false,
+                        buttonText = "Plan actual"
+                    ),
+                    PricingPlanUiModel(
+                        id = "pro",
+                        name = "Pro",
+                        price = "$9.99",
+                        period = "/ mes",
+                        description = "Capturas ilimitadas, sin restricciones.",
+                        isHighlighted = true,
+                        badgeText = "Recomendado",
+                        buttonText = "Hazte Pro"
+                    )
                 ),
-                PricingPlanUiModel(
-                    id = "yearly",
-                    name = "Anual",
-                    price = "$79.99",
-                    period = "/ año",
-                    description = "Ahorra un 33% en comparación con el plan mensual.",
-                    isHighlighted = true,
-                    badgeText = "Mejor Valor",
-                    buttonText = "Prueba Khipu Pro Gratis"
+                features = listOf(
+                    FeatureComparisonUiModel("Capturas por mes", "cloud", "5", true),
+                    FeatureComparisonUiModel("Mapa mental avanzado", "map", "", true),
+                    FeatureComparisonUiModel("Tutor IA ilimitado", "school", "10 msgs/día", true),
+                    FeatureComparisonUiModel("Soporte prioritario", "mail", "", true)
                 )
-            ),
-            features = listOf(
-                FeatureComparisonUiModel("Almacenamiento de Nodos", "cloud", "Hasta 100", true),
-                FeatureComparisonUiModel("Mapa Mental Avanzado", "map", "", true),
-                FeatureComparisonUiModel("Modo Offline", "wifi_off", "", true),
-                FeatureComparisonUiModel("Tutor Pro (IA Avanzada)", "school", "Básico", true)
             )
-        )
+        }
+    }
+
+    private fun loadCurrentPlan() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            authRepository.fetchMySubscription()
+                .onSuccess { sub ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            currentPlan = sub.plan,
+                            isPro = sub.isPro
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = NetworkErrorMapper.from(e).message
+                        )
+                    }
+                }
+        }
+    }
+
+    fun consumeNavigationReason() {
+        _uiState.update { it.copy(pendingNavigationReason = null) }
     }
 
     fun selectPlan(planId: String) {
-        // Disparador listo para integrar la API de pasarela (Stripe/Google Play Billing)
-    }
+        if (planId == _uiState.value.currentPlan) return
 
-    init {
-        loadSubscriptionData()
+        viewModelScope.launch {
+            _uiState.update { it.copy(isChangingPlan = true, errorMessage = null) }
+            authRepository.updateMySubscription(planId)
+                .onSuccess { sub ->
+                    _uiState.update {
+                        it.copy(
+                            isChangingPlan = false,
+                            currentPlan = sub.plan,
+                            isPro = sub.isPro
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(
+                            isChangingPlan = false,
+                            errorMessage = NetworkErrorMapper.from(e).message
+                        )
+                    }
+                }
+        }
     }
 }

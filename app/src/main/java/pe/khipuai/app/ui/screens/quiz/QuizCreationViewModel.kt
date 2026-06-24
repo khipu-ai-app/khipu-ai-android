@@ -137,7 +137,7 @@ class QuizCreationViewModel @Inject constructor(
             noteRepository.deleteQuiz(noteId, quizId).onSuccess {
                 loadInitialQuiz()
             }.onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = e.localizedMessage)
+                _uiState.value = _uiState.value.copy(error = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message)
             }
         }
     }
@@ -175,7 +175,7 @@ class QuizCreationViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         isAppending = false,
-                        error = e.localizedMessage
+                        error = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                     )
                 }
         }
@@ -202,7 +202,7 @@ class QuizCreationViewModel @Inject constructor(
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
-                        error = e.localizedMessage
+                        error = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                     )
                 }
         }

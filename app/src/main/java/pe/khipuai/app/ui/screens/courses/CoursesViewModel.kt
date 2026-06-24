@@ -143,7 +143,7 @@ class CoursesViewModel @Inject constructor(
         }.catch { e ->
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                errorMessage = "Error al cargar cursos: ${e.localizedMessage}"
+                errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
             )
         }.launchIn(viewModelScope)
 
@@ -159,7 +159,7 @@ class CoursesViewModel @Inject constructor(
                     if (_uiState.value.courses.isEmpty()) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            errorMessage = "Sin conexión. Verifica tu red."
+                            errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                         )
                     }
                 }
@@ -171,7 +171,7 @@ class CoursesViewModel @Inject constructor(
             courseRepository.archiveCourse(courseId)
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = "No se pudo archivar el curso: ${e.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                     )
                 }
         }
@@ -182,7 +182,7 @@ class CoursesViewModel @Inject constructor(
             courseRepository.restoreCourse(courseId)
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = "No se pudo restaurar el curso: ${e.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                     )
                 }
         }
@@ -193,7 +193,7 @@ class CoursesViewModel @Inject constructor(
             courseRepository.deleteCoursePermanently(courseId)
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = "No se pudo eliminar el curso: ${e.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                     )
                 }
         }
@@ -204,7 +204,7 @@ class CoursesViewModel @Inject constructor(
             courseRepository.updateCourse(courseId, newName, null)
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = "No se pudo renombrar el curso: ${e.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
                     )
                 }
         }

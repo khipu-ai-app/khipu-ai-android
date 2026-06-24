@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.notification.LocalDispatcher
+import pe.khipuai.app.data.notification.NotificationDispatcher
 import pe.khipuai.app.data.repository.UploadRepository
 import javax.inject.Inject
 
@@ -40,6 +42,11 @@ class ProcessingViewModel @Inject constructor(
     private val uploadRepository: UploadRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    // T-04: dispatcher para notificar cuando el pipeline completa.
+    @Inject
+    @LocalDispatcher
+    lateinit var notificationDispatcher: NotificationDispatcher
 
     // Extraemos el uploadId enviado por la pantalla de captura
     private val uploadId: String? = savedStateHandle["uploadId"]
@@ -114,6 +121,19 @@ class ProcessingViewModel @Inject constructor(
                                     noteId = statusDto.noteId,
                                     detectedCourse = "Completado con éxito"
                                 )
+                                // T-04: Tipo 2 — procesar notificación en background
+                                // para no bloquear el polling. Usamos el filename
+                                // como título provisional; el note real se puede
+                                // obtener en una iteración futura vía /notes/{id}.
+                                if (statusDto.noteId != null) {
+                                    viewModelScope.launch {
+                                        notificationDispatcher.notifyProcessingComplete(
+                                            noteId = statusDto.noteId,
+                                            noteTitle = statusDto.filename ?: "Tu apunte",
+                                            conceptsDetected = 0
+                                        )
+                                    }
+                                }
                             }
                             "partial_failure" -> {
                                 isProcessingFinished = true
@@ -152,7 +172,7 @@ class ProcessingViewModel @Inject constructor(
                 }
 
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(errorMessage = "Fallo en el hilo del procesador: ${e.message}", isError = true)
+                _uiState.value = _uiState.value.copy(errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message, isError = true)
             }
         }
     }

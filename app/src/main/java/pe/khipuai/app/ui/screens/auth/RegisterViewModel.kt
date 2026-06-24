@@ -1,12 +1,16 @@
 package pe.khipuai.app.ui.screens.auth
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.R
+import pe.khipuai.app.core.auth.GoogleSignInHelper
+import pe.khipuai.app.core.auth.GoogleSignInResult
 import pe.khipuai.app.data.repository.AuthRepository
 import javax.inject.Inject
 
@@ -18,8 +22,10 @@ data class RegisterUiState(
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    private val authRepository: AuthRepository
-) : ViewModel() {
+    application: Application,
+    private val authRepository: AuthRepository,
+    private val googleSignInHelper: GoogleSignInHelper
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
@@ -43,42 +49,82 @@ class RegisterViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            // No limpiamos errorMessage aquí: si el usuario reintenta, el Card
+            // de error se mantiene y se actualiza con el nuevo resultado, sin
+            // parpadeo. Solo se limpia en éxito.
+            _uiState.value = _uiState.value.copy(isLoading = true)
 
             // 2. Disparar el registro real por HTTP hacia PostgreSQL vía AuthRepository
             authRepository.registerWithEmail(email, password, name)
                 .onSuccess {
-                    _uiState.value = _uiState.value.copy(isLoading = false, isRegistered = true)
+                    _uiState.value = _uiState.value.copy(isLoading = false, isRegistered = true, errorMessage = null)
                     onResult(true)
                 }
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = exception.localizedMessage ?: "El correo ya existe o el servidor no responde."
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
                     )
                     onResult(false)
                 }
         }
     }
 
-    fun signInWithGoogle(idToken: String, onResult: (Boolean) -> Unit) {
+    /**
+     * T-09: en RegisterScreen, "Iniciar con Google" significa realmente
+     * "login con Google" (los usuarios nuevos de Google se crean
+     * automáticamente en el backend en `POST /auth/google`).
+     */
+    fun signInWithGoogle(onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            val webClientId = getApplication<Application>()
+                .getString(R.string.google_web_client_id)
 
-            val result = authRepository.loginWithGoogle(idToken)
-
-            result.onSuccess {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    isRegistered = true
-                )
-                onResult(true)
-            }.onFailure { exception ->
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "Error en Khipu Server: ${exception.localizedMessage ?: "Servidor inaccesible"}"
-                )
-                onResult(false)
+            when (val result = googleSignInHelper.signIn(webClientId)) {
+                is GoogleSignInResult.Success -> {
+                    authRepository.loginWithGoogle(result.idToken)
+                        .onSuccess {
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                isRegistered = true,
+                                errorMessage = null
+                            )
+                            onResult(true)
+                        }
+                        .onFailure { exception ->
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
+                            )
+                            onResult(false)
+                        }
+                }
+                GoogleSignInResult.UserCancelled -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    onResult(false)
+                }
+                GoogleSignInResult.NoCredentials -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "No tienes ninguna cuenta de Google configurada en este dispositivo."
+                    )
+                    onResult(false)
+                }
+                GoogleSignInResult.MalformedCredential -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "No se pudo leer la credencial de Google. Intenta de nuevo."
+                    )
+                    onResult(false)
+                }
+                is GoogleSignInResult.Failed -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "No se pudo iniciar sesión con Google. Intenta con email y contraseña."
+                    )
+                    onResult(false)
+                }
             }
         }
     }

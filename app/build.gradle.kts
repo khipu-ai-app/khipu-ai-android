@@ -91,6 +91,9 @@ dependencies {
 
     // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
+    // Hilt + WorkManager: provee HiltWorkerFactory para que los @HiltWorker
+    // reciban dependencias inyectadas (T-04: StreakAtRiskWorker, ManualScheduleReminderWorker, etc).
+    implementation(libs.androidx.hilt.work)
 
     // Network
     implementation(libs.retrofit)
@@ -119,6 +122,11 @@ dependencies {
     implementation("com.android.billingclient:billing-ktx:6.1.0")
     implementation(platform("com.google.firebase:firebase-bom:32.7.1"))
     implementation("com.google.firebase:firebase-crashlytics-ktx")
+
+    // T-09: Google Sign-In con CredentialManager
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
 
     // Testing
     testImplementation(libs.junit)

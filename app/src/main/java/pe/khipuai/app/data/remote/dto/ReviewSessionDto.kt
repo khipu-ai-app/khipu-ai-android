@@ -39,3 +39,25 @@ data class ReviewHistoryItemResponse(
     @SerialName("rating") val rating: Int,
     @SerialName("reviewed_at") val reviewedAt: String,
 )
+
+/**
+ * T-06: respuesta del endpoint `GET /notes/{id}/review-history`.
+ * El backend agrupa los repasos por fecha y devuelve una lista de sesiones
+ * en vez de items individuales.
+ */
+@Serializable
+data class ReviewSessionResponseDto(
+    @SerialName("session_key") val sessionKey: String,
+    @SerialName("date_label") val dateLabel: String,
+    @SerialName("average_rating") val averageRating: Double,
+    @SerialName("concepts_reviewed") val conceptsReviewed: Int,
+    @SerialName("next_review_date") val nextReviewDate: String? = null,
+    @SerialName("concepts") val concepts: List<ReviewConceptItemDto> = emptyList()
+)
+
+@Serializable
+data class ReviewConceptItemDto(
+    @SerialName("concept_name") val conceptName: String,
+    @SerialName("rating") val rating: Int,
+    @SerialName("next_review_date") val nextReviewDate: String? = null
+)

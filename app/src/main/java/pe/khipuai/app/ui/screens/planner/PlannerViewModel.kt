@@ -45,7 +45,8 @@ data class Task(
     val id: String,
     val title: String,
     val isCompleted: Boolean = false,
-    val noteId: String? = null
+    val noteId: String? = null,
+    val lastRating: Int? = null   // T-10: último rating SM-2 (0-5) para resaltar el botón
 )
 
 enum class StudyBlockType {
@@ -61,7 +62,7 @@ class PlannerViewModel @Inject constructor(
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         _uiState.value = _uiState.value.copy(
             isLoading = false,
-            errorMessage = "Error de conexión: ${exception.localizedMessage}"
+            errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
         )
     }
 
@@ -127,7 +128,7 @@ class PlannerViewModel @Inject constructor(
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "Error al sincronizar tu agenda con la IA: ${exception.localizedMessage}"
+                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
                     )
                     return@launch
                 }
@@ -188,7 +189,11 @@ class PlannerViewModel @Inject constructor(
                 if (block.id == blockId) {
                     val updatedTasks = block.tasks.map { task ->
                         if (task.id == conceptId) {
-                            task.copy(isCompleted = true)
+                            // Optimista: marcamos completado y guardamos
+                            // el rating. T-10: NO ocultamos los botones
+                            // (la UI los sigue mostrando) para permitir
+                            // re-calificar.
+                            task.copy(isCompleted = true, lastRating = rating)
                         } else {
                             task
                         }

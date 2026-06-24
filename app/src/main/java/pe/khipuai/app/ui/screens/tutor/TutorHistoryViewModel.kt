@@ -82,7 +82,7 @@ class TutorHistoryViewModel @Inject constructor(
                 .onFailure { err ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = err.localizedMessage
+                        error = pe.khipuai.app.core.network.NetworkErrorMapper.from(err).message
                     )
                 }
         }
@@ -95,7 +95,7 @@ class TutorHistoryViewModel @Inject constructor(
                     loadSessions()
                 }
                 .onFailure { err ->
-                    _uiState.value = _uiState.value.copy(error = err.localizedMessage)
+                    _uiState.value = _uiState.value.copy(error = pe.khipuai.app.core.network.NetworkErrorMapper.from(err).message)
                 }
         }
     }

@@ -34,7 +34,7 @@ fun HomeScreen(
     onNavigateToCourseDetail: (String) -> Unit = {},
     onNavigateToFileViewer: (String) -> Unit = {},
     onNavigateToNoteDetail: (String) -> Unit = {},
-    onNavigateToSubscription: () -> Unit = {},
+    onNavigateToSubscription: (String?) -> Unit = {},
     onNavigateToTutorHistory: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
@@ -69,13 +69,6 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.ChatBubble,
                             contentDescription = "Tutor AI",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    IconButton(onClick = { /* TODO: Notifications */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notificaciones",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -158,7 +151,7 @@ fun HomeScreen(
                         }
                         if (!uiState.isPro) {
                             Button(
-                                onClick = onNavigateToSubscription,
+                                onClick = { onNavigateToSubscription(null) },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
                                 )
