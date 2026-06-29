@@ -100,15 +100,6 @@ fun PlannerScreen(
                         )
                     }
                 },
-                actions = {
-                    IconButton(onClick = { /* TODO: Notifications */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notificaciones",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -145,6 +136,11 @@ fun PlannerScreen(
             }
         } else {
             val totalDue = uiState.studyBlocks.sumOf { it.tasks.filter { !it.isCompleted }.size }
+            // T-13: contamos cuántos conceptos están marcados como
+            // repasados hoy (el feedback "¡X repasados hoy!" del empty
+            // state). Si el usuario no tiene repasados hoy, el mensaje
+            // queda neutro.
+            val totalCompletedToday = uiState.studyBlocks.sumOf { it.tasks.filter { it.isCompleted }.size }
 
             LazyColumn(
                 modifier = Modifier
@@ -183,7 +179,12 @@ fun PlannerScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "El algoritmo SM-2 agendará nuevos conceptos cuando sea el momento óptimo.",
+                                    text = if (totalCompletedToday > 0) {
+                                        "Ya repasaste $totalCompletedToday ${if (totalCompletedToday == 1) "concepto" else "conceptos"} hoy. " +
+                                        "El algoritmo SM-2 agendará nuevos cuando sea el momento óptimo."
+                                    } else {
+                                        "El algoritmo SM-2 agendará nuevos conceptos cuando sea el momento óptimo."
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -504,10 +505,48 @@ private fun CourseBreakdownCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // T-10: lista de conceptos con autoevaluación inline [0-5] y
-            // long-press para "Ver nota donde aparece".
+            // T-10/T-13: lista de conceptos con autoevaluación inline [0-5] y
+            // long-press para "Ver nota donde aparece". Separamos
+            // visualmente los pendientes (arriba) de los repasados hoy
+            // (abajo) con un Divider con texto.
+            val pending = block.tasks.filter { !it.isCompleted }
+            val completed = block.tasks.filter { it.isCompleted }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                block.tasks.forEach { task ->
+                pending.forEach { task ->
+                    ConceptTaskItem(
+                        task = task,
+                        onTap = { onTaskClick(task) },
+                        onSubmitRating = { rating -> onSubmitRating(task.id, rating) }
+                    )
+                }
+                if (completed.isNotEmpty() && pending.isNotEmpty()) {
+                    // T-13: separador visual. Solo aparece si hay
+                    // AMBOS grupos (sino no aporta nada).
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Repasados hoy",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                completed.forEach { task ->
                     ConceptTaskItem(
                         task = task,
                         onTap = { onTaskClick(task) },
@@ -604,6 +643,40 @@ private fun ConceptTaskItem(
                 modifier = Modifier.weight(1f),
                 maxLines = 1
             )
+            // T-13: badge "X/5" cuando el concepto está completado y
+            // tenemos el rating. Color verde si fue ≥3 (recordado),
+            // rojo si fue <3 (olvidado). Esto refuerza el feedback del
+            // SM-2 sin tener que abrir la nota.
+            if (task.isCompleted && task.lastRating != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                val rating = task.lastRating!!
+                val isRemembered = rating >= 3
+                val badgeColor = if (isRemembered) Color(0xFF2E7D32) else Color(0xFFC62828)
+                Surface(
+                    color = badgeColor.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isRemembered) Icons.Default.ThumbUp
+                                          else Icons.Default.ThumbDown,
+                            contentDescription = null,
+                            tint = badgeColor,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "$rating/5",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = badgeColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
 
         // Botones de autoevaluación [0-5] SM-2. SIEMPRE visibles para

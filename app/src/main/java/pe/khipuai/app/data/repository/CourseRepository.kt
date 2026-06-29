@@ -48,9 +48,9 @@ class CourseRepository @Inject constructor(
         }
     }
 
-    suspend fun createCourse(name: String, color: String): Result<CourseResponse> {
+    suspend fun createCourse(name: String, description: String?, color: String): Result<CourseResponse> {
         return try {
-            val response = apiService.createCourse(CourseCreateRequest(name = name, color = color))
+            val response = apiService.createCourse(CourseCreateRequest(name = name, description = description, color = color))
             courseDao.upsertAll(listOf(
                 CourseEntity(
                     id = response.id,

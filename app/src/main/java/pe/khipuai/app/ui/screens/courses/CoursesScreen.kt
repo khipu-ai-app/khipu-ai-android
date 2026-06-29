@@ -60,15 +60,6 @@ fun CoursesScreen(
                         Text("Khipu AI", fontWeight = FontWeight.Bold, color = Color(0xFF4F378B))
                     }
                 },
-                actions = {
-                    IconButton(onClick = { /* Notificaciones */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notificaciones",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )

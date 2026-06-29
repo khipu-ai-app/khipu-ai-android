@@ -212,4 +212,7 @@ interface KhipuApiService {
 
     @GET("v1/achievements")
     suspend fun getAchievements(): List<AchievementResponse>
+
+    @DELETE("v1/uploads/{upload_id}")
+    suspend fun deleteUpload(@Path("upload_id") uploadId: String)
 }

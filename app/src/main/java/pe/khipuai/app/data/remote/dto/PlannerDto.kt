@@ -15,7 +15,13 @@ data class DueConceptResponse(
     @SerialName("repetitions") val repetitions: Int,
     @SerialName("ease_factor") val easeFactor: Float,
     @SerialName("course_name") val courseName: String,
-    @SerialName("note_id") val noteId: String? = null
+    @SerialName("note_id") val noteId: String? = null,
+    // T-13: estado del concepto en el día de hoy. El backend envía estos
+    // flags para que la UI pueda mostrar los conceptos ya repasados
+    // (con un check verde y el rating) en lugar de hacerlos desaparecer.
+    @SerialName("is_due") val isDue: Boolean = true,
+    @SerialName("reviewed_today") val reviewedToday: Boolean = false,
+    @SerialName("last_rating") val lastRating: Int? = null,
 )
 
 @Serializable

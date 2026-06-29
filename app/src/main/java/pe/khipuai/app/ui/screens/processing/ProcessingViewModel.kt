@@ -187,4 +187,12 @@ class ProcessingViewModel @Inject constructor(
             )
         }
     }
+
+    fun cancelProcessing() {
+        if (uploadId != null) {
+            viewModelScope.launch {
+                uploadRepository.cancelProcessing(uploadId)
+            }
+        }
+    }
 }

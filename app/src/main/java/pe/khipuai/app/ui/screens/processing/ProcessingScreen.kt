@@ -44,6 +44,40 @@ fun ProcessingScreen(
     // El error ya no redirige automáticamente. Se muestra un botón explícito "Volver al inicio"
     // para que el usuario pueda leer qué pasó y decidir cuándo salir.
     val onErrorEscapeOnce by rememberUpdatedState(onErrorEscape)
+    
+    var showCancelDialog by remember { mutableStateOf(false) }
+    var showCancelButton by remember { mutableStateOf(true) }
+    
+    LaunchedEffect(Unit) {
+        delay(5000)
+        showCancelButton = false
+    }
+    
+    androidx.activity.compose.BackHandler(enabled = !uiState.isComplete && !uiState.isError) {
+        showCancelDialog = true
+    }
+
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = { Text("¿Cancelar el procesamiento?") },
+            text = { Text("El archivo se descartará y no se creará tu apunte.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCancelDialog = false
+                    viewModel.cancelProcessing()
+                    onErrorEscapeOnce()
+                }) {
+                    Text("Sí, cancelar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) {
+                    Text("Seguir esperando")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -94,7 +128,15 @@ fun ProcessingScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        if (showCancelButton && !uiState.isComplete && !uiState.isError) {
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(onClick = { showCancelDialog = true }) {
+                Text("Cancelar", color = MaterialTheme.colorScheme.error)
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        } else {
+            Spacer(modifier = Modifier.height(40.dp))
+        }
 
         Text(
             text = if (uiState.errorMessage != null) "Ocurrió un inconveniente" else "Khipu está analizando tu archivo...",

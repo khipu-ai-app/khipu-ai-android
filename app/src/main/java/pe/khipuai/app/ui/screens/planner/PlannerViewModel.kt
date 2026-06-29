@@ -91,8 +91,24 @@ class PlannerViewModel @Inject constructor(
                         return@onSuccess
                     }
 
+                    // T-13: filtrar conceptos que NO son relevantes para la
+                    // agenda de HOY. El backend ahora devuelve los 3 estados:
+                    //   - is_due=true, reviewed_today=false → pendiente
+                    //   - reviewed_today=true → completado hoy
+                    //   - is_due=false, reviewed_today=false → futuro lejano
+                    //     (no los mostramos, pero los recibimos para que el
+                    //      stats endpoint pueda contarlos si quiere)
+                    val todayConcepts = networkConcepts.filter {
+                        it.isDue || it.reviewedToday
+                    }
+
+                    if (todayConcepts.isEmpty()) {
+                        _uiState.value = _uiState.value.copy(studyBlocks = emptyList(), isLoading = false)
+                        return@onSuccess
+                    }
+
                     // 🧠 MAPEO HÍBRIDO: Agrupamos los conceptos del backend por nombre de curso
-                    val conceptsByCourse = networkConcepts.groupBy { it.courseName }
+                    val conceptsByCourse = todayConcepts.groupBy { it.courseName }
 
                     val mappedBlocks = conceptsByCourse.entries.mapIndexed { index, entry ->
                         val courseName = entry.key
@@ -108,12 +124,32 @@ class PlannerViewModel @Inject constructor(
                         // noteId del primer concepto del bloque (todos pertenecen al mismo curso)
                         val firstNoteId = concepts.firstOrNull()?.noteId
 
+                        // T-13: orden estable. El backend ya ordena por
+                        // (pendientes primero, completados al final) PERO
+                        // por las dudas ordenamos también en cliente.
+                        val orderedConcepts = concepts.sortedWith(
+                            compareBy<pe.khipuai.app.data.remote.dto.DueConceptResponse> { it.reviewedToday }
+                                .thenBy { it.label }
+                        )
+
                         StudyBlock(
                             id = courseName,
                             time = "${8 + index * 2}:00 AM",
                             duration = "${concepts.size * 10} min",
                             subject = courseName,
-                            tasks = concepts.map { Task(id = it.conceptId, title = it.label, isCompleted = false, noteId = it.noteId) },
+                            tasks = orderedConcepts.map {
+                                Task(
+                                    id = it.conceptId,
+                                    title = it.label,
+                                    // T-13: si el backend ya lo marcó como
+                                    // repasado hoy, pre-marcamos el Task
+                                    // para que la UI lo muestre como
+                                    // completado al cargar.
+                                    isCompleted = it.reviewedToday,
+                                    noteId = it.noteId,
+                                    lastRating = it.lastRating,
+                                )
+                            },
                             isAISuggestion = true,
                             mentalLoadLevel = loadLevel,
                             mentalLoadColor = loadColor,

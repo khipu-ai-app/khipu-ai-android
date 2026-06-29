@@ -66,14 +66,6 @@ fun AnalysisScreen(
                         )
                     }
                 },
-                actions = {
-                    IconButton(onClick = { /* TODO: More options */ }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Más opciones"
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )

@@ -35,4 +35,13 @@ class UploadRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun cancelProcessing(uploadId: String): Result<Unit> {
+        return try {
+            apiService.deleteUpload(uploadId)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
