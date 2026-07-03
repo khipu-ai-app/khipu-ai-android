@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import pe.khipuai.app.ui.theme.parseCourseColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -197,6 +198,11 @@ fun CoursesScreen(
                 var renameText by remember { mutableStateOf(course.name) }
                 var deleteDialogExpanded by remember { mutableStateOf(false) }
 
+                // T-16: parsear el color del curso (guardado al crearlo) y
+                // teñir el icono del curso y la barra lateral del card
+                // con ese color. Si el parseo falla, cae en el lila neutro.
+                val courseColor = remember(course.color) { parseCourseColor(course.color) }
+
                 if (renameDialogExpanded) {
                     AlertDialog(
                         onDismissRequest = { renameDialogExpanded = false },
@@ -262,21 +268,32 @@ fun CoursesScreen(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        // T-16: barra lateral del color del curso (4dp)
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .fillMaxHeight()
+                                .background(courseColor)
+                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
                         // Fila Superior: Icono y Menú
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // T-16: el icono del curso se tiñe con el color
+                            // que el usuario eligió al crearlo (en lugar
+                            // del lila hardcodeado de antes).
                             Box(
                                 modifier = Modifier
                                     .size(44.dp)
-                                    .background(Color(0xFFE8DEF8), CircleShape),
+                                    .background(courseColor.copy(alpha = 0.15f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -288,7 +305,7 @@ fun CoursesScreen(
                                         else -> Icons.Default.Book
                                     },
                                     contentDescription = null,
-                                    tint = Color(0xFF4F378B),
+                                    tint = courseColor,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -439,6 +456,7 @@ fun CoursesScreen(
                                 tint = Color(0xFFFF9800)
                             )
                         }
+                    }
                     }
                 }
             }

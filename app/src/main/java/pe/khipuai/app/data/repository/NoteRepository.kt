@@ -1,5 +1,7 @@
 package pe.khipuai.app.data.repository
 
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.asRequestBody
 import pe.khipuai.app.data.remote.KhipuApiService
 import pe.khipuai.app.data.remote.dto.*
 import javax.inject.Inject
@@ -75,8 +77,21 @@ class NoteRepository @Inject constructor(
     }
 
     suspend fun getNoteReviewHistory(noteId: String): Result<List<pe.khipuai.app.data.remote.dto.ReviewSessionResponseDto>> {
-        return try {
+            return try {
             Result.success(apiService.getNoteReviewHistory(noteId))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * T-13 evolution: lista los archivos adjuntos a una nota,
+     * ordenados por fecha ascendente. Incluye el upload "legacy"
+     * (Note.upload_id) y los archivos adicionales (Upload.note_id).
+     */
+    suspend fun getNoteFiles(noteId: String): Result<pe.khipuai.app.data.remote.dto.NoteFilesListResponse> {
+        return try {
+            Result.success(apiService.getNoteFiles(noteId))
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import pe.khipuai.app.ui.theme.parseCourseColor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -92,7 +94,8 @@ fun StatisticsScreen(
                             MasteryCard(
                                 masteryPercentage = uiState.masteryPercentage,
                                 totalConcepts = uiState.totalConcepts,
-                                courseDistribution = uiState.courseDistribution
+                                courseDistribution = uiState.courseDistribution,
+                                courseDistributionWithColor = uiState.courseDistributionWithColor,
                             )
                             Spacer(modifier = Modifier.height(24.dp))
                         }
@@ -237,7 +240,14 @@ fun WeeklyProgressCard(schedule: List<pe.khipuai.app.data.remote.dto.ScheduleDay
 }
 
 @Composable
-fun MasteryCard(masteryPercentage: Int, totalConcepts: Int, courseDistribution: List<pe.khipuai.app.data.remote.dto.CourseDistributionItem>) {
+fun MasteryCard(
+    masteryPercentage: Int,
+    totalConcepts: Int,
+    courseDistribution: List<pe.khipuai.app.data.remote.dto.CourseDistributionItem>,
+    // T-16: distribución con colores para teñir cada barra con el
+    // color del curso. Si está vacía, caemos al color primary.
+    courseDistributionWithColor: List<pe.khipuai.app.ui.screens.statistics.CourseDistributionWithColor> = emptyList(),
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -249,18 +259,31 @@ fun MasteryCard(masteryPercentage: Int, totalConcepts: Int, courseDistribution: 
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             if (courseDistribution.isEmpty()) {
                 Text("Sin datos por curso aún.", style = MaterialTheme.typography.bodyMedium)
             } else {
                 courseDistribution.forEach { item ->
                     val coursePercentage = if (totalConcepts > 0) ((item.count.toFloat() / totalConcepts) * 100).toInt() else 0
+                    // T-16: buscar el color del curso en la lista paralela.
+                    val colorHex = courseDistributionWithColor
+                        .firstOrNull { it.item.courseName == item.courseName }
+                        ?.colorHex
+                    val courseColor = remember(colorHex) { parseCourseColor(colorHex) }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // T-16: dot del color del curso antes del nombre
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(courseColor)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = item.courseName,
                             style = MaterialTheme.typography.bodyMedium,
@@ -277,7 +300,9 @@ fun MasteryCard(masteryPercentage: Int, totalConcepts: Int, courseDistribution: 
                                 modifier = Modifier
                                     .fillMaxWidth(coursePercentage / 100f)
                                     .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.primary)
+                                    // T-16: la barra usa el color del
+                                    // curso en lugar del primary genérico.
+                                    .background(courseColor)
                             )
                         }
                         Text(

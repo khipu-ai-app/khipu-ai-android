@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import pe.khipuai.app.BuildConfig
 import pe.khipuai.app.ui.components.BottomNavigationBar
 import pe.khipuai.app.ui.theme.ThemeMode
 
@@ -156,6 +157,14 @@ fun ProfileScreen(
                         SettingsItemWithValue(icon = Icons.Default.Language, title = "Idioma", value = uiState.language, onClick = { showLanguageDialog = true })
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         SettingsItem(icon = Icons.AutoMirrored.Filled.Help, title = "Ayuda y Soporte", onClick = onNavigateToFaq)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        // T-20: versión de la app
+                        val appVersion = pe.khipuai.app.BuildConfig.VERSION_NAME
+                        val appVersionCode = pe.khipuai.app.BuildConfig.VERSION_CODE
+                        SettingsInfoRow(
+                            title = "Versión de la app",
+                            subtitle = "$appVersion ($appVersionCode)",
+                        )
                     }
                 }
             }
@@ -776,6 +785,40 @@ private fun SettingsItemWithValue(
                 contentDescription = "Ir",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsInfoRow(
+    title: String,
+    subtitle: String,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Info,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

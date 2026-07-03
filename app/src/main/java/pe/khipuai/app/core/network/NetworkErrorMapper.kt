@@ -1,6 +1,7 @@
 package pe.khipuai.app.core.network
 
 import org.json.JSONObject
+import pe.khipuai.app.data.remote.dto.DuplicateNoteInfo
 import retrofit2.HttpException
 import java.io.IOException
 import java.net.ConnectException
@@ -13,11 +14,17 @@ import java.net.UnknownHostException
  *
  * Se construye a partir de cualquier [Throwable] mediante [NetworkErrorMapper.from]
  * para que los ViewModels no tengan que conocer la jerarquía de OkHttp/Retrofit.
+ *
+ * [message] se re-declara como `val` no-null para evitar el platform type
+ * `String!` que heredaríamos del getter de `java.lang.Exception.getMessage()`.
+ * Sin esto, los callsites tendrían que hacer `!!` o `?: ""` en cada uso.
  */
 class KhipuNetworkException(
     message: String,
     val isRetryable: Boolean = true
-) : Exception(message)
+) : Exception(message) {
+    override val message: String = message
+}
 
 /**
  * Mapea una excepción de red cruda a un [KhipuNetworkException] con mensaje
@@ -37,6 +44,42 @@ object NetworkErrorMapper {
      */
     fun from(throwable: Throwable, custom401: String?): KhipuNetworkException =
         map(throwable, custom401 = custom401)
+
+    /**
+     * T-17: detecta específicamente el caso de HTTP 409 con `code:
+     * "duplicate"` y retorna una [DuplicateNoteException] tipada.
+     * Retorna `null` si la excepción no es un 409 de duplicado.
+     *
+     * `existingNoteId` y `existingNoteTitle` pueden ser null si el
+     * upload anterior aún está siendo procesado por la IA. En ese
+     * caso, retornamos la excepción igual (con los campos null) para
+     * que la UI muestre el dialog genérico "se está procesando".
+     */
+    fun parseDuplicate(e: Throwable): DuplicateNoteException? {
+        if (e !is HttpException || e.code() != 409) return null
+        val raw = try {
+            e.response()?.errorBody()?.string()
+        } catch (_: Throwable) {
+            null
+        } ?: return null
+        return try {
+            val json = JSONObject(raw)
+            val detail = json.opt("detail") as? JSONObject ?: return null
+            val code = detail.optString("code")
+            if (code != "duplicate") return null
+            val noteId = detail.optString("existing_note_id").takeIf { it.isNotBlank() }
+            val noteTitle = detail.optString("existing_note_title").takeIf { it.isNotBlank() }
+            DuplicateNoteException(
+                DuplicateNoteInfo(
+                    code = code,
+                    existingNoteId = noteId,
+                    existingNoteTitle = noteTitle,
+                )
+            )
+        } catch (_: Throwable) {
+            null
+        }
+    }
 
     private fun map(throwable: Throwable, custom401: String?): KhipuNetworkException {
         return when (throwable) {
@@ -100,8 +143,10 @@ object NetworkErrorMapper {
      * FastAPI. Soporta los formatos comunes:
      *   - `{"detail": "mensaje simple"}`
      *   - `{"detail": [{"loc": [...], "msg": "..."}]}`  (errores de validación Pydantic)
+     *   - `{"detail": {"code": "...", ...}}`  (errores tipados, T-17)
      *
-     * Retorna `null` si el body no es JSON, está vacío o no tiene `detail`.
+     * Retorna `null` si el body no es JSON, está vacío o no tiene `detail`
+     * de un formato conocido.
      */
     private fun parseBackendDetail(e: HttpException): String? {
         val raw = try {
@@ -125,6 +170,14 @@ object NetworkErrorMapper {
                             .joinToString(".")
                     }
                     if (loc.isNullOrBlank()) msg else "$loc: $msg"
+                }
+                is JSONObject -> {
+                    // T-17: detail estructurado (ej. duplicate). El
+                    // código de error tipado se maneja en parseDuplicate(),
+                    // pero si llegamos aquí es que el caller no lo chequeó
+                    // y solo quiere un mensaje genérico. Mostramos el `code`
+                    // para que el desarrollador lo identifique en logs.
+                    detail.optString("code").takeIf { it.isNotBlank() }
                 }
                 else -> null
             }

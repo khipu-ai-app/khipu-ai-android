@@ -40,6 +40,12 @@ import pe.khipuai.app.ui.screens.quiz.QuizCreationScreen
 import pe.khipuai.app.ui.screens.subscription.SubscriptionScreen
 import pe.khipuai.app.ui.screens.fileviewer.FileViewerScreen
 import pe.khipuai.app.ui.screens.review.ReviewSessionScreen
+import pe.khipuai.app.ui.screens.exam.ExamConfigScreen
+import pe.khipuai.app.ui.screens.exam.ExamScreen
+import pe.khipuai.app.ui.screens.exam.ExamResultScreen
+import pe.khipuai.app.ui.screens.exam.ExamStep
+import pe.khipuai.app.ui.screens.exam.ExamViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun KhipuNavigation(
@@ -185,11 +191,13 @@ fun KhipuNavigation(
 
         composable(
             route = "${Screen.Capture.route}?preselectedCourseId={preselectedCourseId}",
-            arguments = listOf(navArgument("preselectedCourseId") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            })
+            arguments = listOf(
+                navArgument("preselectedCourseId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
         ) {
             CaptureScreen(
                 onNavigateToTab = { tabIndex ->
@@ -206,6 +214,15 @@ fun KhipuNavigation(
                 },
                 onNavigateToSubscription = { reason ->
                     navController.navigate(Screen.Subscription.create(reason))
+                },
+                // T-17: navegar a la nota existente desde el dialog
+                // de "Documento duplicado". Hacemos popUpTo del Capture
+                // para que al volver desde NoteDetail no se reactive el
+                // dialog de upload.
+                onNavigateToNoteDetail = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId") {
+                        popUpTo(Screen.Capture.route) { inclusive = false }
+                    }
                 }
             )
         }
@@ -351,6 +368,17 @@ fun KhipuNavigation(
             pe.khipuai.app.ui.screens.profile.FaqScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
+        }
+
+        // C-03: Modo Examen
+        composable(
+            route = "${Screen.Exam.route}/{courseId}?courseName={courseName}",
+            arguments = listOf(
+                navArgument("courseId") { type = NavType.StringType },
+                navArgument("courseName") { type = NavType.StringType; nullable = true; defaultValue = "" }
+            )
+        ) {
+            ExamHostScreen(onBack = { navController.popBackStack() })
         }
 
         composable(
@@ -541,6 +569,11 @@ fun KhipuNavigation(
                 },
                 onNavigateToStudy = { route ->
                     navController.navigate(route)
+                },
+                // C-03: Modo Examen
+                onNavigateToExam = { courseId, courseName ->
+                    val encoded = java.net.URLEncoder.encode(courseName, "UTF-8")
+                    navController.navigate("${Screen.Exam.route}/$courseId?courseName=$encoded")
                 }
             )
         }
@@ -592,6 +625,12 @@ fun KhipuNavigation(
                 },
                 onViewOriginalClick = { encodedPath ->
                     navController.navigate("${Screen.FileViewer.route}/$encodedPath")
+                },
+                // T-13 evolution: tap en un archivo adjunto → FileViewer
+                // con el `uploadId` del archivo (NO del legacy).
+                onFileClick = { fileId ->
+                    val encoded = java.net.URLEncoder.encode(fileId, "UTF-8")
+                    navController.navigate("${Screen.FileViewer.route}/$encoded")
                 },
                 onScheduleClick = { noteId, noteTitle ->
                     val encodedTitle = java.net.URLEncoder.encode(noteTitle, "UTF-8")
@@ -752,13 +791,47 @@ private fun handleDeepLink(navController: NavHostController, deepLink: String) {
             val noteId = deepLink.removePrefix("analysis/")
             "${Screen.Analysis.route}/$noteId"
         }
+        deepLink.startsWith("scheduled/") -> {
+            val noteId = deepLink.removePrefix("scheduled/")
+            "${Screen.NoteDetail.route}/$noteId"
+        }
+        deepLink.startsWith("note/") -> {
+            val noteId = deepLink.removePrefix("note/")
+            "${Screen.NoteDetail.route}/$noteId"
+        }
         deepLink == "achievements" -> "achievements"
-        else -> return // deep link desconocido, ignorar
+        deepLink.startsWith("achievements/") -> "achievements"
+        else -> {
+            android.util.Log.w("DeepLink", "Deep link desconocido: $deepLink")
+            return
+        }
     }
-    navController.navigate(target) {
-        // No hacemos popUpTo: queremos mantener el backstack para que el
-        // botón "Atrás" vuelva a la pantalla anterior.
-        launchSingleTop = true
+    try {
+        navController.navigate(target) {
+            popUpTo(navController.graph.startDestinationId) {
+                inclusive = false
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("DeepLink", "Fallo al navegar deep link '$deepLink': ${e.message}")
+    }
+}
+
+// ── C-03: Exam routes ────────────────────────────────────────────────────
+
+@Composable
+fun ExamHostScreen(
+    onBack: () -> Unit,
+    viewModel: ExamViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsState()
+    when (state.step) {
+        ExamStep.CONFIG -> ExamConfigScreen(onBack = onBack, onStartExam = { })
+        ExamStep.EXAM -> ExamScreen(onBack = onBack)
+        ExamStep.RESULTS -> ExamResultScreen(onBackToCourse = onBack)
     }
 }
 
@@ -795,4 +868,5 @@ sealed class Screen(val route: String) {
     object ReviewSession : Screen("review_session")
     object NotificationSettings : Screen("notification_settings")
     object Faq : Screen("faq")
+    object Exam : Screen("exam")
 }

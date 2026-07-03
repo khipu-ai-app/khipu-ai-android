@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.capture
+﻿package pe.khipuai.app.ui.screens.capture
 
 import android.content.Context
 import android.net.Uri
@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +51,9 @@ fun CaptureScreen(
     onNavigateToTab: (Int) -> Unit,
     onNavigateToProcessing: (String) -> Unit = {},
     onNavigateToSubscription: (String?) -> Unit = {},
+    // T-17: navegar a la nota existente al hacer "Ver nota existente"
+    // en el dialog de duplicado.
+    onNavigateToNoteDetail: (String) -> Unit = {},
     viewModel: CaptureViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -61,6 +65,28 @@ fun CaptureScreen(
             onNavigateToSubscription("limit_reached")
         }
     }
+
+    // T-17: escuchar el evento de "upload exitoso" para iniciar el
+    // polling. Se consume tanto para el flujo normal como para el
+    // reintento forzado desde el dialog de duplicado.
+    LaunchedEffect(Unit) {
+        viewModel.uploadedEvents.collect { id ->
+            onNavigateToProcessing(id)
+        }
+    }
+
+    // T-13 combine: cuando el combine termina exitosamente, navegamos
+    // a NoteDetail con el noteId.
+    LaunchedEffect(Unit) {
+        viewModel.combineUploadedEvents.collect { noteId ->
+            onNavigateToNoteDetail(noteId)
+        }
+    }
+
+    // T-13 evolution: cuando el usuario está agregando un archivo a
+    // una nota existente, al éxito del upload navegamos de vuelta a
+    // esa nota (no a Processing, porque la nota ya existía).
+    // (El VM ya tiene preselectedNoteId, lo usamos desde el banner.)
 
     // T-02: recargar usage al volver al frente
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -134,7 +160,7 @@ fun CaptureScreen(
                 .padding(paddingValues),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Banner de uso Freemium (T-02) — visible en los 3 modos
+    // Banner de uso Freemium (T-02) — visible en los 3 modos
             UsageBanner(
                 capturesUsed = uiState.capturesUsed,
                 capturesLimit = uiState.capturesLimit,
@@ -152,13 +178,12 @@ fun CaptureScreen(
             when (mode) {
                 CaptureMode.CAMERA -> CameraModeBody(
                     onProcessFile = { file ->
-                        // T-05: el archivo capturado entra al mismo pipeline
-                        // que la galería: processAndUploadImage valida el
-                        // límite Freemium (T-02) y sube. Si supera el
-                        // límite, dispara el evento `limitReachedEvents`
-                        // que navega a SubscriptionScreen.
-                        viewModel.processAndUploadImage(file) { id ->
-                            if (id != null) onNavigateToProcessing(id)
+                        if (uiState.combineMode) {
+                            viewModel.addFileToCombineBuffer(file)
+                        } else {
+                            viewModel.processAndUploadImage(file) { id ->
+                                if (id != null) onNavigateToProcessing(id)
+                            }
                         }
                     }
                 )
@@ -182,7 +207,137 @@ fun CaptureScreen(
                 courses = uiState.courses,
                 onDestinationChange = viewModel::updateDestination
             )
+
+            // T-13 combine: toggle para activar modo combinación
+            CombineToggleRow(
+                isActive = uiState.combineMode,
+                onToggle = viewModel::toggleCombineMode,
+            )
+
+            // T-13 combine: indicador de archivos pendientes (solo visible
+            // cuando hay al menos 2 archivos en el buffer).
+            if (uiState.combineMode && uiState.pendingFileCount > 0) {
+                CombinePendingBanner(
+                    count = uiState.pendingFileCount,
+                    onCombine = viewModel::combineAndUpload,
+                )
+            }
         }
+    }
+
+    // T-17: dialog de "Documento duplicado". Se renderiza encima del
+    // Scaffold cuando el backend rechaza un upload con 409. Ofrece 3
+    // acciones al usuario:
+    //   - Ver nota existente: navega a NoteDetail de la nota que ya
+    //     tiene este archivo.
+    //   - Subir de todas formas: reintenta con X-Force-Upload: true
+    //     (el usuario confirma que es una nota distinta).
+    //   - Cancelar: descarta el dialog sin hacer nada.
+    uiState.duplicateDialog?.let { dialog ->
+        val existingNoteId = dialog.info.existingNoteId
+        val existingNoteTitle = dialog.info.existingNoteTitle
+        val canNavigateToExisting = !existingNoteId.isNullOrBlank()
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissDuplicateDialog() },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.FileCopy,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(40.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Documento duplicado",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    if (canNavigateToExisting) {
+                        Text(
+                            text = "Este archivo ya fue subido antes. Ya existe una nota con este contenido:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        // Card con la info de la nota existente
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Description,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = existingNoteTitle ?: "(sin título)",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 2,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    } else {
+                        // Caso edge: el upload anterior aún está siendo
+                        // procesado por la IA. La nota todavía no existe,
+                        // así que no podemos navegar a ella.
+                        Text(
+                            text = "Este archivo ya fue subido antes y está siendo procesado por la IA. Espera unos minutos a que termine.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (canNavigateToExisting) {
+                    TextButton(onClick = {
+                        viewModel.dismissDuplicateDialog()
+                        onNavigateToNoteDetail(existingNoteId)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Visibility,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Ver nota existente")
+                    }
+                } else {
+                    // Sin nota existente, el confirmButton es solo cerrar
+                    TextButton(onClick = { viewModel.dismissDuplicateDialog() }) {
+                        Text("Entendido")
+                    }
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = { viewModel.dismissDuplicateDialog() }) {
+                        Text("Cancelar")
+                    }
+                    TextButton(
+                        onClick = { viewModel.forceUploadDuplicate() },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("Subir de todas formas", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -585,7 +740,144 @@ private fun DestinationSection(
     }
 }
 
-// ── Usage banner (movido del screen anterior) ──────────────────────────────
+// ── T-13 evolution: banner "Agregando a nota existente" ────────────────────
+
+/**
+ * Banner que se muestra en la parte superior de CaptureScreen cuando
+ * el usuario llegó aquí desde NoteDetail con `preselectedNoteId`. Le
+ * indica que los archivos que suba se agregarán a la nota existente
+ * (no crearán una nueva).
+ */
+@Composable
+private fun AddToNoteBanner() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Agregando a nota existente",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = "Los archivos que subas se acumularán en esta nota. El título y resumen no se modificarán.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+    }
+}
+
+
+
+// ── T-13 combine: toggle + banner ────────────────────────────────────────
+
+@Composable
+private fun CombineToggleRow(
+    isActive: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Combinar en una sola nota",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = if (isActive) "Los archivos se agruparán en 1 nota."
+                       else "Cada archivo genera una nota separada.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(
+            checked = isActive,
+            onCheckedChange = { onToggle() },
+        )
+    }
+}
+
+@Composable
+private fun CombinePendingBanner(
+    count: Int,
+    onCombine: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Layers,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "$count archivo(s) listo(s) para combinar",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = "Se procesarán como una sola nota.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            FilledTonalButton(
+                onClick = onCombine,
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Text("Combinar", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+
+// ── Usage banner ────────────────────────────────────────────────────────────
 
 @Composable
 private fun UsageBanner(
@@ -607,31 +899,21 @@ private fun UsageBanner(
     }
     val title = when {
         isPro -> "Plan Pro activo"
-        atLimit -> "Has alcanzado el límite"
+        atLimit -> "Has alcanzado el limite"
         else -> "Plan Gratuito"
     }
     val subtitle = when {
         isPro -> "Tienes capturas ilimitadas."
-        atLimit -> "Hazte Pro para subir más apuntes este mes."
-        else -> {
-            val remaining = (capturesLimit - capturesUsed).coerceAtLeast(0)
-            "Te quedan $remaining de $capturesLimit capturas este mes."
-        }
+        atLimit -> "Hazte Pro para subir mas apuntes este mes."
+        else -> "Te quedan ${(capturesLimit - capturesUsed).coerceAtLeast(0)} de $capturesLimit capturas este mes."
     }
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor, contentColor = contentColor),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -643,18 +925,18 @@ private fun UsageBanner(
                 Button(
                     onClick = { onUpgradeClick(null) },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Text("Ser Pro")
-                }
+                ) { Text("Ser Pro") }
             }
         }
     }
 }
 
-private fun uriToFile(context: Context, uri: Uri, extensionSuffix: String): File? {
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+private fun uriToFile(context: android.content.Context, uri: android.net.Uri, extensionSuffix: String): java.io.File? {
     return try {
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-        val tempFile = File(context.cacheDir, "khipu_ingest_${System.currentTimeMillis()}$extensionSuffix")
+        val tempFile = java.io.File(context.cacheDir, "khipu_ingest_${System.currentTimeMillis()}$extensionSuffix")
         tempFile.outputStream().use { inputStream.copyTo(it) }
         tempFile
     } catch (e: Exception) {

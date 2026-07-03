@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.notedetail
+﻿package pe.khipuai.app.ui.screens.notedetail
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,6 +31,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import pe.khipuai.app.R
+import pe.khipuai.app.data.remote.dto.NoteFileResponse
+import pe.khipuai.app.ui.theme.parseCourseColor
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -40,10 +44,14 @@ fun NoteDetailScreen(
     onNavigateToQuizCreation: () -> Unit = {},
     onViewOriginalClick: (String) -> Unit = {},
     onScheduleClick: (String, String) -> Unit,
+    // T-13 evolution: navegar al FileViewer con el `uploadId` del archivo
+    // adjunto que el usuario tocó en la lista.
+    onFileClick: (String) -> Unit = {},
     viewModel: NoteDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     LaunchedEffect(uiState.snackbarMessage) {
         uiState.snackbarMessage?.let {
@@ -230,6 +238,20 @@ fun NoteDetailScreen(
                                     )
                                 }
                             )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Compartir") },
+                                onClick = {
+                                    menuExpanded = false
+                                    shareNote(context, uiState.title, uiState.aiSummary, uiState.keyConcepts)
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = null
+                                    )
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Eliminar permanentemente", color = MaterialTheme.colorScheme.error) },
                                 onClick = {
@@ -314,6 +336,9 @@ fun NoteDetailScreen(
 
             // SECCIÓN: Metadatos
             item {
+                val courseColor = remember(uiState.courseColorHex) {
+                    parseCourseColor(uiState.courseColorHex)
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -322,23 +347,46 @@ fun NoteDetailScreen(
                         Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(stringResource(id = R.string.label_captured_date, uiState.capturedDate), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    // T-16: dot del color del curso + nombre. Antes era
+                    // solo un icono Folder gris.
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        // Box del dot: 8dp, círculo, color del curso
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(courseColor)
+                        )
                         Text(uiState.courseName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
 
+            // T-13 evolution: lista de archivos adjuntos. Aparece
+            // siempre que la nota tenga archivos (1 o más).
+            if (uiState.files.isNotEmpty()) {
+                item {
+                    AttachedFilesSection(
+                        files = uiState.files,
+                        onFileClick = onFileClick,
+                    )
+                }
+            }
+
             // SECCIÓN: Resumen Ejecutivo Khipu (IA)
             item {
+                val courseColor = remember(uiState.courseColorHex) {
+                    parseCourseColor(uiState.courseColorHex)
+                }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Box(modifier = Modifier.fillMaxWidth()) {
-                        // Acento de borde izquierdo semántico
-                        Box(modifier = Modifier.width(4.dp).height(120.dp).background(MaterialTheme.colorScheme.secondaryContainer).align(Alignment.CenterStart))
+                        // T-16: acento lateral del color del curso
+                        // (antes era secondaryContainer genérico).
+                        Box(modifier = Modifier.width(4.dp).height(120.dp).background(courseColor).align(Alignment.CenterStart))
 
                         Column(modifier = Modifier.padding(16.dp).padding(start = 8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -716,3 +764,171 @@ private fun ReviewHistoryError(errorMessage: String, onRetry: () -> Unit) {
         }
     }
 }
+
+
+
+// ── T-13 evolution: lista de archivos adjuntos ───────────────────────────
+
+/**
+ * Sección "Archivos adjuntos" en el detalle de la nota. Lista los
+ * archivos en orden cronológico (más viejo primero) con un botón
+ * inline "+ Agregar otro archivo" debajo para que el usuario
+ * siga acumulando sin perderse.
+ *
+ * Tap en un archivo → `onFileClick(fileId)` (navega a FileViewer).
+ */
+@Composable
+private fun AttachedFilesSection(
+    files: List<pe.khipuai.app.data.remote.dto.NoteFileResponse>,
+    onFileClick: (String) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(
+                    imageVector = Icons.Default.AttachFile,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Archivos adjuntos (${files.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            files.forEach { file ->
+                FileListItem(
+                    file = file,
+                    onClick = { onFileClick(file.id) },
+                )
+            }
+
+        }
+    }
+}
+
+/**
+ * Item individual de la lista: ícono según tipo (PDF/imagen) + nombre
+ * + fecha relativa. Toda la fila es clickeable.
+ */
+@Composable
+private fun FileListItem(
+    file: pe.khipuai.app.data.remote.dto.NoteFileResponse,
+    onClick: () -> Unit,
+) {
+    val isImage = file.fileType.lowercase() in listOf("png", "jpg", "jpeg", "webp")
+    val icon = when {
+        isImage -> Icons.Default.Image
+        file.fileType.lowercase() == "pdf" -> Icons.Default.PictureAsPdf
+        else -> Icons.Default.Description
+    }
+    val iconTint = when {
+        isImage -> Color(0xFF2E7D32)
+        file.fileType.lowercase() == "pdf" -> Color(0xFFC62828)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(iconTint.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = file.filename,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            Text(
+                text = formatRelativeDate(file.createdAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+/**
+ * Convierte un ISO 8601 a algo legible: "Hoy", "Ayer", "Hace 3 días",
+ * o la fecha. Es un helper temporal hasta que se integre un helper
+ * global de fechas en la app.
+ */
+private fun formatRelativeDate(iso: String): String {
+    return try {
+        val instant = java.time.Instant.parse(iso)
+        val date = instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        val today = java.time.LocalDate.now()
+        val daysAgo = java.time.temporal.ChronoUnit.DAYS.between(date, today)
+        when {
+            daysAgo == 0L -> "Hoy"
+            daysAgo == 1L -> "Ayer"
+            daysAgo in 2..6L -> "Hace $daysAgo días"
+            else -> date.format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy"))
+        }
+    } catch (_: Exception) {
+        iso
+    }
+}
+
+// ── C-01: Compartir nota ─────────────────────────────────────────────────
+
+private fun shareNote(context: android.content.Context, title: String, summary: String, concepts: List<String>) {
+    val conceptsText = if (concepts.isEmpty()) "" else
+        concepts.joinToString("\n") { "• $it" }
+    val shareText = buildString {
+        appendLine("📚 $title — Khipu AI")
+        appendLine()
+        if (summary.isNotBlank()) {
+            appendLine("📝 Resumen:")
+            appendLine(summary)
+            appendLine()
+        }
+        if (conceptsText.isNotBlank()) {
+            appendLine("🔑 Conceptos clave:")
+            append(conceptsText)
+            appendLine()
+            appendLine()
+        }
+        append("Creado con Khipu AI — https://khipuai.com")
+    }
+    val sendIntent = android.content.Intent().apply {
+        action = android.content.Intent.ACTION_SEND
+        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+        type = "text/plain"
+    }
+    val chooser = android.content.Intent.createChooser(sendIntent, "Compartir nota")
+    context.startActivity(chooser)
+}
+

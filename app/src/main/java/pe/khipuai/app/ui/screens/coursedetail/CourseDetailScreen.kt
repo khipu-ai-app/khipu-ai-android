@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.khipuai.app.ui.theme.KhipuAITheme
+import pe.khipuai.app.ui.theme.parseCourseColor
 
 // =========================================================================================
 //  Top-level entry point
@@ -104,6 +105,7 @@ fun CourseDetailScreen(
     onNavigateToCapture: (String) -> Unit = {},
     onNavigateToTutor: (String) -> Unit = {},
     onNavigateToStudy: (route: String) -> Unit = {},
+    onNavigateToExam: (courseId: String, courseName: String) -> Unit = { _: String, _: String -> },
     viewModel: CourseDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -143,6 +145,13 @@ fun CourseDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.MenuBook,
                             contentDescription = "Tutor del curso"
+                        )
+                    }
+                    // C-03: Modo Examen
+                    IconButton(onClick = { onNavigateToExam(uiState.courseId, uiState.courseName) }) {
+                        Icon(
+                            imageVector = Icons.Default.Checklist,
+                            contentDescription = "Modo Examen"
                         )
                     }
                 }
@@ -1475,11 +1484,7 @@ private fun Scaffold(
 //  Helpers
 // =========================================================================================
 
-private fun parseCourseColor(hex: String?): Color {
-    if (hex.isNullOrBlank()) return Color(0xFF6750A4)
-    return runCatching { Color(android.graphics.Color.parseColor(hex)) }
-        .getOrElse { Color(0xFF6750A4) }
-}
+// parseCourseColor movido a pe.khipuai.app.ui.theme.CourseColor (T-16: helper compartido).
 
 // =========================================================================================
 //  Previews

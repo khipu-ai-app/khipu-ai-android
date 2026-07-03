@@ -81,7 +81,7 @@ class LocalNotificationDispatcher @Inject constructor(
             channelId = CHANNEL_REMINDERS,
             title = "📚 Toca repasar: $noteTitle",
             body = "Tienes un repaso agendado para hoy en Khipu. ¡Ánimo!",
-            deepLink = NotificationDeepLinks.processingComplete(noteId)
+            deepLink = NotificationDeepLinks.scheduledReminder(noteId)
         )
     }
 

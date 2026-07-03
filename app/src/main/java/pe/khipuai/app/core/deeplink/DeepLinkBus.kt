@@ -21,7 +21,7 @@ import javax.inject.Singleton
 class DeepLinkBus @Inject constructor() {
 
     private val _events = MutableSharedFlow<String>(
-        replay = 0,
+        replay = 1,
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )

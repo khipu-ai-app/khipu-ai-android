@@ -10,9 +10,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import pe.khipuai.app.core.network.DuplicateNoteException
+import pe.khipuai.app.core.network.NetworkErrorMapper
+import pe.khipuai.app.data.remote.dto.DuplicateNoteInfo
 import pe.khipuai.app.data.repository.AuthRepository
 import pe.khipuai.app.data.repository.CourseRepository
 import pe.khipuai.app.data.repository.UploadRepository
+import retrofit2.HttpException
 import java.io.File
 import javax.inject.Inject
 
@@ -20,6 +24,13 @@ data class CourseOption(
     val id: String,
     val name: String
 )
+
+internal sealed class UploadOutcome {
+    data class Success(val uploadId: String) : UploadOutcome()
+    data object LimitReached : UploadOutcome()
+    data class Duplicate(val exception: DuplicateNoteException) : UploadOutcome()
+    data class GenericError(val message: String) : UploadOutcome()
+}
 
 data class CaptureUiState(
     val selectedDestination: String = "Autoclasificar con IA",
@@ -31,7 +42,17 @@ data class CaptureUiState(
     val uploadedId: String? = null,
     val capturesUsed: Int = 0,
     val capturesLimit: Int = 5,
-    val isPro: Boolean = false
+    val isPro: Boolean = false,
+    val combineMode: Boolean = false,
+    val pendingFiles: List<File> = emptyList(),
+    val pendingFileCount: Int = 0,
+    val duplicateDialog: DuplicateDialogState? = null,
+)
+
+data class DuplicateDialogState(
+    val info: DuplicateNoteInfo,
+    val file: File,
+    val mimeType: String,
 )
 
 enum class CaptureMode {
@@ -51,12 +72,14 @@ class CaptureViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(CaptureUiState())
     val uiState: StateFlow<CaptureUiState> = _uiState.asStateFlow()
 
-    // Evento one-shot: cuando el usuario intenta subir y está al límite,
-    // emitimos Unit aquí. La Screen lo colecta y navega a Subscription.
-    // Usamos un Channel para que el evento se consuma una sola vez y
-    // no se reactive en recomposiciones.
     private val _limitReachedEvents = Channel<Unit>(Channel.BUFFERED)
     val limitReachedEvents = _limitReachedEvents.receiveAsFlow()
+
+    private val _uploadedEvents = Channel<String>(Channel.BUFFERED)
+    val uploadedEvents = _uploadedEvents.receiveAsFlow()
+
+    private val _combineUploadedEvents = Channel<String>(Channel.BUFFERED)
+    val combineUploadedEvents = _combineUploadedEvents.receiveAsFlow()
 
     init {
         viewModelScope.launch {
@@ -79,7 +102,7 @@ class CaptureViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     courses = activeCourses,
                     selectedDestination = if (_uiState.value.selectedDestinationId == null && _uiState.value.selectedDestination == "Autoclasificar con IA") defaultDestName else _uiState.value.selectedDestination,
-                    selectedDestinationId = if (_uiState.value.selectedDestinationId == null && _uiState.value.selectedDestination == "Autoclasificar con IA") defaultDestId else _uiState.value.selectedDestinationId
+                    selectedDestinationId = if (_uiState.value.selectedDestinationId == null && _uiState.value.selectedDestination == "Autoclasificar con IA") defaultDestId else _uiState.value.selectedDestinationId,
                 )
             }
         }
@@ -89,10 +112,6 @@ class CaptureViewModel @Inject constructor(
         loadUsage()
     }
 
-    /**
-     * T-02: recarga el contador de capturas. Llamar al volver de
-     * SubscriptionScreen después de un upgrade para refrescar la UI.
-     */
     fun loadUsage() {
         viewModelScope.launch {
             authRepository.fetchUsage()
@@ -105,8 +124,6 @@ class CaptureViewModel @Inject constructor(
                         )
                     }
                 }
-                // Si falla, mantenemos los valores por defecto (no bloqueamos
-                // la pantalla por un error de red en la carga de usage)
         }
     }
 
@@ -117,87 +134,111 @@ class CaptureViewModel @Inject constructor(
         )
     }
 
-    // Procesa el envío de archivos de imagen capturados por la cámara del celular
     fun processAndUploadImage(file: File, onResult: (String?) -> Unit) {
-        // T-02: chequeo local ANTES de gastar batería subiendo el archivo.
-        // La fuente de verdad es el backend (que retorna 402 si está al
-        // límite), pero validamos acá para evitar el viaje redondo.
+        uploadInternal(file, "image/jpeg", CaptureMode.CAMERA, forceUpload = false, onResult)
+    }
+
+    fun processAndUploadDocument(file: File, mimeType: String, onResult: (String?) -> Unit) {
+        uploadInternal(file, mimeType, CaptureMode.UPLOAD, forceUpload = false, onResult)
+    }
+
+    fun forceUploadDuplicate() {
+        val dialog = _uiState.value.duplicateDialog ?: return
+        _uiState.value = _uiState.value.copy(duplicateDialog = null)
+        uploadInternal(dialog.file, dialog.mimeType, _uiState.value.captureMode, forceUpload = true) {}
+    }
+
+    fun dismissDuplicateDialog() {
+        _uiState.value = _uiState.value.copy(duplicateDialog = null)
+    }
+
+    // ─── Combine ──────────────────────────────────────────────────────────
+
+    fun toggleCombineMode() {
+        val newMode = !_uiState.value.combineMode
+        _uiState.value = _uiState.value.copy(
+            combineMode = newMode,
+            pendingFiles = if (!newMode) emptyList() else _uiState.value.pendingFiles,
+            pendingFileCount = if (!newMode) 0 else _uiState.value.pendingFileCount,
+        )
+    }
+
+    fun addFileToCombineBuffer(file: File) {
+        val current = _uiState.value
+        _uiState.value = current.copy(
+            pendingFiles = current.pendingFiles + file,
+            pendingFileCount = current.pendingFileCount + 1,
+        )
+    }
+
+    fun combineAndUpload() {
+        val files = _uiState.value.pendingFiles
+        if (files.size < 2) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Necesitas al menos 2 archivos.")
+            return
+        }
         if (isAtLimit()) {
             _limitReachedEvents.trySend(Unit)
             return
         }
-
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                errorMessage = null,
-                captureMode = CaptureMode.CAMERA
-            )
-
-            val currentCourseId = _uiState.value.selectedDestinationId
-            val result = uploadRepository.uploadFile(file, mimeType = "image/jpeg", courseId = currentCourseId)
-
-            result.onSuccess { response ->
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    uploadedId = response.id
-                )
-                // Refrescar usage después de cada upload exitoso
-                loadUsage()
-                onResult(response.id)
-            }.onFailure { exception ->
-                // Si el backend retorna 402 (Payment Required) por el límite,
-                // también disparamos el evento de paywall en vez de mostrar
-                // un error genérico.
-                if (isPaymentRequiredError(exception)) {
-                    loadUsage() // sincronizar contador
-                    _limitReachedEvents.trySend(Unit)
-                } else {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            val mimeTypes = List(files.size) { "image/jpeg" }
+            val courseId = _uiState.value.selectedDestinationId
+            uploadRepository.combineFiles(files, mimeTypes, courseId)
+                .onSuccess { response ->
                     _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
+                        isLoading = false, pendingFiles = emptyList(), pendingFileCount = 0,
                     )
+                    loadUsage()
+                    _combineUploadedEvents.trySend(response.noteId)
                 }
-                onResult(null)
-            }
+                .onFailure { e ->
+                    val msg = when {
+                        isPaymentRequiredError(e) -> { loadUsage(); _limitReachedEvents.trySend(Unit); return@launch }
+                        NetworkErrorMapper.parseDuplicate(e) != null -> "'${NetworkErrorMapper.parseDuplicate(e)!!.info.existingNoteTitle}' ya existe."
+                        else -> NetworkErrorMapper.from(e).message
+                    }
+                    _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = msg)
+                }
         }
     }
 
-    // Procesa la carga de archivos locales (PDFs o Imágenes de la Galería)
-    fun processAndUploadDocument(file: File, mimeType: String, onResult: (String?) -> Unit) {
-        // T-02: idem al caso de cámara
-        if (isAtLimit()) {
-            _limitReachedEvents.trySend(Unit)
-            return
-        }
+    // ─── Upload interno (single) ──────────────────────────────────────────
 
+    private fun uploadInternal(file: File, mimeType: String, captureMode: CaptureMode, forceUpload: Boolean, onResult: (String?) -> Unit) {
+        if (isAtLimit()) { _limitReachedEvents.trySend(Unit); return }
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                errorMessage = null,
-                captureMode = CaptureMode.UPLOAD
-            )
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, captureMode = captureMode)
+            val result = uploadRepository.uploadFile(file, mimeType, _uiState.value.selectedDestinationId, forceUpload)
+            val outcome = result.fold(onSuccess = { UploadOutcome.Success(it.id) }, onFailure = { classifyUploadError(it) })
+            applyOutcome(outcome, file, mimeType, onResult)
+        }
+    }
 
-            val currentCourseId = _uiState.value.selectedDestinationId
-            val result = uploadRepository.uploadFile(file, mimeType, courseId = currentCourseId)
+    internal fun classifyUploadError(exception: Throwable): UploadOutcome {
+        if (isPaymentRequiredError(exception)) return UploadOutcome.LimitReached
+        val duplicate = NetworkErrorMapper.parseDuplicate(exception)
+        if (duplicate != null) return UploadOutcome.Duplicate(duplicate)
+        return UploadOutcome.GenericError(NetworkErrorMapper.from(exception).message)
+    }
 
-            result.onSuccess { response ->
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    uploadedId = response.id
-                )
-                loadUsage()
-                onResult(response.id)
-            }.onFailure { exception ->
-                if (isPaymentRequiredError(exception)) {
-                    loadUsage()
-                    _limitReachedEvents.trySend(Unit)
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
-                    )
-                }
+    private fun applyOutcome(outcome: UploadOutcome, file: File, mimeType: String, onResult: (String?) -> Unit) {
+        when (outcome) {
+            is UploadOutcome.Success -> {
+                _uiState.value = _uiState.value.copy(isLoading = false, uploadedId = outcome.uploadId, duplicateDialog = null)
+                loadUsage(); _uploadedEvents.trySend(outcome.uploadId); onResult(outcome.uploadId)
+            }
+            is UploadOutcome.LimitReached -> {
+                loadUsage(); _limitReachedEvents.trySend(Unit)
+                _uiState.value = _uiState.value.copy(isLoading = false); onResult(null)
+            }
+            is UploadOutcome.Duplicate -> {
+                _uiState.value = _uiState.value.copy(isLoading = false, duplicateDialog = DuplicateDialogState(outcome.exception.info, file, mimeType))
+                onResult(null)
+            }
+            is UploadOutcome.GenericError -> {
+                _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = outcome.message)
                 onResult(null)
             }
         }
@@ -208,11 +249,7 @@ class CaptureViewModel @Inject constructor(
         return !s.isPro && s.capturesLimit > 0 && s.capturesUsed >= s.capturesLimit
     }
 
-    private fun isPaymentRequiredError(e: Throwable): Boolean {
-        return e is retrofit2.HttpException && e.code() == 402
-    }
+    private fun isPaymentRequiredError(e: Throwable): Boolean = e is HttpException && e.code() == 402
 
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(errorMessage = null)
-    }
+    fun clearError() { _uiState.value = _uiState.value.copy(errorMessage = null) }
 }

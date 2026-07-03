@@ -40,8 +40,50 @@ interface KhipuApiService {
     @POST("v1/uploads")
     suspend fun uploadDocument(
         @Part file: MultipartBody.Part,
-        @Part("course_id") courseId: RequestBody?
+        @Part("course_id") courseId: RequestBody?,
+        // T-17: si es true, el backend ignora el chequeo de hash y
+        // permite subir el archivo aunque ya exista una nota con el
+        // mismo contenido. El cliente lo envía SOLO cuando el usuario
+        // confirma en el dialog de "Documento duplicado" que quiere
+        // crear una nueva nota con el mismo archivo.
+        @Header("X-Force-Upload") forceUpload: Boolean = false,
     ): UploadResponse
+
+    /**
+     * T-18: sube N archivos para crear una nueva nota multi-página.
+     */
+    /**
+     * T-13 evolution: lista los archivos adjuntos a una nota
+     * (incluye el primer upload legacy + los adicionales).
+     */
+    @GET("v1/notes/{note_id}/files")
+    suspend fun getNoteFiles(
+        @Path("note_id") noteId: String,
+    ): NoteFilesListResponse
+
+    @POST("v1/exams/courses/{course_id}/generate")
+    suspend fun generateExam(
+        @Path("course_id") courseId: String,
+        @Body request: ExamGenerateRequest,
+    ): ExamGenerateResponse
+
+    @POST("v1/exams/{exam_id}/submit")
+    suspend fun submitExam(
+        @Path("exam_id") examId: String,
+        @Body request: ExamSubmitRequest,
+    ): ExamResultResponse
+
+    /**
+     * T-13 combine: sube N archivos como una sola nota combinada.
+     * El backend corre OCR en cada archivo, pasa el texto combinado
+     * a la IA, y crea UNA nota con todos los archivos asociados.
+     */
+    @Multipart
+    @POST("v1/uploads/combine")
+    suspend fun combineUpload(
+        @Part files: List<MultipartBody.Part>,
+        @Part("course_id") courseId: okhttp3.RequestBody?,
+    ): CombineUploadResponse
 
     @GET("v1/uploads/{upload_id}")
     suspend fun getUploadStatus(
@@ -215,4 +257,4 @@ interface KhipuApiService {
 
     @DELETE("v1/uploads/{upload_id}")
     suspend fun deleteUpload(@Path("upload_id") uploadId: String)
-}
+}

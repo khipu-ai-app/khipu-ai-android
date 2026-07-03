@@ -7,4 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="khipu_primary">#FF6750A4</color>
+    <color name="khipu_on_surface">#FF1D1B20</color>
+    <color name="khipu_on_surface_variant">#FF49454F</color>
+    <color name="khipu_outline_variant">#FFCAC4D0</color>
+    <color name="khipu_surface">#FFFFFBFE</color>
+    <color name="khipu_success">#FF2E7D32</color>
 </resources>

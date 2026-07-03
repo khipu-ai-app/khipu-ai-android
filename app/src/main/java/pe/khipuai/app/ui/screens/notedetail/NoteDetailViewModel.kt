@@ -54,8 +54,12 @@ data class NoteDetailUiState(
     val capturedDate: String = "",
     val courseId: String? = null,
     val courseName: String = "",
+    // T-16: hex del color del curso (formato "#RRGGBB"). Se usa para
+    // teñir el dot en los metadatos y el acento lateral del Card de
+    // "Resumen Ejecutivo Khipu". Null si la nota no tiene curso o el
+    // curso no tiene color.
+    val courseColorHex: String? = null,
     val aiSummary: String = "",
-    val extractedText: String = "",
     val keyConcepts: List<String> = emptyList(),
     val historyTimeline: List<HistoryItemUiModel> = emptyList(),
     val isLoading: Boolean = false,
@@ -70,7 +74,12 @@ data class NoteDetailUiState(
     // T-06: historial de repasos por nota
     val reviewSessions: List<ReviewSessionUiModel> = emptyList(),
     val isReviewHistoryLoading: Boolean = false,
-    val reviewHistoryError: String? = null
+    val reviewHistoryError: String? = null,
+    // T-13 evolution: archivos adjuntos a la nota. Vacío mientras
+    // se carga. Se actualiza también cuando el usuario agrega
+    // archivos desde la pantalla.
+    val files: List<pe.khipuai.app.data.remote.dto.NoteFileResponse> = emptyList(),
+    val isFilesLoading: Boolean = false,
 )
 
 @HiltViewModel
@@ -94,7 +103,20 @@ class NoteDetailViewModel @Inject constructor(
             // Cargar cursos disponibles para el diálogo de reasociación
             launch {
                 courseRepository.observeAll().collect { courses ->
-                    _uiState.value = _uiState.value.copy(availableCourses = courses)
+                    val current = _uiState.value
+                    // T-16: re-resolver el color del curso si la nota ya
+                    // cargó pero los cursos aún no estaban en cache
+                    // (orden de carga: el Flow puede emitir después de
+                    // getNoteDetail). Si el `courseId` ya está seteado y
+                    // el color aún no, lo copiamos.
+                    val resolvedColor = current.courseColorHex
+                        ?: current.courseId?.let { id ->
+                            courses.firstOrNull { it.id == id }?.color
+                        }
+                    _uiState.value = current.copy(
+                        availableCourses = courses,
+                        courseColorHex = resolvedColor,
+                    )
                 }
             }
 
@@ -123,12 +145,19 @@ class NoteDetailViewModel @Inject constructor(
                         capturedDate = formatDate(detail.createdAt),
                         courseId = detail.courseId,
                         courseName = detail.courseName ?: "General",
+                        // T-16: resolver el color del curso desde la
+                        // cache local (Room). Si el curso existe en la
+                        // lista observada, copiamos su color; si no, null.
+                        courseColorHex = detail.courseId?.let { id ->
+                            _uiState.value.availableCourses.firstOrNull { it.id == id }?.color
+                        },
                         aiSummary = detail.summary,
-                        extractedText = "",
                         keyConcepts = detail.topics.map { it.name },
                         historyTimeline = timeline
                     )
                     loadReviewHistory()
+                    // T-13 evolution: cargar los archivos de la nota.
+                    loadFiles()
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
@@ -274,6 +303,28 @@ class NoteDetailViewModel @Inject constructor(
 
     fun clearSnackbar() {
         _uiState.value = _uiState.value.copy(snackbarMessage = null)
+    }
+
+    /**
+     * T-13 evolution: carga la lista de archivos adjuntos a esta nota
+     * desde el backend. Actualiza `uiState.files`.
+     */
+    private fun loadFiles() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isFilesLoading = true)
+            noteRepository.getNoteFiles(noteId)
+                .onSuccess { response ->
+                    _uiState.value = _uiState.value.copy(
+                        isFilesLoading = false,
+                        files = response.files
+                    )
+                }
+                .onFailure {
+                    _uiState.value = _uiState.value.copy(
+                        isFilesLoading = false
+                    )
+                }
+        }
     }
 
     /** Convierte ISO 8601 (ej: "2024-10-24T12:00:00") → "24 Oct, 2024". */
