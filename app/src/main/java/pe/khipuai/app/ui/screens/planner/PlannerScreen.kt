@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import pe.khipuai.app.ui.components.BottomNavigationBar
+import pe.khipuai.app.core.ui.ContextualTip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +39,12 @@ fun PlannerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // C-06: tip contextual al abrir el Planner por primera vez
+    ContextualTip(
+        tipId = "planner",
+        message = "Aquí está tu agenda de repaso. El algoritmo SM-2 calcula cuándo necesitas repasar cada concepto para no olvidarlo."
+    )
 
     // Mostrar snackbar cuando hay mensaje
     LaunchedEffect(uiState.snackbarMessage) {

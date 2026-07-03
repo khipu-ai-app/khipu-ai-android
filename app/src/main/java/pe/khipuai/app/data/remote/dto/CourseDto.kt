@@ -19,7 +19,9 @@ data class CourseResponse(
     @SerialName("color") val color: String? = "#7F7F7F",
     @SerialName("is_active") val isActive: Boolean = true,
     @SerialName("is_from_catalog") val isFromCatalog: Boolean = false,
-    @SerialName("catalog_key") val catalogKey: String? = null
+    @SerialName("catalog_key") val catalogKey: String? = null,
+    // C-04
+    @SerialName("exam_date") val examDate: String? = null,
 )
 
 
@@ -35,5 +37,24 @@ data class CourseUpdateRequest(
     @SerialName("name") val name: String? = null,
     @SerialName("description") val description: String? = null,
     @SerialName("color") val color: String? = null,
-    @SerialName("is_active") val isActive: Boolean? = null
+    @SerialName("is_active") val isActive: Boolean? = null,
+    // C-04
+    @SerialName("exam_date") val examDate: String? = null,
+)
+
+@Serializable
+data class RescheduleForExamRequest(
+    @SerialName("exam_date") val examDate: String,
+)
+
+@Serializable
+data class ScheduleDay(
+    @SerialName("date") val date: String,
+    @SerialName("concepts") val concepts: Int,
+)
+
+@Serializable
+data class RescheduleForExamResponse(
+    @SerialName("concepts_rescheduled") val conceptsRescheduled: Int,
+    @SerialName("schedule") val schedule: List<ScheduleDay>,
 )
