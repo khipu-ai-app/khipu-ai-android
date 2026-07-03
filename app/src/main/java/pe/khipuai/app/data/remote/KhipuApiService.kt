@@ -227,6 +227,12 @@ interface KhipuApiService {
     @DELETE("v1/courses/{course_id}/permanent")
     suspend fun deleteCoursePermanently(@Path("course_id") courseId: String)
 
+    @POST("v1/courses/{course_id}/reschedule-for-exam")
+    suspend fun rescheduleForExam(
+        @Path("course_id") courseId: String,
+        @Body request: RescheduleForExamRequest,
+    ): RescheduleForExamResponse
+
 
     @POST("v1/tutor/sessions")
     suspend fun createChatSession(@Body request: ChatSessionCreateRequest): ChatSessionResponse

@@ -50,6 +50,8 @@ import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -180,7 +182,9 @@ fun CourseDetailScreen(
                 onNavigateToStudy(
                     onNavigateToStudyWithConcepts(uiState.courseId, conceptTitles)
                 )
-            }
+            },
+            onSetExamDate = { date -> viewModel.setExamDate(date) },
+            onClearExamDate = { viewModel.clearExamDate() },
         )
     }
 }
@@ -197,10 +201,12 @@ private fun CourseDetailContent(
     onToggleShowAll: () -> Unit,
     onRename: (String, String) -> Unit,
     onDelete: (String) -> Unit,
-    onReassociate: (String, String?) -> Unit,
-    onExpandMap: () -> Unit,
-    onStudySingle: (conceptTitle: String) -> Unit,
-    onStudyMultiple: (List<String>) -> Unit
+            onReassociate: (String, String?) -> Unit,
+            onExpandMap: () -> Unit,
+            onStudySingle: (conceptTitle: String) -> Unit,
+            onStudyMultiple: (List<String>) -> Unit,
+            onSetExamDate: (String) -> Unit = {},
+            onClearExamDate: () -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier
@@ -216,6 +222,16 @@ private fun CourseDetailContent(
                 progress = state.courseProgress,
                 accent = courseColor,
                 onAskTutor = onAskTutor
+            )
+        }
+
+        // C-04: info del examen
+        item {
+            ExamDateCard(
+                examDate = state.examDate,
+                isRescheduling = state.isRescheduling,
+                onDatePicked = onSetExamDate,
+                onClear = onClearExamDate,
             )
         }
 
@@ -384,6 +400,97 @@ private fun MasteryIndicator(progress: Int, accent: Color) {
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+// ── C-04: fecha de examen ──────────────────────────────────────────────────
+
+@Composable
+private fun ExamDateCard(
+    examDate: String?,
+    isRescheduling: Boolean,
+    onDatePicked: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    var showQuickPicker by remember { mutableStateOf(false) }
+
+    if (showQuickPicker) {
+        AlertDialog(
+            onDismissRequest = { showQuickPicker = false },
+            title = { Text("Seleccionar fecha del examen") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(3 to "En 3 días", 7 to "En 1 semana", 14 to "En 2 semanas", 30 to "En 1 mes").forEach { (days, label) ->
+                        TextButton(
+                            onClick = {
+                                val date = java.time.LocalDate.now().plusDays(days.toLong()).toString()
+                                onDatePicked(date)
+                                showQuickPicker = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(label) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showQuickPicker = false }) { Text("Cerrar") } },
+            dismissButton = { TextButton(onClick = { showQuickPicker = false }) { Text("Cancelar") } }
+        )
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (examDate != null) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.CalendarToday,
+                contentDescription = null,
+                tint = if (examDate != null) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                if (examDate != null) {
+                    val daysUntil = try {
+                        val exam = java.time.LocalDate.parse(examDate)
+                        val today = java.time.LocalDate.now()
+                        java.time.temporal.ChronoUnit.DAYS.between(today, exam)
+                    } catch (_: Exception) { null }
+                    Text(text = "Examen: ${examDate}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    if (daysUntil != null) {
+                        val text = when {
+                            daysUntil < 0 -> "Hace ${-daysUntil} días"
+                            daysUntil == 0L -> "¡Hoy!"
+                            daysUntil == 1L -> "Mañana"
+                            else -> "En $daysUntil días"
+                        }
+                        Text(text, style = MaterialTheme.typography.bodySmall,
+                             color = if (daysUntil <= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    Text("Sin fecha de examen", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text("Toca + para establecer la fecha.", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (isRescheduling) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            } else {
+                IconButton(onClick = { showQuickPicker = true }) {
+                    Icon(Icons.Default.Add, contentDescription = examDate?.let { "Cambiar" } ?: "Fijar fecha", modifier = Modifier.size(20.dp))
+                }
+                if (examDate != null) {
+                    IconButton(onClick = onClear) {
+                        Icon(Icons.Default.Close, contentDescription = "Quitar fecha", modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+        }
     }
 }
 

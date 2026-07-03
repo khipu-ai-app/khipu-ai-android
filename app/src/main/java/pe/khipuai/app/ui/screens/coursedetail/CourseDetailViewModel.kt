@@ -50,7 +50,6 @@ data class GraphNodeUiModel(
 enum class NodeStatus { DOMINADO, EN_PROGRESO, BLOQUEADO }
 
 data class CourseDetailUiState(
-    // Valores vacíos por defecto — nunca hay datos inventados
     val courseId: String = "",
     val courseName: String = "",
     val categoryName: String = "",
@@ -60,19 +59,22 @@ data class CourseDetailUiState(
     val totalNotesCount: Int = 0,
     val showAllNotes: Boolean = false,
     val upcomingReviews: List<ReviewItemUiModel> = emptyList(),
-    // El mini-mapa muestra estado vacío hasta que el grafo real responda
     val previewNodes: List<GraphNodeUiModel> = emptyList(),
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
-    val availableCourses: List<pe.khipuai.app.data.local.entity.CourseEntity> = emptyList()
+    val availableCourses: List<pe.khipuai.app.data.local.entity.CourseEntity> = emptyList(),
+    // C-04
+    val examDate: String? = null,
+    val isRescheduling: Boolean = false,
 )
 
 @HiltViewModel
 class CourseDetailViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
     private val offlineFirstNoteRepository: OfflineFirstNoteRepository,
-    private val plannerRepository: PlannerRepository,  // Sprint 7: reviews SM-2
-    private val graphRepository: GraphRepository,       // Sprint 7: grafo Neo4j
+    private val plannerRepository: PlannerRepository,
+    private val graphRepository: GraphRepository,
+    private val apiService: pe.khipuai.app.data.remote.KhipuApiService,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -137,6 +139,7 @@ class CourseDetailViewModel @Inject constructor(
             // 4. Cargar reviews y grafo en paralelo; errores son silenciosos (listas vacías)
             launch { loadUpcomingReviews(resolvedCourseName) }
             launch { loadGraphPreview() }
+            launch { loadExamDate() }
         }
 
         // 5. Observar notas de Room reactivamente — se actualiza cuando la sync termina
@@ -155,6 +158,43 @@ class CourseDetailViewModel @Inject constructor(
      * Obtiene la agenda diaria SM-2 y filtra por el nombre del curso actual.
      * Falla de forma silenciosa: si el endpoint falla, [upcomingReviews] queda vacío.
      */
+    // C-04: cargar exam_date desde la API
+    private fun loadExamDate() {
+        viewModelScope.launch {
+            try {
+                val courses = apiService.getMyCourses()
+                val course = courses.find { it.id == courseId }
+                if (course != null) {
+                    _uiState.update { it.copy(examDate = course.examDate) }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun setExamDate(date: String?) {
+        viewModelScope.launch {
+            try {
+                apiService.updateCourse(courseId, pe.khipuai.app.data.remote.dto.CourseUpdateRequest(examDate = date))
+                _uiState.update { it.copy(examDate = date) }
+                if (date != null) {
+                    rescheduleForExam(date)
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = "Error al guardar la fecha del examen.") }
+            }
+        }
+    }
+
+    fun clearExamDate() = setExamDate(null)
+
+    private suspend fun rescheduleForExam(date: String) {
+        _uiState.update { it.copy(isRescheduling = true) }
+        try {
+            apiService.rescheduleForExam(courseId, pe.khipuai.app.data.remote.dto.RescheduleForExamRequest(date))
+        } catch (_: Exception) {}
+        _uiState.update { it.copy(isRescheduling = false) }
+    }
+
     private suspend fun loadUpcomingReviews(courseName: String) {
         if (courseName.isBlank()) return
 
