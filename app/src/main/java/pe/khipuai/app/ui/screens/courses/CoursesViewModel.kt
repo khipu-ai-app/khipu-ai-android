@@ -45,23 +45,20 @@ class CoursesViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _selectedFilter = MutableStateFlow(CourseFilter.ACTIVOS)
+    private val _conceptsByCourse = MutableStateFlow<Map<String, List<pe.khipuai.app.data.remote.dto.DueConceptResponse>>>(emptyMap())
     private val _uiState = MutableStateFlow(CoursesUiState(isLoading = true))
     val uiState: StateFlow<CoursesUiState> = _uiState.asStateFlow()
 
     init {
-        // Cargar datos del planner UNA VEZ (stats por curso, no reactivo)
-        var conceptsByCourse: Map<String, List<pe.khipuai.app.data.remote.dto.DueConceptResponse>> = emptyMap()
-        viewModelScope.launch {
-            plannerRepository.fetchDailyAgenda().onSuccess { agenda ->
-                conceptsByCourse = agenda.groupBy { it.courseName.lowercase() }
-            }
-        }
+        // Cargar datos del planner de forma reactiva (StateFlow)
+        loadPlannerData()
 
-        // Observamos Room reactivamente + filtro, enriqueciendo con los stats del planner
+        // Observamos Room, filtro y planner reactivamente
         combine(
             courseRepository.observeAll(),
-            _selectedFilter
-        ) { entities, filter ->
+            _selectedFilter,
+            _conceptsByCourse
+        ) { entities, filter, conceptsByCourse ->
             val mapped = entities.map { entity ->
                 val key = entity.name.lowercase()
                 val courseConcepts = conceptsByCourse[key] ?: emptyList()
@@ -105,6 +102,14 @@ class CoursesViewModel @Inject constructor(
 
         // Sincronizamos con la API para actualizar Room (sin bloquear la UI)
         viewModelScope.launch { syncWithNetwork() }
+    }
+
+    private fun loadPlannerData() {
+        viewModelScope.launch {
+            plannerRepository.fetchDailyAgenda().onSuccess { agenda ->
+                _conceptsByCourse.value = agenda.groupBy { it.courseName.lowercase() }
+            }
+        }
     }
 
     private suspend fun syncWithNetwork() {
