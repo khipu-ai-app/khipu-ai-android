@@ -886,27 +886,19 @@ private fun UsageBanner(
     isPro: Boolean,
     onUpgradeClick: (String?) -> Unit
 ) {
-    val atLimit = !isPro && capturesLimit > 0 && capturesUsed >= capturesLimit
-    val containerColor = when {
-        isPro -> MaterialTheme.colorScheme.tertiaryContainer
-        atLimit -> MaterialTheme.colorScheme.errorContainer
-        else -> MaterialTheme.colorScheme.tertiaryContainer
-    }
-    val contentColor = when {
-        isPro -> MaterialTheme.colorScheme.onTertiaryContainer
-        atLimit -> MaterialTheme.colorScheme.onErrorContainer
-        else -> MaterialTheme.colorScheme.onTertiaryContainer
-    }
-    val title = when {
-        isPro -> "Plan Pro activo"
-        atLimit -> "Has alcanzado el limite"
-        else -> "Plan Gratuito"
-    }
-    val subtitle = when {
-        isPro -> "Tienes capturas ilimitadas."
-        atLimit -> "Hazte Pro para subir mas apuntes este mes."
-        else -> "Te quedan ${(capturesLimit - capturesUsed).coerceAtLeast(0)} de $capturesLimit capturas este mes."
-    }
+    // No mostrar banner para usuarios Pro
+    if (isPro) return
+
+    val remaining = capturesLimit - capturesUsed
+    val showBanner = remaining <= 2 || remaining <= 0
+    if (!showBanner) return
+
+    val atLimit = remaining <= 0
+    val containerColor = if (atLimit) MaterialTheme.colorScheme.errorContainer
+                         else MaterialTheme.colorScheme.tertiaryContainer
+    val contentColor = if (atLimit) MaterialTheme.colorScheme.onErrorContainer
+                       else MaterialTheme.colorScheme.onTertiaryContainer
+
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor, contentColor = contentColor),
@@ -918,10 +910,18 @@ private fun UsageBanner(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = contentColor)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = contentColor)
+                Text(
+                    if (atLimit) "Límite de capturas alcanzado"
+                    else "$remaining de $capturesLimit capturas este mes",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = contentColor
+                )
+                if (atLimit) {
+                    Text("Hazte Pro para seguir subiendo.", style = MaterialTheme.typography.bodySmall, color = contentColor)
+                }
             }
-            if (!isPro) {
+            if (atLimit) {
                 Button(
                     onClick = { onUpgradeClick(null) },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)

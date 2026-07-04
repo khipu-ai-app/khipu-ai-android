@@ -479,60 +479,7 @@ fun CoursesScreen(
                 }
             }
 
-            // Tarjeta de borde punteado: Nuevo Espacio
-            item {
-                val outlineColor = MaterialTheme.colorScheme.outlineVariant
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { /* Crear Espacio Inteligente */ }
-                        .drawBehind {
-                            val stroke = Stroke(
-                                width = 1.5.dp.toPx(),
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
-                            )
-                            drawRoundRect(
-                                color = outlineColor,
-                                style = stroke,
-                                cornerRadius = CornerRadius(16.dp.toPx())
-                            )
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AddCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.outline
-                            )
-                            Text(
-                                text = "Nuevo Espacio",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Crea una nueva carpeta inteligente para organizar tus temas.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-                }
-            }
+            // "Nuevo Espacio" eliminado — no tenía funcionalidad real.
         }
     }
 }

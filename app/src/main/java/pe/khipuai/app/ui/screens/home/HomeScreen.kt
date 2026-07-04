@@ -109,55 +109,45 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // FREEMIUM-07: Banner "X capturas restantes"
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                            if (uiState.isPro) {
-                                Text("Plan Pro", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                Text("Capturas ilimitadas.", style = MaterialTheme.typography.bodyMedium)
-                            } else {
-                                val isExceeded = uiState.capturesUsed >= uiState.capturesLimit
-                                val titleColor = if (isExceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onTertiaryContainer
-                                
-                                Text("Plan Gratuito", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = titleColor)
-                                
-                                if (isExceeded) {
-                                    Text("Hazte Pro para seguir subiendo notas", style = MaterialTheme.typography.bodyMedium, color = titleColor)
-                                } else {
-                                    Text("${uiState.capturesUsed} de ${uiState.capturesLimit} capturas usadas este mes", style = MaterialTheme.typography.bodyMedium, color = titleColor)
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    LinearProgressIndicator(
-                                        progress = { if (uiState.capturesLimit > 0) uiState.capturesUsed.toFloat() / uiState.capturesLimit.toFloat() else 0f },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+            // FREEMIUM-07: estado del plan (solo visible para free con pocas capturas)
+            if (!uiState.isPro) {
+                val remaining = uiState.capturesLimit - uiState.capturesUsed
+                val showBanner = remaining <= 2 || remaining <= 0
+                if (showBanner) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (remaining <= 0) MaterialTheme.colorScheme.errorContainer
+                                                else MaterialTheme.colorScheme.tertiaryContainer
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (remaining <= 0) Icons.Default.Warning else Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = if (remaining <= 0) MaterialTheme.colorScheme.onErrorContainer
+                                           else MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        if (remaining <= 0) "Límite de capturas alcanzado"
+                                        else "$remaining de ${uiState.capturesLimit} capturas este mes",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleSmall
                                     )
                                 }
-                            }
-                        }
-                        if (!uiState.isPro) {
-                            Button(
-                                onClick = { onNavigateToSubscription(null) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary
-                                )
-                            ) {
-                                Text("Ser Pro")
+                                if (remaining <= 0) {
+                                    Button(
+                                        onClick = { onNavigateToSubscription(null) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                    ) { Text("Ser Pro") }
+                                }
                             }
                         }
                     }

@@ -536,6 +536,7 @@ fun KhipuNavigation(
 
         composable(Screen.Courses.route) {
             CoursesScreen(
+                onBackClick = { navController.popBackStack() },
                 onCourseClick = { courseId ->
                     navController.navigate("${Screen.CourseDetail.route}/$courseId")
                 },
