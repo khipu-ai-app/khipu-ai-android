@@ -97,18 +97,6 @@ fun HomeScreen(
                 onTabSelected = onNavigateToTab
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { onNavigateToTab(1) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Agregar"
-                )
-            }
-        }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
