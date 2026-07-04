@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.launch
 import pe.khipuai.app.data.repository.CourseRepository
+import pe.khipuai.app.data.repository.PlannerRepository
 import javax.inject.Inject
 
 enum class CourseFilter { TODOS, ACTIVOS, COMPLETADOS, ARCHIVADOS }
@@ -39,7 +40,8 @@ data class CoursesUiState(
 
 @HiltViewModel
 class CoursesViewModel @Inject constructor(
-    private val courseRepository: CourseRepository
+    private val courseRepository: CourseRepository,
+    private val plannerRepository: PlannerRepository,
 ) : ViewModel() {
 
     private val _selectedFilter = MutableStateFlow(CourseFilter.ACTIVOS)
@@ -47,23 +49,37 @@ class CoursesViewModel @Inject constructor(
     val uiState: StateFlow<CoursesUiState> = _uiState.asStateFlow()
 
     init {
-        // Observamos Room como fuente de verdad reactiva (offline-first) combinada con el filtro seleccionado
+        // Cargar datos del planner UNA VEZ (stats por curso, no reactivo)
+        var conceptsByCourse: Map<String, List<pe.khipuai.app.data.remote.dto.DueConceptResponse>> = emptyMap()
+        viewModelScope.launch {
+            plannerRepository.fetchDailyAgenda().onSuccess { agenda ->
+                conceptsByCourse = agenda.groupBy { it.courseName.lowercase() }
+            }
+        }
+
+        // Observamos Room reactivamente + filtro, enriqueciendo con los stats del planner
         combine(
             courseRepository.observeAll(),
             _selectedFilter
         ) { entities, filter ->
             val mapped = entities.map { entity ->
+                val key = entity.name.lowercase()
+                val courseConcepts = conceptsByCourse[key] ?: emptyList()
+                val total = courseConcepts.size
+                val due = courseConcepts.count { it.isDue }
+                val mastered = total - due
+
                 CourseUiModel(
                     id = entity.id,
                     name = entity.name,
                     description = "",
-                    categoryTag = "",
+                    categoryTag = categorize(entity.name),
                     semesterTag = "",
                     priorityTag = null,
-                    progressPercentage = 0,
-                    masteredCount = 0,
-                    pendingCount = 0,
-                    iconName = "menu_book",
+                    progressPercentage = if (total > 0) (mastered * 100 / total).coerceIn(0, 100) else 0,
+                    masteredCount = mastered.coerceAtLeast(0),
+                    pendingCount = due,
+                    iconName = courseIcon(entity.name),
                     color = entity.color,
                     isActive = entity.isActive
                 )
@@ -88,10 +104,10 @@ class CoursesViewModel @Inject constructor(
         }.launchIn(viewModelScope)
 
         // Sincronizamos con la API para actualizar Room (sin bloquear la UI)
-        syncWithNetwork()
+        viewModelScope.launch { syncWithNetwork() }
     }
 
-    fun syncWithNetwork() {
+    private suspend fun syncWithNetwork() {
         viewModelScope.launch {
             courseRepository.fetchMyCourses()
                 .onFailure { e ->
@@ -156,5 +172,21 @@ class CoursesViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
+    }
+
+    private fun categorize(name: String): String = when {
+        name.contains("Historia", ignoreCase = true) -> "Historia"
+        name.contains("Cálculo", ignoreCase = true) || name.contains("Álgebra", ignoreCase = true) || name.contains("Estadística", ignoreCase = true) -> "Matemáticas"
+        name.contains("Física", ignoreCase = true) || name.contains("Química", ignoreCase = true) -> "Ciencias"
+        name.contains("Programación", ignoreCase = true) || name.contains("Software", ignoreCase = true) || name.contains("Datos", ignoreCase = true) || name.contains("Sistemas", ignoreCase = true) || name.contains("Redes", ignoreCase = true) || name.contains("IA", ignoreCase = true) -> "Tecnología"
+        else -> "General"
+    }
+
+    private fun courseIcon(name: String): String = when {
+        name.contains("Historia", ignoreCase = true) -> "history"
+        name.contains("Cálculo", ignoreCase = true) || name.contains("Álgebra", ignoreCase = true) -> "calculate"
+        name.contains("Física", ignoreCase = true) || name.contains("Química", ignoreCase = true) -> "science"
+        name.contains("Programación", ignoreCase = true) || name.contains("Software", ignoreCase = true) || name.contains("Datos", ignoreCase = true) || name.contains("Sistemas", ignoreCase = true) -> "computer"
+        else -> "book"
     }
 }

@@ -407,6 +407,43 @@ fun CoursesScreen(
                             overflow = TextOverflow.Ellipsis
                         )
 
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Etiqueta de categoría
+                        if (course.categoryTag.isNotBlank()) {
+                            BadgeTag(text = course.categoryTag, containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), textColor = MaterialTheme.colorScheme.primary)
+                        }
+
+                        if (course.progressPercentage > 0) {
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Barra de progreso
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Progreso", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${course.progressPercentage}%", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LinearProgressIndicator(
+                                progress = { course.progressPercentage / 100f },
+                                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                                color = MaterialTheme.colorScheme.tertiary,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Métricas
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                val masteredText = "${course.masteredCount} ${if (course.masteredCount == 1) "dominado" else "dominados"}"
+                                val pendingText = "${course.pendingCount} ${if (course.pendingCount == 1) "pendiente" else "pendientes"}"
+                                LabelMetric(icon = Icons.Default.CheckCircle, text = masteredText, tint = MaterialTheme.colorScheme.tertiary)
+                                LabelMetric(icon = Icons.Default.Pending, text = pendingText, tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
                     }
                     }
                 }
