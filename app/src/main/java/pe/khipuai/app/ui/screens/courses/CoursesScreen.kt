@@ -407,79 +407,10 @@ fun CoursesScreen(
                             overflow = TextOverflow.Ellipsis
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Etiquetas Relacionales
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            BadgeTag(text = course.categoryTag, containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), textColor = MaterialTheme.colorScheme.primary)
-                            BadgeTag(text = course.semesterTag, containerColor = MaterialTheme.colorScheme.secondaryContainer, textColor = Color(0xFF1D1B20))
-                            if (course.priorityTag != null) {
-                                val isHigh = course.priorityTag.contains("Alta", ignoreCase = true)
-                                val containerColor = if (isHigh) Color(0xFFFFDAD9) else Color(0xFFE8F5E9)
-                                val textColor = if (isHigh) Color(0xFF410002) else Color(0xFF2E7D32)
-                                BadgeTag(text = course.priorityTag, containerColor = containerColor, textColor = textColor)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Sección de Progreso
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Progreso de Conocimiento",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "${course.progressPercentage}%",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2E7D32)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        LinearProgressIndicator(
-                            progress = { course.progressPercentage / 100f },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(CircleShape),
-                            color = MaterialTheme.colorScheme.tertiary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Métricas
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            LabelMetric(
-                                icon = Icons.Default.CheckCircle,
-                                text = "${course.masteredCount} Dominados",
-                                tint = MaterialTheme.colorScheme.tertiary
-                            )
-                            LabelMetric(
-                                icon = Icons.Default.Pending,
-                                text = "${course.pendingCount} Pendientes",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
                     }
                     }
                 }
             }
-
-            // "Nuevo Espacio" eliminado — no tenía funcionalidad real.
         }
     }
 }

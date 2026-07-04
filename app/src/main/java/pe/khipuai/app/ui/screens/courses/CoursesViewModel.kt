@@ -53,77 +53,17 @@ class CoursesViewModel @Inject constructor(
             _selectedFilter
         ) { entities, filter ->
             val mapped = entities.map { entity ->
-                // Deterministic mock data based on name/id hash to create a polished and realistic feel
-                val hash = Math.abs(entity.id.hashCode())
-                val progress = when {
-                    // Force a deterministic 100% progress for every 6th course to populate the "Completed" tab
-                    hash % 6 == 0 -> 100
-                    else -> (hash % 60) + 20 // progress between 20% and 80%
-                }
-                
-                val mastered = when (progress) {
-                    100 -> (hash % 6) + 12
-                    else -> (progress * 0.15).toInt() + 1
-                }
-                
-                val pending = when (progress) {
-                    100 -> 0
-                    else -> (hash % 5) + 2
-                }
-                
-                val desc = when {
-                    entity.name.contains("Historia", ignoreCase = true) -> 
-                        "Estudio exhaustivo de los procesos históricos y evolución social."
-                    entity.name.contains("Cálculo", ignoreCase = true) -> 
-                        "Límites, derivadas, integración y optimización de funciones matemáticas."
-                    entity.name.contains("Física", ignoreCase = true) -> 
-                        "Mecánica clásica, cinemática, electromagnetismo y leyes dinámicas."
-                    entity.name.contains("Programación", ignoreCase = true) -> 
-                        "Conceptos de algoritmos, estructuras de control y resolución de problemas."
-                    entity.name.contains("Base de Datos", ignoreCase = true) -> 
-                        "Diseño de esquemas, consultas SQL avanzadas y normalización relacional."
-                    entity.name.contains("Redes", ignoreCase = true) -> 
-                        "Protocolos TCP/IP, topologías de red y transferencia de datos."
-                    entity.name.contains("Sistemas Operativos", ignoreCase = true) -> 
-                        "Gestión de memoria, procesos, sistemas de archivos y concurrencia."
-                    else -> "Análisis sistemático de los conceptos y aplicaciones clave de ${entity.name}."
-                }
-                
-                val category = when {
-                    entity.name.contains("Historia", ignoreCase = true) -> "Historia"
-                    entity.name.contains("Cálculo", ignoreCase = true) || entity.name.contains("Álgebra", ignoreCase = true) || entity.name.contains("Estadística", ignoreCase = true) -> "Matemáticas"
-                    entity.name.contains("Física", ignoreCase = true) || entity.name.contains("Química", ignoreCase = true) -> "Física"
-                    entity.name.contains("Programación", ignoreCase = true) || entity.name.contains("Software", ignoreCase = true) || entity.name.contains("Web", ignoreCase = true) || entity.name.contains("Datos", ignoreCase = true) || entity.name.contains("Redes", ignoreCase = true) || entity.name.contains("Sistemas", ignoreCase = true) || entity.name.contains("IA", ignoreCase = true) -> "Sistemas"
-                    else -> "Ciencias"
-                }
-                
-                val semester = "Semestre ${ (hash % 4) + 1 }"
-                
-                val priority = when {
-                    hash % 3 == 0 -> "Prioridad Alta"
-                    hash % 4 == 0 -> "Intensivo"
-                    else -> null
-                }
-                
-                val icon = when {
-                    entity.name.contains("Historia", ignoreCase = true) -> "history"
-                    entity.name.contains("Cálculo", ignoreCase = true) || entity.name.contains("Álgebra", ignoreCase = true) -> "calculate"
-                    entity.name.contains("Física", ignoreCase = true) || entity.name.contains("Química", ignoreCase = true) -> "science"
-                    entity.name.contains("Programación", ignoreCase = true) || entity.name.contains("Software", ignoreCase = true) || entity.name.contains("Datos", ignoreCase = true) || entity.name.contains("Sistemas", ignoreCase = true) -> "computer"
-                    else -> "menu_book"
-                }
-
                 CourseUiModel(
                     id = entity.id,
                     name = entity.name,
-                    description = desc,
-                    categoryTag = category,
-                    semesterTag = semester,
-                    priorityTag = priority,
-                    progressPercentage = progress,
-                    masteredCount = mastered,
-                    pendingCount = pending,
-                    iconName = icon,
+                    description = "",
+                    categoryTag = "",
+                    semesterTag = "",
+                    priorityTag = null,
+                    progressPercentage = 0,
+                    masteredCount = 0,
+                    pendingCount = 0,
+                    iconName = "menu_book",
                     color = entity.color,
                     isActive = entity.isActive
                 )
