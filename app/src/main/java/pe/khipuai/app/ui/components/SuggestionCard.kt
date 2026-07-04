@@ -2,8 +2,9 @@ package pe.khipuai.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.*
@@ -23,16 +24,13 @@ fun SuggestionCard(
     onStartReview: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        ),
-        shape = RoundedCornerShape(16.dp)
+    KhipuCard(
+        modifier = modifier,
+        elevation = KhipuElevation.flat,
+        shape = MaterialTheme.shapes.large,
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+        innerPadding = 16.dp,
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
             Row(
                 verticalAlignment = Alignment.Top
             ) {
@@ -97,7 +95,7 @@ fun SuggestionCard(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
-                shape = RoundedCornerShape(20.dp),
+                shape = MaterialTheme.shapes.extraLarge,
                 modifier = Modifier.height(36.dp)
             ) {
                 Text(
@@ -106,6 +104,5 @@ fun SuggestionCard(
                     fontWeight = FontWeight.Medium
                 )
             }
-        }
     }
 }

@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.components
+﻿package pe.khipuai.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,18 +24,14 @@ fun CourseCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
+    KhipuCard(
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp)
+        modifier = modifier,
+        elevation = KhipuElevation.medium,
+        shape = MaterialTheme.shapes.large,
+        containerColor = MaterialTheme.colorScheme.surface,
+        innerPadding = 16.dp,
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -105,7 +101,7 @@ fun CourseCard(
                     color = color,
                     trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                 )
-            }
         }
     }
 }
+
