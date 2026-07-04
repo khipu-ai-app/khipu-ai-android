@@ -240,7 +240,18 @@ fun CoursesScreen(
                     AlertDialog(
                         onDismissRequest = { deleteDialogExpanded = false },
                         title = { Text("Eliminar Curso") },
-                        text = { Text("¿Estás seguro de que deseas eliminar permanentemente '${course.name}'? Esta acción no se puede deshacer y desvinculará sus apuntes.") },
+                        text = {
+                            Column {
+                                Text("¿Eliminar '${course.name}' permanentemente?")
+                                Spacer(Modifier.height(12.dp))
+                                Text("Esta acción eliminará:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text("• Todas las notas de este curso", style = MaterialTheme.typography.bodySmall)
+                                Text("• Conceptos del grafo de conocimiento", style = MaterialTheme.typography.bodySmall)
+                                Text("• Todo el historial de repasos de esta materia", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Esta acción NO se puede deshacer.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            }
+                        },
                         confirmButton = {
                             TextButton(
                                 onClick = {

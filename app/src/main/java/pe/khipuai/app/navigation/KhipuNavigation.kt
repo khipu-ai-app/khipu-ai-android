@@ -168,6 +168,9 @@ fun KhipuNavigation(
                 onNavigateToCourses = {
                     navController.navigate(Screen.Courses.route)
                 },
+                onNavigateToCreateCourse = {
+                    navController.navigate(Screen.CreateCourse.route)
+                },
                 onNavigateToCourseDetail = { courseId ->
                     navController.navigate("${Screen.CourseDetail.route}/$courseId")
                 },
@@ -574,6 +577,10 @@ fun KhipuNavigation(
                 onNavigateToExam = { courseId, courseName ->
                     val encoded = java.net.URLEncoder.encode(courseName, "UTF-8")
                     navController.navigate("${Screen.Exam.route}/$courseId?courseName=$encoded")
+                },
+                // CE-03: Repasar curso (navega a la primera nota del curso)
+                onNavigateToReview = { noteId ->
+                    navController.navigate("${Screen.ReviewSession.route}/$noteId")
                 }
             )
         }

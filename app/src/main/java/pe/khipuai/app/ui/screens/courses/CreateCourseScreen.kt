@@ -36,6 +36,28 @@ fun CreateCourseScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
+    // CE-05: confirmar salida si hay texto sin guardar
+    var showExitDialog by remember { mutableStateOf(false) }
+    val hasUnsavedChanges = uiState.courseName.isNotBlank() || uiState.courseDescription.isNotBlank()
+    androidx.activity.compose.BackHandler(enabled = hasUnsavedChanges) {
+        showExitDialog = true
+    }
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("Descartar cambios?") },
+            text = { Text("Los datos que has escrito se perderán.") },
+            confirmButton = {
+                TextButton(onClick = { showExitDialog = false; onNavigateBack() }) {
+                    Text("Descartar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) { Text("Seguir editando") }
+            }
+        )
+    }
+
     LaunchedEffect(uiState.createdSuccessfully) {
         if (uiState.createdSuccessfully) {
             onNavigateBack()

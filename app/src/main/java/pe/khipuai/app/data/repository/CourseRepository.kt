@@ -112,6 +112,10 @@ class CourseRepository @Inject constructor(
         }
     }
 
+    suspend fun getDeleteInfo(courseId: String): Result<pe.khipuai.app.data.remote.dto.CourseDeleteInfoResponse> = runCatching {
+        apiService.getCourseDeleteInfo(courseId)
+    }
+
     suspend fun deleteCoursePermanently(courseId: String): Result<Unit> {
         return try {
             apiService.deleteCoursePermanently(courseId)

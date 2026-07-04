@@ -32,6 +32,7 @@ fun HomeScreen(
     onNavigateToTab: (Int) -> Unit = {},
     onNavigateToCourses: () -> Unit = {},
     onNavigateToCourseDetail: (String) -> Unit = {},
+    onNavigateToCreateCourse: () -> Unit = {},
     onNavigateToFileViewer: (String) -> Unit = {},
     onNavigateToNoteDetail: (String) -> Unit = {},
     onNavigateToSubscription: (String?) -> Unit = {},
@@ -195,12 +196,22 @@ fun HomeScreen(
 
             if (uiState.courses.isEmpty() && !uiState.isLoading) {
                 item {
-                    Text(
-                        text = "No tienes cursos creados. ¡Sube un apunte para empezar!",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+                    Column(
+                        modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No tienes cursos creados. Crea tu primera materia para organizar tus apuntes.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(onClick = onNavigateToCreateCourse) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text("Nueva materia")
+                        }
+                    }
                 }
             } else {
                 items(uiState.courses, key = { it.id }) { course ->

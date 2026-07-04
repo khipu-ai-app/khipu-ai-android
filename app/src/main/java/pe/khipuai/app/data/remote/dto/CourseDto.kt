@@ -43,6 +43,14 @@ data class CourseUpdateRequest(
 )
 
 @Serializable
+data class CourseDeleteInfoResponse(
+    @SerialName("course_name") val courseName: String,
+    @SerialName("notes_count") val notesCount: Int,
+    @SerialName("concepts_count") val conceptsCount: Int,
+    @SerialName("has_review_history") val hasReviewHistory: Boolean,
+)
+
+@Serializable
 data class RescheduleForExamRequest(
     @SerialName("exam_date") val examDate: String,
 )

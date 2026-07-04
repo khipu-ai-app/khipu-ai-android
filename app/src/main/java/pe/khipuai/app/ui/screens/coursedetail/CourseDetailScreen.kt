@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.coursedetail
+﻿package pe.khipuai.app.ui.screens.coursedetail
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.AlertDialog
@@ -61,6 +62,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -108,6 +110,7 @@ fun CourseDetailScreen(
     onNavigateToTutor: (String) -> Unit = {},
     onNavigateToStudy: (route: String) -> Unit = {},
     onNavigateToExam: (courseId: String, courseName: String) -> Unit = { _: String, _: String -> },
+    onNavigateToReview: (String) -> Unit = {},
     viewModel: CourseDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -185,6 +188,10 @@ fun CourseDetailScreen(
             },
             onSetExamDate = { date -> viewModel.setExamDate(date) },
             onClearExamDate = { viewModel.clearExamDate() },
+            onReviewCourse = { cid ->
+                val firstNoteId = uiState.notes.firstOrNull()?.id
+                if (firstNoteId != null) onNavigateToReview(firstNoteId)
+            },
         )
     }
 }
@@ -207,6 +214,7 @@ private fun CourseDetailContent(
             onStudyMultiple: (List<String>) -> Unit,
             onSetExamDate: (String) -> Unit = {},
             onClearExamDate: () -> Unit = {},
+            onReviewCourse: (String) -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier
@@ -223,6 +231,23 @@ private fun CourseDetailContent(
                 accent = courseColor,
                 onAskTutor = onAskTutor
             )
+        }
+
+        // CE-03: Repasar curso
+        item {
+            val hasNotes = state.notes.isNotEmpty()
+            OutlinedButton(
+                onClick = {
+                    val firstNoteId = state.notes.firstOrNull()?.id
+                    if (firstNoteId != null) onReviewCourse(firstNoteId)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = hasNotes,
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (hasNotes) "Repasar este curso" else "Sin notas para repasar")
+            }
         }
 
         // C-04: info del examen
@@ -1751,3 +1776,4 @@ private fun CourseDetailScreenEmptyPreview() {
         }
     }
 }
+

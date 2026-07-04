@@ -227,6 +227,9 @@ interface KhipuApiService {
     @DELETE("v1/courses/{course_id}/permanent")
     suspend fun deleteCoursePermanently(@Path("course_id") courseId: String)
 
+    @GET("v1/courses/{course_id}/delete-info")
+    suspend fun getCourseDeleteInfo(@Path("course_id") courseId: String): CourseDeleteInfoResponse
+
     @POST("v1/courses/{course_id}/reschedule-for-exam")
     suspend fun rescheduleForExam(
         @Path("course_id") courseId: String,
