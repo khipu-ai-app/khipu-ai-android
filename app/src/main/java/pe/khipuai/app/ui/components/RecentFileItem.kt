@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.components
+﻿package pe.khipuai.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -114,3 +114,4 @@ fun RecentFileItem(
         }
     }
 }
+

@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.planner
+﻿package pe.khipuai.app.ui.screens.planner
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -151,7 +152,8 @@ class CalendarViewModel @Inject constructor(
 @Composable
 fun CalendarScreen(
     onNavigateToTab: (Int) -> Unit,
-    onConceptClick: (String) -> Unit = {},  // T-11: navegar a NoteDetail/{noteId}
+    onConceptClick: (String) -> Unit = {},
+    onNavigateBack: () -> Unit = {},
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -159,6 +161,14 @@ fun CalendarScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                        )
+                    }
+                },
                 title = {
                     Text(
                         text = "Calendario SM-2",
@@ -837,3 +847,6 @@ private fun DayConceptRow(
         }
     }
 }
+
+
+

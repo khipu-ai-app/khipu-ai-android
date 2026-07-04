@@ -180,7 +180,7 @@ fun FileViewerScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Este archivo se descargará en segundo plano y se abrirá automáticamente en tu lector de PDF preferido.",
+                                text = "Toca el botón para descargar y abrir el archivo en tu lector de PDF.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -188,30 +188,18 @@ fun FileViewerScreen(
                             Spacer(modifier = Modifier.height(24.dp))
                             Button(
                                 onClick = {
+                                    val uriToOpen = pdfFileUri
+                                    if (uriToOpen != null) {
+                                        openPdfDirect(context, uriToOpen) { showNoPdfAppSnackbar = true }
+                                        return@Button
+                                    }
                                     isDownloading = true
                                     viewModel.downloadAndGetUri(
                                         context = context,
                                         onReady = { uri ->
-                                            isDownloading = false
                                             pdfFileUri = uri
-                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                                setDataAndType(uri, "application/pdf")
-                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            }
-                                            try {
-                                                context.startActivity(intent)
-                                            } catch (e: android.content.ActivityNotFoundException) {
-                                                // T-12: no hay app de PDF → Snackbar
-                                                // con acción "Instalar" que abre Play Store.
-                                                showNoPdfAppSnackbar = true
-                                            } catch (e: Exception) {
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    "No se pudo abrir el PDF: ${e.message}",
-                                                    android.widget.Toast.LENGTH_LONG
-                                                ).show()
-                                            }
+                                            isDownloading = false
+                                            openPdfDirect(context, uri) { showNoPdfAppSnackbar = true }
                                         },
                                         onError = { error ->
                                             isDownloading = false
@@ -247,43 +235,31 @@ fun FileViewerScreen(
                 }
             }
 
-            // Banner Flotante de IA Analizando
-            AnimatedVisibility(
-                visible = uiState.isPipelineActive,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Khipu AI está analizando este documento...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-            }
         }
+    }
+}
+
+/**
+ * Abre un PDF vía Intent.ACTION_VIEW. Si no hay lector, llama a [onNoApp].
+ */
+private fun openPdfDirect(
+    context: android.content.Context,
+    uri: android.net.Uri,
+    onNoApp: () -> Unit,
+) {
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, "application/pdf")
+        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    try {
+        context.startActivity(intent)
+    } catch (_: android.content.ActivityNotFoundException) {
+        onNoApp()
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(
+            context, "No se pudo abrir el PDF: ${e.message}", android.widget.Toast.LENGTH_LONG
+        ).show()
     }
 }
 

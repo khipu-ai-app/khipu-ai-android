@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +31,7 @@ import pe.khipuai.app.ui.theme.parseCourseColor
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoursesScreen(
+    onBackClick: () -> Unit = {},
     onCourseClick: (String) -> Unit,
     onCreateCourseClick: () -> Unit,
     viewModel: CoursesViewModel = hiltViewModel()
@@ -38,7 +40,12 @@ fun CoursesScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
+            TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+            }
+        },
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -564,4 +571,7 @@ private fun LabelMetric(
         Text(text = text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+
+
 

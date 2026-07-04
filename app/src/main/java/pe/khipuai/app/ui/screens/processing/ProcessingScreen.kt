@@ -1,11 +1,13 @@
 ﻿package pe.khipuai.app.ui.screens.processing
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,29 +33,24 @@ fun ProcessingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Auto-navegación segura cuando el backend confirma el éxito total en Postgres
     LaunchedEffect(uiState.isComplete) {
         val currentNoteId = uiState.noteId
-
         if (uiState.isComplete && currentNoteId != null) {
             delay(800)
             onProcessingComplete(currentNoteId)
         }
     }
 
-    // El error ya no redirige automáticamente. Se muestra un botón explícito "Volver al inicio"
-    // para que el usuario pueda leer qué pasó y decidir cuándo salir.
     val onErrorEscapeOnce by rememberUpdatedState(onErrorEscape)
-    
     var showCancelDialog by remember { mutableStateOf(false) }
     var showCancelButton by remember { mutableStateOf(true) }
-    
+
     LaunchedEffect(Unit) {
         delay(5000)
         showCancelButton = false
     }
-    
-    androidx.activity.compose.BackHandler(enabled = !uiState.isComplete && !uiState.isError) {
+
+    BackHandler(enabled = !uiState.isComplete && !uiState.isError) {
         showCancelDialog = true
     }
 
@@ -86,7 +83,19 @@ fun ProcessingScreen(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(60.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            IconButton(onClick = { showCancelDialog = true }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Cancelar procesamiento",
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = "Khipu AI",
@@ -315,4 +324,8 @@ private fun ProcessingStep(
         )
     }
 }
+
+
+
+
 

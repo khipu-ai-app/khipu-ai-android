@@ -201,6 +201,9 @@ fun NoteDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { shareNote(context, uiState.title, uiState.aiSummary, uiState.keyConcepts) }) {
+                        Icon(imageVector = Icons.Default.Share, contentDescription = "Compartir")
+                    }
                     Box {
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(imageVector = Icons.Default.MoreVert, contentDescription = stringResource(id = R.string.action_options))

@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.home
+﻿package pe.khipuai.app.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -165,12 +165,15 @@ class HomeViewModel @Inject constructor(
                         uploadId = entity.uploadId,
                         title = entity.title,
                         subject = entity.courseId?.let { courseMap[it]?.name } ?: "General",
-                        timeAgo = "Añadido recientemente",
+                        timeAgo = formatRelativeTime(entity.createdAt),
                         type = FileType.DOCUMENT,
                         courseId = entity.courseId
                     )
                 }
 
+    /**
+     * Convierte un ISO 8601 a texto relativo legible ("Hoy", "Ayer", "Hace 3 días", etc.).
+     */
                 _uiState.value = _uiState.value.copy(
                     courses = coursesMapped,
                     recentFiles = filesMapped
@@ -192,4 +195,25 @@ class HomeViewModel @Inject constructor(
             offlineFirstNoteRepository.updateNote(noteId, newTitle, currentCourseId)
         }
     }
+
+    private fun formatRelativeTime(iso: String): String {
+        return try {
+            val instant = java.time.Instant.parse(iso)
+            val date = instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            val today = java.time.LocalDate.now()
+            val days = java.time.temporal.ChronoUnit.DAYS.between(date, today)
+            when {
+                days == 0L -> "Hoy"
+                days == 1L -> "Ayer"
+                days < 7 -> "Hace $days días"
+                days < 14 -> "Hace 1 semana"
+                days < 21 -> "Hace 2 semanas"
+                days < 30 -> "Hace 3 semanas"
+                else -> "Hace ${days / 30} meses"
+            }
+        } catch (_: Exception) {
+            "Recientemente"
+        }
+    }
 }
+
