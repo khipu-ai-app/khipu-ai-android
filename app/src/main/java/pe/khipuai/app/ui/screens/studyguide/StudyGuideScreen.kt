@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.studyguide
+﻿package pe.khipuai.app.ui.screens.studyguide
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -339,7 +339,7 @@ private fun StudySection(icon: ImageVector, title: String, content: String) {
                 Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Text(text = content, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 20.sp)
+            Text(text = content, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }

@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.exam
+﻿package pe.khipuai.app.ui.screens.exam
 
 import androidx.compose.foundation.background
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,7 +32,7 @@ fun ExamResultScreen(
 
     val percent = result.percentage.toInt()
     val isPassing = percent >= 60
-    val scoreColor = if (isPassing) Color(0xFF2E7D32) else Color(0xFFC62828)
+    val scoreColor = if (isPassing) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
     val emoji = if (isPassing) "🎉" else "💪"
     val message = if (isPassing) "¡Buen trabajo!" else "Sigue practicando"
 
@@ -72,7 +72,7 @@ fun ExamResultScreen(
                             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(topic, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                                 Text("${stats.correct}/${stats.total}", fontWeight = FontWeight.Bold,
-                                     color = if (stats.correct >= stats.total / 2) Color(0xFF2E7D32) else Color(0xFFC62828))
+                                     color = if (stats.correct >= stats.total / 2) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -119,3 +119,4 @@ fun ExamResultScreen(
         }
     }
 }
+

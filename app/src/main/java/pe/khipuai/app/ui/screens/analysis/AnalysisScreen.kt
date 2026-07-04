@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.analysis
+﻿package pe.khipuai.app.ui.screens.analysis
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -272,8 +272,7 @@ fun AnalysisScreen(
                         Text(
                             text = uiState.summary,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 20.sp
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -442,8 +441,7 @@ fun AnalysisScreen(
                                     Text(
                                         text = uiState.aiSuggestion,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        lineHeight = 20.sp
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
 
                                     Spacer(modifier = Modifier.height(12.dp))

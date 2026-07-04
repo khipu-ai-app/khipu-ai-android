@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.maps
+﻿package pe.khipuai.app.ui.screens.maps
 
 import android.util.Base64
 import android.webkit.WebView
@@ -470,8 +470,7 @@ private fun ConceptBottomSheet(
                 Text(
                     text = concept.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

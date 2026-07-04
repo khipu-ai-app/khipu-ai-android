@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.processing
+﻿package pe.khipuai.app.ui.screens.processing
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -247,8 +247,7 @@ fun ProcessingScreen(
                     Text(
                         text = uiState.studyTip,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        lineHeight = 20.sp
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -272,7 +271,7 @@ private fun ProcessingStep(
                 .clip(CircleShape)
                 .background(
                     when {
-                        isComplete -> Color(0xFF2E7D32)
+                        isComplete -> MaterialTheme.colorScheme.tertiary
                         isActive -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.surfaceVariant
                     }
@@ -308,7 +307,7 @@ private fun ProcessingStep(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
             color = when {
-                isComplete -> Color(0xFF2E7D32)
+                isComplete -> MaterialTheme.colorScheme.tertiary
                 isActive -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
@@ -316,3 +315,4 @@ private fun ProcessingStep(
         )
     }
 }
+

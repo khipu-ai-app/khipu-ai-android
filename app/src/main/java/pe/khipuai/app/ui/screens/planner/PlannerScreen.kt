@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.planner
+﻿package pe.khipuai.app.ui.screens.planner
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -318,8 +318,7 @@ private fun DailyAgendaHeader(
         Text(
             text = "Repasos priorizados por el algoritmo de memoria espaciada SuperMemo-2. Toca cada concepto para autoevaluarte.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 20.sp
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

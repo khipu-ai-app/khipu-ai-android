@@ -397,8 +397,7 @@ fun NoteDetailScreen(
                             Text(
                                 text = uiState.aiSummary,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                lineHeight = 20.sp
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -931,4 +930,5 @@ private fun shareNote(context: android.content.Context, title: String, summary: 
     val chooser = android.content.Intent.createChooser(sendIntent, "Compartir nota")
     context.startActivity(chooser)
 }
+
 

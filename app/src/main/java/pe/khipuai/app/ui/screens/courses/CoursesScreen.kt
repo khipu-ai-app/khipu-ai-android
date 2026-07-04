@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.courses
+﻿package pe.khipuai.app.ui.screens.courses
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -48,17 +48,17 @@ fun CoursesScreen(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(Color(0xFFE8DEF8), CircleShape),
+                                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = "Perfil",
-                                tint = Color(0xFF4F378B),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        Text("Khipu AI", fontWeight = FontWeight.Bold, color = Color(0xFF4F378B))
+                        Text("Khipu AI", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -102,7 +102,7 @@ fun CoursesScreen(
                             onClick = onCreateCourseClick,
                             shape = RoundedCornerShape(9999.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4F378B),
+                                containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = Color.White
                             ),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
@@ -150,7 +150,7 @@ fun CoursesScreen(
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = Color.Transparent,
                                 labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                selectedContainerColor = Color(0xFF4F378B),
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = Color.White
                             )
 
@@ -168,7 +168,7 @@ fun CoursesScreen(
                             .padding(vertical = 40.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Color(0xFF4F378B))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -407,8 +407,8 @@ fun CoursesScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            BadgeTag(text = course.categoryTag, containerColor = Color(0xFFF3EDF7), textColor = Color(0xFF4F378B))
-                            BadgeTag(text = course.semesterTag, containerColor = Color(0xFFE8DEF8), textColor = Color(0xFF1D1B20))
+                            BadgeTag(text = course.categoryTag, containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), textColor = MaterialTheme.colorScheme.primary)
+                            BadgeTag(text = course.semesterTag, containerColor = MaterialTheme.colorScheme.secondaryContainer, textColor = Color(0xFF1D1B20))
                             if (course.priorityTag != null) {
                                 val isHigh = course.priorityTag.contains("Alta", ignoreCase = true)
                                 val containerColor = if (isHigh) Color(0xFFFFDAD9) else Color(0xFFE8F5E9)
@@ -445,7 +445,7 @@ fun CoursesScreen(
                                 .fillMaxWidth()
                                 .height(8.dp)
                                 .clip(CircleShape),
-                            color = Color(0xFF4CAF50),
+                            color = MaterialTheme.colorScheme.tertiary,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
 
@@ -459,12 +459,12 @@ fun CoursesScreen(
                             LabelMetric(
                                 icon = Icons.Default.CheckCircle,
                                 text = "${course.masteredCount} Dominados",
-                                tint = Color(0xFF4CAF50)
+                                tint = MaterialTheme.colorScheme.tertiary
                             )
                             LabelMetric(
                                 icon = Icons.Default.Pending,
                                 text = "${course.pendingCount} Pendientes",
-                                tint = Color(0xFFFF9800)
+                                tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -564,3 +564,4 @@ private fun LabelMetric(
         Text(text = text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
