@@ -281,9 +281,9 @@ private fun DailyAgendaHeader(
             )
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalButton(
+                Button(
                     onClick = onCalendarClick,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.CalendarMonth,
@@ -292,22 +292,23 @@ private fun DailyAgendaHeader(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Calendario",
-                        style = MaterialTheme.typography.labelLarge
+                        text = "Ver Calendario",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.small
                 ) {
                     Text(
-                        text = "🔋 SM-2",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        text = "SM-2",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }

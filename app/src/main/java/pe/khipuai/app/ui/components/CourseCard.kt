@@ -68,9 +68,10 @@ fun CourseCard(
                 
                 // Files count
                 Text(
-                    text = "$filesCount archivos",
+                    text = if (filesCount == 1) "1 archivo" else "$filesCount archivos",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
                 )
             }
             

@@ -754,6 +754,7 @@ fun KhipuNavigation(
 
         composable(Screen.Calendar.route) {
             CalendarScreen(
+                onNavigateBack = { navController.popBackStack() },
                 onNavigateToTab = { tabIndex ->
                     when (tabIndex) {
                         0 -> navController.navigate(Screen.Home.route)
