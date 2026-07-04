@@ -299,15 +299,15 @@ private fun DailyAgendaHeader(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Surface(
-                    color = Color(0xFFE8F5E8),
-                    shape = RoundedCornerShape(16.dp)
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = MaterialTheme.shapes.small
                 ) {
                     Text(
                         text = "🔋 SM-2",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32)
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
@@ -658,7 +658,7 @@ private fun ConceptTaskItem(
                 Spacer(modifier = Modifier.width(8.dp))
                 val rating = task.lastRating!!
                 val isRemembered = rating >= 3
-                val badgeColor = if (isRemembered) Color(0xFF2E7D32) else Color(0xFFC62828)
+                val badgeColor = if (isRemembered) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
                 Surface(
                     color = badgeColor.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(8.dp)

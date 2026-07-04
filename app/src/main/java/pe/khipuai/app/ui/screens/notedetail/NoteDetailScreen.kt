@@ -830,8 +830,8 @@ private fun FileListItem(
         else -> Icons.Default.Description
     }
     val iconTint = when {
-        isImage -> Color(0xFF2E7D32)
-        file.fileType.lowercase() == "pdf" -> Color(0xFFC62828)
+        isImage -> MaterialTheme.colorScheme.tertiary
+        file.fileType.lowercase() == "pdf" -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
