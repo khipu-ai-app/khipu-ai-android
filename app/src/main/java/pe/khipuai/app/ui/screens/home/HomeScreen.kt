@@ -1,4 +1,4 @@
-package pe.khipuai.app.ui.screens.home
+﻿package pe.khipuai.app.ui.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -483,3 +483,4 @@ private fun SectionHeader(
         }
     }
 }
+

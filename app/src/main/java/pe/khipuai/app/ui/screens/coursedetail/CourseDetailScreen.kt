@@ -683,7 +683,7 @@ private fun NoteRow(
                             renameDialogExpanded = true
                             menuExpanded = false
                         },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = "Renombrar") }
                     )
                     DropdownMenuItem(
                         text = { Text("Cambiar materia") },
@@ -691,7 +691,7 @@ private fun NoteRow(
                             reassociateDialogExpanded = true
                             menuExpanded = false
                         },
-                        leadingIcon = { Icon(Icons.Default.Class, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Default.Class, contentDescription = "Cambiar materia") }
                     )
                     HorizontalDivider()
                     DropdownMenuItem(
@@ -1771,4 +1771,5 @@ private fun CourseDetailScreenEmptyPreview() {
         }
     }
 }
+
 
