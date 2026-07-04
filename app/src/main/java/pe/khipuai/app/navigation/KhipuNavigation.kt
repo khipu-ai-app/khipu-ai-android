@@ -578,9 +578,9 @@ fun KhipuNavigation(
                     val encoded = java.net.URLEncoder.encode(courseName, "UTF-8")
                     navController.navigate("${Screen.Exam.route}/$courseId?courseName=$encoded")
                 },
-                // CE-03: Repasar curso (navega a la primera nota del curso)
-                onNavigateToReview = { noteId ->
-                    navController.navigate("${Screen.ReviewSession.route}/$noteId")
+                // CE-03: Repasar curso (navega con courseId a la ruta dedicada)
+                onNavigateToReview = { courseId ->
+                    navController.navigate("review_session/by-course/$courseId")
                 }
             )
         }
@@ -655,6 +655,19 @@ fun KhipuNavigation(
                     nullable = true
                     defaultValue = null
                 }
+            )
+        ) {
+            ReviewSessionScreen(
+                onBackClick = { navController.popBackStack() },
+                onComplete = { navController.popBackStack() },
+            )
+        }
+
+        // CE-03: ruta para repaso por curso
+        composable(
+            route = "review_session/by-course/{courseId}",
+            arguments = listOf(
+                navArgument("courseId") { type = NavType.StringType }
             )
         ) {
             ReviewSessionScreen(

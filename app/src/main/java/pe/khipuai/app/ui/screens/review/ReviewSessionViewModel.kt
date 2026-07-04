@@ -73,6 +73,26 @@ class ReviewSessionViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             when {
+                courseId != null -> {
+                    plannerRepository.fetchCourseReviewSession(courseId)
+                        .onSuccess { concepts ->
+                            val pendingConcepts = concepts.filter { it.isDue }
+                            _uiState.value = _uiState.value.copy(
+                                noteTitle = "Repaso del curso",
+                                courseName = null,
+                                concepts = pendingConcepts,
+                                isLoading = false,
+                                currentIndex = 0,
+                                isComplete = pendingConcepts.isEmpty(),
+                            )
+                        }
+                        .onFailure { error ->
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(error).message,
+                            )
+                        }
+                }
                 noteId != null -> {
                     noteRepository.getNoteReviewSession(noteId)
                         .onSuccess { session ->

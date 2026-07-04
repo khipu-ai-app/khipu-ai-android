@@ -235,18 +235,13 @@ private fun CourseDetailContent(
 
         // CE-03: Repasar curso
         item {
-            val hasNotes = state.notes.isNotEmpty()
             OutlinedButton(
-                onClick = {
-                    val firstNoteId = state.notes.firstOrNull()?.id
-                    if (firstNoteId != null) onReviewCourse(firstNoteId)
-                },
+                onClick = { onReviewCourse(state.courseId) },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = hasNotes,
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (hasNotes) "Repasar este curso" else "Sin notas para repasar")
+                Text("Repasar este curso")
             }
         }
 

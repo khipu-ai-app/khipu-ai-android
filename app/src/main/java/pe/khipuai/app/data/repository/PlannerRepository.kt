@@ -25,6 +25,14 @@ class PlannerRepository @Inject constructor(
         }
     }
 
+    suspend fun fetchCourseReviewSession(courseId: String): Result<List<ReviewConceptResponse>> {
+        return try {
+            Result.success(apiService.getCourseReviewSession(courseId))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchDailyDeckSession(): Result<List<ReviewConceptResponse>> {
         return try {
             Result.success(apiService.getDailyDeckSession())
