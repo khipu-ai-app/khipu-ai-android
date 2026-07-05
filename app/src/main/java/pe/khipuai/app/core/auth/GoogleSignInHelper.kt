@@ -6,7 +6,7 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -44,10 +44,7 @@ class GoogleSignInHelper @Inject constructor() {
         val credentialManager = CredentialManager.create(context)
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(
-                GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(false) // permite cuentas nuevas
-                    .setServerClientId(webClientId)
-                    .setAutoSelectEnabled(true)            // auto-pick si hay 1 sola
+                GetSignInWithGoogleOption.Builder(webClientId)
                     .build()
             )
             .build()

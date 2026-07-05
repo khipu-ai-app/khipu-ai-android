@@ -106,7 +106,7 @@ fun CaptureScreen(
 
     // Photo picker para el modo UPLOAD (múltiple)
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10)
+        contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             val files = uris.mapNotNull { uriToFile(context, it, ".jpg") }
@@ -155,7 +155,16 @@ fun CaptureScreen(
         }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            viewModel.clearError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -222,9 +231,7 @@ fun CaptureScreen(
                 CaptureMode.UPLOAD -> UploadModeBody(
                     combineMode = uiState.combineMode,
                     onPickImage = {
-                        imagePickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
+                        imagePickerLauncher.launch("image/*")
                     }
                 )
                 CaptureMode.PDF -> PdfModeBody(
