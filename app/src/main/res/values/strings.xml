@@ -16,6 +16,6 @@
          este ID va en strings.xml (no hardcodeado). Por ahora es un
          placeholder; en prod se reemplaza con el ID real del proyecto
          Firebase/Google Cloud (formato: 123456789-abc.apps.googleusercontent.com). -->
-    <string name="google_web_client_id">REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
+    <string name="google_web_client_id">341399802032-m7tokh5tgronsm7qfmaspbba2alibqd9.apps.googleusercontent.com</string>
     <string name="widget_description">Muestra tus repasos pendientes del día.</string>
 </resources>

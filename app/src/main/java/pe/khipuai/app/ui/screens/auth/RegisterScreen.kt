@@ -34,6 +34,7 @@ fun RegisterScreen(
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -324,7 +325,7 @@ fun RegisterScreen(
                 // T-09: el ViewModel orquesta el flujo de CredentialManager
                 // internamente. En register, "Iniciar con Google" = login
                 // con Google (usuarios nuevos se crean en el backend).
-                viewModel.signInWithGoogle { success ->
+                viewModel.signInWithGoogle(context) { success ->
                     if (success) onNavigateToHome()
                 }
             },

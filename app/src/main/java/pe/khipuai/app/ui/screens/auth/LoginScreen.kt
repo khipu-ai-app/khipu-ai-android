@@ -37,6 +37,7 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var passwordVisible by remember { mutableStateOf(false) }
 
     Column(
@@ -237,7 +238,7 @@ fun LoginScreen(
                 // T-09: el ViewModel ahora orquesta el flujo de CredentialManager
                 // internamente y nos entrega el idToken real. Nosotros solo
                 // decidimos qué hacer con el resultado (navegar a Home).
-                viewModel.signInWithGoogle { success ->
+                viewModel.signInWithGoogle(context) { success ->
                     if (success) onNavigateToHome()
                 }
             },

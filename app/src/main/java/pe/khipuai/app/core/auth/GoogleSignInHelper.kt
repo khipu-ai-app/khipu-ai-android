@@ -32,12 +32,7 @@ import javax.inject.Singleton
  *   - [GoogleSignInResult.Failed]: cualquier otro error (sin red, etc).
  */
 @Singleton
-class GoogleSignInHelper @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
-    private val credentialManager: CredentialManager by lazy {
-        CredentialManager.create(context)
-    }
+class GoogleSignInHelper @Inject constructor() {
 
     /**
      * Dispara el sheet de CredentialManager. La función es `suspend` y
@@ -45,7 +40,8 @@ class GoogleSignInHelper @Inject constructor(
      * es suspendida internamente, así que NO necesitamos wrap manual
      * con `suspendCancellableCoroutine`.
      */
-    suspend fun signIn(webClientId: String): GoogleSignInResult {
+    suspend fun signIn(context: Context, webClientId: String): GoogleSignInResult {
+        val credentialManager = CredentialManager.create(context)
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(
                 GetGoogleIdOption.Builder()

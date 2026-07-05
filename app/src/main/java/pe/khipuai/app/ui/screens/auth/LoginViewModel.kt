@@ -1,5 +1,7 @@
 package pe.khipuai.app.ui.screens.auth
 
+import android.content.Context
+
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -82,13 +84,13 @@ class LoginViewModel @Inject constructor(
      * específicos del sheet (cancel, no credentials) se traducen a
      * mensajes en español para el usuario.
      */
-    fun signInWithGoogle(onResult: (Boolean) -> Unit) {
+    fun signInWithGoogle(context: Context, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             val webClientId = getApplication<Application>()
                 .getString(R.string.google_web_client_id)
 
-            when (val result = googleSignInHelper.signIn(webClientId)) {
+            when (val result = googleSignInHelper.signIn(context, webClientId)) {
                 is GoogleSignInResult.Success -> {
                     authRepository.loginWithGoogle(result.idToken)
                         .onSuccess {
