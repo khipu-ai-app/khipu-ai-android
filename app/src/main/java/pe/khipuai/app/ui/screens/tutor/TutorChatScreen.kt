@@ -1,5 +1,6 @@
 ﻿package pe.khipuai.app.ui.screens.tutor
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -32,7 +33,7 @@ fun TutorChatScreen(
     onNavigateBack: () -> Unit,
     viewModel: TutorChatViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
     LaunchedEffect(uiState.messages.size, uiState.messages.lastOrNull()?.content?.length) {
@@ -200,7 +201,7 @@ fun TutorChatScreen(
                 item { Spacer(modifier = Modifier.height(8.dp)) }
 
                 // Burbujas de Chat
-                items(uiState.messages) { message ->
+                items(uiState.messages, key = { it.id }) { message ->
                     val isUser = message.sender == ChatSender.USER
 
                     Column(

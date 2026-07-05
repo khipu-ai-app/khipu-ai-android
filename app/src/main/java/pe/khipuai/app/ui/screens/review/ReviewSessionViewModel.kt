@@ -8,14 +8,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.remote.dto.ConceptTutorRequest
 import pe.khipuai.app.data.remote.dto.ReviewConceptResponse
 import pe.khipuai.app.data.repository.NoteRepository
 import pe.khipuai.app.data.repository.PlannerRepository
 import javax.inject.Inject
 
+enum class ReviewEntryPoint { DAILY_DECK, COURSE, NOTE, CONCEPT }
+
 data class ReviewSessionUiState(
     val noteTitle: String = "",
     val courseName: String? = null,
+    val entryPoint: ReviewEntryPoint = ReviewEntryPoint.DAILY_DECK,
     val concepts: List<ReviewConceptResponse> = emptyList(),
     val currentIndex: Int = 0,
     val isLoading: Boolean = true,
@@ -32,7 +36,13 @@ data class ReviewSessionUiState(
         get() = "Concepto ${currentIndex + 1} de ${concepts.size}"
 
     val progressPercent: Float
-        get() = if (concepts.isEmpty()) 0f else ((currentIndex) / concepts.size.toFloat())
+        get() = if (concepts.isEmpty()) 0f else (currentIndex.toFloat() / concepts.size)
+
+    val canGoBack: Boolean
+        get() = currentIndex > 0 && !isComplete && !isSubmitting
+
+    val canSkip: Boolean
+        get() = !isFlipped && !isComplete && !isSubmitting
 }
 
 data class ReviewResultsSummary(
@@ -76,14 +86,13 @@ class ReviewSessionViewModel @Inject constructor(
                 courseId != null -> {
                     plannerRepository.fetchCourseReviewSession(courseId)
                         .onSuccess { concepts ->
-                            val pendingConcepts = concepts.filter { it.isDue }
+                            val pending = concepts.filter { it.isDue }
                             _uiState.value = _uiState.value.copy(
                                 noteTitle = "Repaso del curso",
-                                courseName = null,
-                                concepts = pendingConcepts,
+                                entryPoint = ReviewEntryPoint.COURSE,
+                                concepts = pending,
                                 isLoading = false,
-                                currentIndex = 0,
-                                isComplete = pendingConcepts.isEmpty(),
+                                isComplete = pending.isEmpty(),
                             )
                         }
                         .onFailure { error ->
@@ -96,14 +105,14 @@ class ReviewSessionViewModel @Inject constructor(
                 noteId != null -> {
                     noteRepository.getNoteReviewSession(noteId)
                         .onSuccess { session ->
-                            val pendingConcepts = session.concepts.filter { it.isDue }
+                            val pending = session.concepts.filter { it.isDue }
                             _uiState.value = _uiState.value.copy(
                                 noteTitle = session.noteTitle,
                                 courseName = session.courseName,
-                                concepts = pendingConcepts,
+                                entryPoint = ReviewEntryPoint.NOTE,
+                                concepts = pending,
                                 isLoading = false,
-                                currentIndex = 0,
-                                isComplete = pendingConcepts.isEmpty(),
+                                isComplete = pending.isEmpty(),
                             )
                         }
                         .onFailure { error ->
@@ -114,15 +123,13 @@ class ReviewSessionViewModel @Inject constructor(
                         }
                 }
                 conceptName != null -> {
-                    // Repaso de un solo concepto (F-09: disparado desde ConceptBottomSheet)
                     noteRepository.getConceptReviewSession(conceptName)
                         .onSuccess { concepts ->
                             _uiState.value = _uiState.value.copy(
                                 noteTitle = "Repaso: $conceptName",
-                                courseName = null,
+                                entryPoint = ReviewEntryPoint.CONCEPT,
                                 concepts = concepts,
                                 isLoading = false,
-                                currentIndex = 0,
                                 isComplete = concepts.isEmpty(),
                             )
                         }
@@ -134,17 +141,16 @@ class ReviewSessionViewModel @Inject constructor(
                         }
                 }
                 else -> {
-                    // Mazo Diario (Daily Deck) F-10 Opción 1
                     plannerRepository.fetchDailyDeckSession()
                         .onSuccess { concepts ->
-                            val pendingConcepts = concepts.filter { it.isDue }
+                            val pending = concepts.filter { it.isDue }
                             _uiState.value = _uiState.value.copy(
                                 noteTitle = "Mazo Diario",
                                 courseName = "Todos los cursos",
-                                concepts = pendingConcepts,
+                                entryPoint = ReviewEntryPoint.DAILY_DECK,
+                                concepts = pending,
                                 isLoading = false,
-                                currentIndex = 0,
-                                isComplete = pendingConcepts.isEmpty(),
+                                isComplete = pending.isEmpty(),
                             )
                         }
                         .onFailure { error ->
@@ -162,32 +168,63 @@ class ReviewSessionViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isFlipped = !_uiState.value.isFlipped)
     }
 
+    fun goBack() {
+        val idx = _uiState.value.currentIndex
+        if (idx > 0) {
+            conceptResults.removeLastOrNull()
+            _uiState.value = _uiState.value.copy(
+                currentIndex = idx - 1,
+                isFlipped = true,
+            )
+        }
+    }
+
+    fun skipConcept() {
+        val currentIdx = _uiState.value.currentIndex
+        val total = _uiState.value.concepts.size
+        if (currentIdx + 1 >= total) {
+            _uiState.value = _uiState.value.copy(
+                isComplete = true,
+                resultsSummary = ReviewResultsSummary(
+                    remembered = conceptResults.count { it.rating >= 3 },
+                    forgotten = conceptResults.count { it.rating < 3 },
+                    total = total,
+                    nextReviewDate = _uiState.value.concepts.map { it.nextReviewDate }.minOrNull() ?: "",
+                    results = conceptResults.toList(),
+                ),
+            )
+        } else {
+            _uiState.value = _uiState.value.copy(
+                currentIndex = currentIdx + 1,
+                isFlipped = false,
+            )
+        }
+    }
+
     fun submitRating(rating: Int) {
         val concept = _uiState.value.currentConcept ?: return
         val currentIdx = _uiState.value.currentIndex
         val total = _uiState.value.concepts.size
 
-        conceptResults.add(ConceptResult(concept.label, rating))
-        _uiState.value = _uiState.value.copy(
-            isSubmitting = true,
-        )
+        if (currentIdx < conceptResults.size) {
+            conceptResults[currentIdx] = ConceptResult(concept.label, rating)
+        } else {
+            conceptResults.add(ConceptResult(concept.label, rating))
+        }
+        _uiState.value = _uiState.value.copy(isSubmitting = true)
 
         viewModelScope.launch {
             plannerRepository.submitReviewRating(concept.conceptId, rating, noteId ?: conceptIdOrName(concept.conceptName))
                 .onSuccess {
                     if (currentIdx + 1 >= total) {
-                        val remembered = conceptResults.count { it.rating >= 3 }
-                        val forgotten = conceptResults.count { it.rating < 3 }
-                        val nextReviewDate = _uiState.value.concepts.map { it.nextReviewDate }.minOrNull() ?: ""
-                        
                         _uiState.value = _uiState.value.copy(
                             isSubmitting = false,
                             isComplete = true,
                             resultsSummary = ReviewResultsSummary(
-                                remembered = remembered,
-                                forgotten = forgotten,
+                                remembered = conceptResults.count { it.rating >= 3 },
+                                forgotten = conceptResults.count { it.rating < 3 },
                                 total = total,
-                                nextReviewDate = nextReviewDate,
+                                nextReviewDate = _uiState.value.concepts.map { it.nextReviewDate }.minOrNull() ?: "",
                                 results = conceptResults.toList(),
                             ),
                         )
@@ -212,17 +249,12 @@ class ReviewSessionViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
-    /**
-     * Para repasos por concepto (F-09) el `noteId` siempre es null. El backend
-     * acepta `note_id` opcional en `POST /planner/review`, así que le pasamos
-     * null en lugar de inventar un UUID.
-     */
     private fun conceptIdOrName(@Suppress("UNUSED_PARAMETER") name: String): String? = null
 
     fun restartWithDifficult() {
         val forgottenLabels = conceptResults.filter { it.rating < 3 }.map { it.conceptName }
         val remainingConcepts = _uiState.value.concepts.filter { it.label in forgottenLabels }
-        
+
         conceptResults.clear()
         _uiState.value = _uiState.value.copy(
             concepts = remainingConcepts,
@@ -231,5 +263,24 @@ class ReviewSessionViewModel @Inject constructor(
             isFlipped = false,
             resultsSummary = null
         )
+    }
+
+    fun askAboutConcept(
+        conceptName: String,
+        definition: String?,
+        noteTitle: String?,
+        question: String,
+        onResult: (Result<String>) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val request = ConceptTutorRequest(
+                conceptName = conceptName,
+                definition = definition,
+                noteTitle = noteTitle,
+                question = question,
+            )
+            val result = noteRepository.askAboutConcept(request)
+            onResult(result)
+        }
     }
 }

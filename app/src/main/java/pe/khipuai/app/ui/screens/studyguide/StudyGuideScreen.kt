@@ -1,5 +1,6 @@
 ﻿package pe.khipuai.app.ui.screens.studyguide
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -31,10 +32,11 @@ import kotlin.math.roundToInt
 @Composable
 fun StudyGuideScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToHome: () -> Unit = {},
     onNavigateToReview: (String) -> Unit,
     viewModel: StudyGuideViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -43,6 +45,11 @@ fun StudyGuideScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToHome) {
+                        Icon(Icons.Default.Home, contentDescription = "Inicio")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -102,108 +109,7 @@ fun StudyGuideScreen(
                     }
                 }
 
-                // Sección 3 - Flashcards
-                if (uiState.flashcards.isNotEmpty()) {
-                    item {
-                        val currentCard = uiState.flashcards.getOrNull(uiState.currentFlashcardIndex)
-                        if (currentCard != null) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(imageVector = Icons.Default.Style, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = "Flashcards", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                        Spacer(modifier = Modifier.weight(1f))
-                                        Text(text = "[${uiState.currentFlashcardIndex + 1} / ${uiState.flashcards.size}]", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Card con animación Flip 3D
-                                    val rotation = androidx.compose.animation.core.animateFloatAsState(
-                                        targetValue = if (currentCard.isRevealed) 180f else 0f,
-                                        animationSpec = tween(400),
-                                        label = "flip"
-                                    )
-                                    
-                                    val isBackVisible = rotation.value > 90f
-
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(180.dp)
-                                            .graphicsLayer {
-                                                rotationY = rotation.value
-                                                cameraDistance = 12f * density
-                                            }
-                                            .clickable { viewModel.flipCurrentFlashcard() },
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = if (isBackVisible) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
-                                        ),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize().padding(24.dp).graphicsLayer {
-                                                if (isBackVisible) rotationY = 180f // Para que no quede al revés el texto
-                                            }, 
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = if (isBackVisible) currentCard.answer else currentCard.question,
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                fontWeight = FontWeight.Medium,
-                                                textAlign = TextAlign.Center,
-                                                color = if (isBackVisible) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
-                                            )
-                                        }
-                                    }
-                                    
-                                    if (uiState.flashcards.size > 1) {
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            TextButton(
-                                                onClick = { viewModel.previousFlashcard() },
-                                                enabled = uiState.currentFlashcardIndex > 0
-                                            ) {
-                                                Text("← Anterior")
-                                            }
-
-                                            // Indicador de puntos
-                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                uiState.flashcards.indices.forEach { idx ->
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(8.dp)
-                                                            .clip(CircleShape)
-                                                            .background(if (idx == uiState.currentFlashcardIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
-                                                    )
-                                                }
-                                            }
-
-                                            TextButton(
-                                                onClick = { viewModel.nextFlashcard() },
-                                                enabled = uiState.currentFlashcardIndex < uiState.flashcards.size - 1
-                                            ) {
-                                                Text(if (uiState.currentFlashcardIndex == uiState.flashcards.size - 1) "Finalizar" else "Siguiente →")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Sección 4 - Quiz de Práctica
+                // Sección 3 - Quiz de Práctica
                 if (uiState.questions.isNotEmpty()) {
                     item {
                         Card(

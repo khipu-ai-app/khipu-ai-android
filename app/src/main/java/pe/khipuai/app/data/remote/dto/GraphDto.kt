@@ -21,7 +21,8 @@ data class NetworkEdge(
     @SerialName("target") val target: String,
     @SerialName("type") val type: String,        // "HAS_NOTE" | "MENTIONS" | "RELATED_TO"
     @SerialName("weight") val weight: Float? = 1.0f,
-    @SerialName("strength") val strength: Float? = 1.0f
+    @SerialName("strength") val strength: Float? = 1.0f,
+    @SerialName("label") val label: String? = null   // "REQUIERE", "DEPENDE_DE", etc.
 )
 
 @Serializable

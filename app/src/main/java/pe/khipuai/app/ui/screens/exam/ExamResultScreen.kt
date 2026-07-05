@@ -1,5 +1,6 @@
 ﻿package pe.khipuai.app.ui.screens.exam
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.*
@@ -27,7 +28,7 @@ fun ExamResultScreen(
     onBackToCourse: () -> Unit,
     viewModel: ExamViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val result = state.result ?: return
 
     val percent = result.percentage.toInt()

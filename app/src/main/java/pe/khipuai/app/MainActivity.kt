@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
@@ -54,7 +55,7 @@ class MainActivity : ComponentActivity() {
             // cambia la opción en ProfileScreen, el DataStore emite y la
             // UI recompone con el nuevo esquema de colores. No necesitamos
             // recreate() ni AppCompatDelegate.
-            val themeMode by themePreferences.themeModeFlow.collectAsState(initial = ThemeMode.SYSTEM)
+            val themeMode by themePreferences.themeModeFlow.collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
             KhipuAITheme(themeMode = themeMode) {
                 // T-03: Surface raíz con el color de fondo del tema. Sin esto,
                 // el background del window de Android (blanco/negro) no cambia

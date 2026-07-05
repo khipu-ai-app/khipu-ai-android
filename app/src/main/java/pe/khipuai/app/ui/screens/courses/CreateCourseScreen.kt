@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.courses
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.graphics.Color
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -33,7 +34,7 @@ fun CreateCourseScreen(
     onNavigateBack: () -> Unit,
     viewModel: CreateCourseViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
 
     // CE-05: confirmar salida si hay texto sin guardar

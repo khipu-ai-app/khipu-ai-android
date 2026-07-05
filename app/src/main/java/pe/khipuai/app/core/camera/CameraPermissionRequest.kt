@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,7 +65,7 @@ fun rememberCameraPermissionState(): androidx.compose.runtime.State<CameraPermis
     // La UI debe llamar a requestPermission() explícitamente desde un botón.
     // Esto evita el patrón agresivo de pedir permisos al entrar a la pantalla.
 
-    return state.asStateFlow().collectAsState()
+    return state.asStateFlow().collectAsStateWithLifecycle()
 }
 
 /**

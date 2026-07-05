@@ -1,5 +1,6 @@
 ﻿package pe.khipuai.app.ui.screens.notedetail
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -49,7 +50,7 @@ fun NoteDetailScreen(
     onFileClick: (String) -> Unit = {},
     viewModel: NoteDetailViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -431,96 +432,6 @@ fun NoteDetailScreen(
                                     label = { Text(concept) },
                                     shape = RoundedCornerShape(8.dp)
                                 )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // SECCIÓN: Mini Mapa de Conocimiento Local
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                                Text("Mapa de Conceptos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(240.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surface)
-                        ) {
-                            if (uiState.showLocalGraph) {
-                                if (uiState.isGraphLoading) {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator(modifier = Modifier.size(40.dp))
-                                    }
-                                } else {
-                                    val nodesJson = uiState.d3NodesJson
-                                    val edgesJson = uiState.d3EdgesJson
-                                    androidx.compose.ui.viewinterop.AndroidView(
-                                        factory = { ctx ->
-                                            android.webkit.WebView(ctx).apply {
-                                                layoutParams = android.view.ViewGroup.LayoutParams(
-                                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                                                )
-                                                setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
-                                                settings.javaScriptEnabled = true
-                                                settings.domStorageEnabled = true
-                                                settings.allowFileAccessFromFileURLs = true
-                                                settings.allowUniversalAccessFromFileURLs = true
-                                                settings.setSupportZoom(true)
-                                                settings.builtInZoomControls = true
-                                                settings.displayZoomControls = false
-
-                                                webViewClient = object : android.webkit.WebViewClient() {
-                                                    override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
-                                                        super.onPageFinished(view, url)
-                                                        val nb64 = android.util.Base64.encodeToString(
-                                                            nodesJson.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP
-                                                        )
-                                                        val eb64 = android.util.Base64.encodeToString(
-                                                            edgesJson.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP
-                                                        )
-                                                        view?.evaluateJavascript("loadGraph('$nb64', '$eb64')", null)
-                                                    }
-                                                }
-                                                loadUrl("file:///android_asset/mindmap.html")
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-                            } else {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Button(
-                                        onClick = { viewModel.toggleLocalGraph() },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
-                                    ) {
-                                        Icon(Icons.Default.AccountTree, contentDescription = null)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Cargar Grafo de Conceptos")
-                                    }
-                                }
                             }
                         }
                     }

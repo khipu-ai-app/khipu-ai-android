@@ -45,3 +45,16 @@ data class ChatMessageResponse(
     @SerialName("created_at") val createdAt: String,
     @SerialName("reference_nodes") val referenceNodes: List<ReferenceNodeDto>? = null
 )
+
+@Serializable
+data class ConceptTutorRequest(
+    @SerialName("concept_name") val conceptName: String,
+    @SerialName("definition") val definition: String? = null,
+    @SerialName("note_title") val noteTitle: String? = null,
+    @SerialName("question") val question: String,
+)
+
+@Serializable
+data class ConceptTutorResponse(
+    @SerialName("answer") val answer: String,
+)

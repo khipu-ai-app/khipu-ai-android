@@ -23,11 +23,11 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
+            buildConfigField("String", "BASE_URL", "\"https://khipu-ai-backend-1013222499074.us-central1.run.app/\"")
             isDebuggable = true
         }
         release {
-            buildConfigField("String", "BASE_URL", "\"https://api.khipuai.app/\"")
+            buildConfigField("String", "BASE_URL", "\"https://khipu-ai-backend-1013222499074.us-central1.run.app/\"")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

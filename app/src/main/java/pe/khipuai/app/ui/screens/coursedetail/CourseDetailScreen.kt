@@ -1,7 +1,8 @@
 ﻿package pe.khipuai.app.ui.screens.coursedetail
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -58,6 +60,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -69,15 +75,20 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -116,7 +127,16 @@ fun CourseDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val courseColor = remember(uiState.courseColor) { parseCourseColor(uiState.courseColor) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.snackbarMessage) {
+        uiState.snackbarMessage?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            viewModel.clearSnackbar()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
@@ -145,21 +165,6 @@ fun CourseDetailScreen(
                         )
                     }
                 },
-                actions = {
-                    IconButton(onClick = { onNavigateToTutor(uiState.courseId) }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                            contentDescription = "Tutor del curso"
-                        )
-                    }
-                    // C-03: Modo Examen
-                    IconButton(onClick = { onNavigateToExam(uiState.courseId, uiState.courseName) }) {
-                        Icon(
-                            imageVector = Icons.Default.Checklist,
-                            contentDescription = "Modo Examen"
-                        )
-                    }
-                }
             )
         }
     ) { padding ->
@@ -189,8 +194,10 @@ fun CourseDetailScreen(
             onSetExamDate = { date -> viewModel.setExamDate(date) },
             onClearExamDate = { viewModel.clearExamDate() },
             onReviewCourse = { cid ->
-                val firstNoteId = uiState.notes.firstOrNull()?.id
-                if (firstNoteId != null) onNavigateToReview(firstNoteId)
+                onNavigateToReview(cid)
+            },
+            onNavigateToExam = { courseId, courseName ->
+                onNavigateToExam(courseId, courseName)
             },
         )
     }
@@ -215,6 +222,7 @@ private fun CourseDetailContent(
             onSetExamDate: (String) -> Unit = {},
             onClearExamDate: () -> Unit = {},
             onReviewCourse: (String) -> Unit = {},
+            onNavigateToExam: (String, String) -> Unit = { _, _ -> },
 ) {
     LazyColumn(
         modifier = Modifier
@@ -233,15 +241,28 @@ private fun CourseDetailContent(
             )
         }
 
-        // CE-03: Repasar curso
+        // CE-03: Repasar curso + Examen
         item {
-            OutlinedButton(
-                onClick = { onReviewCourse(state.courseId) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Repasar este curso")
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = { onReviewCourse(state.courseId) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Repasar curso")
+                }
+                Button(
+                    onClick = { onNavigateToExam(state.courseId, state.courseName) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary
+                    )
+                ) {
+                    Icon(Icons.Default.Checklist, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Examen")
+                }
             }
         }
 
@@ -273,9 +294,9 @@ private fun CourseDetailContent(
 
         item {
             KnowledgeGraphSection(
-                nodes = state.previewNodes,
-                accent = courseColor,
-                onExpand = onExpandMap
+                d3NodesJson = state.d3NodesJson,
+                d3EdgesJson = state.d3EdgesJson,
+                isGraphLoading = state.isGraphLoading,
             )
         }
 
@@ -432,49 +453,85 @@ private fun ExamDateCard(
     onDatePicked: (String) -> Unit,
     onClear: () -> Unit,
 ) {
-    var showQuickPicker by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
-    if (showQuickPicker) {
-        AlertDialog(
-            onDismissRequest = { showQuickPicker = false },
-            title = { Text("Seleccionar fecha del examen") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(3 to "En 3 días", 7 to "En 1 semana", 14 to "En 2 semanas", 30 to "En 1 mes").forEach { (days, label) ->
-                        TextButton(
-                            onClick = {
-                                val date = java.time.LocalDate.now().plusDays(days.toLong()).toString()
-                                onDatePicked(date)
-                                showQuickPicker = false
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(label) }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { showQuickPicker = false }) { Text("Cerrar") } },
-            dismissButton = { TextButton(onClick = { showQuickPicker = false }) { Text("Cancelar") } }
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000,
         )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val millis = datePickerState.selectedDateMillis
+                        if (millis != null) {
+                            val date = java.time.Instant.ofEpochMilli(millis)
+                                .atZone(java.time.ZoneOffset.UTC)
+                                .toLocalDate()
+                            onDatePicked(date.toString())
+                        }
+                        showDatePicker = false
+                    },
+                    enabled = datePickerState.selectedDateMillis != null,
+                ) { Text("Programar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
+            },
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    text = "Establecer fecha de examen",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Los conceptos del curso se redistribuirán entre hoy y la fecha del examen para que repases todo antes de la prueba.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                DatePicker(state = datePickerState)
+            }
+        }
     }
 
+    val borderColor = if (examDate != null) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f) else Color.Transparent
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, borderColor, RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (examDate != null) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
-                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = if (examDate != null) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.25f)
+                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
         )
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.CalendarToday,
-                contentDescription = null,
-                tint = if (examDate != null) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (examDate != null) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (examDate != null) Icons.Default.CalendarMonth else Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    tint = if (examDate != null) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 if (examDate != null) {
                     val daysUntil = try {
@@ -482,32 +539,50 @@ private fun ExamDateCard(
                         val today = java.time.LocalDate.now()
                         java.time.temporal.ChronoUnit.DAYS.between(today, exam)
                     } catch (_: Exception) { null }
-                    Text(text = "Examen: ${examDate}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Examen programado",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = examDate,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                     if (daysUntil != null) {
-                        val text = when {
-                            daysUntil < 0 -> "Hace ${-daysUntil} días"
-                            daysUntil == 0L -> "¡Hoy!"
-                            daysUntil == 1L -> "Mañana"
-                            else -> "En $daysUntil días"
+                        val (text, color) = when {
+                            daysUntil < 0 -> "Hace ${-daysUntil} días" to MaterialTheme.colorScheme.error
+                            daysUntil == 0L -> "¡Hoy!" to MaterialTheme.colorScheme.error
+                            daysUntil == 1L -> "Mañana" to MaterialTheme.colorScheme.error
+                            daysUntil <= 7 -> "En $daysUntil días" to MaterialTheme.colorScheme.tertiary
+                            else -> "En $daysUntil días" to MaterialTheme.colorScheme.onSurfaceVariant
                         }
-                        Text(text, style = MaterialTheme.typography.bodySmall,
-                             color = if (daysUntil <= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(text, style = MaterialTheme.typography.labelSmall, color = color, fontWeight = FontWeight.SemiBold)
                     }
                 } else {
-                    Text("Sin fecha de examen", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text("Toca + para establecer la fecha.", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = "Preparación para examen",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Redistribuye los repasos antes de una fecha límite.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             if (isRescheduling) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
-            } else {
-                IconButton(onClick = { showQuickPicker = true }) {
-                    Icon(Icons.Default.Add, contentDescription = examDate?.let { "Cambiar" } ?: "Fijar fecha", modifier = Modifier.size(20.dp))
+            } else if (examDate != null) {
+                IconButton(onClick = onClear) {
+                    Icon(Icons.Default.Close, contentDescription = "Quitar fecha", modifier = Modifier.size(20.dp))
                 }
-                if (examDate != null) {
-                    IconButton(onClick = onClear) {
-                        Icon(Icons.Default.Close, contentDescription = "Quitar fecha", modifier = Modifier.size(20.dp))
-                    }
+            } else {
+                IconButton(onClick = { showDatePicker = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Fijar fecha", modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -885,150 +960,67 @@ private fun RadioRow(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 // =========================================================================================
-//  Section 3 — Knowledge graph
+//  Section 3 — Knowledge graph (D3.js WebView)
 // =========================================================================================
 
 @Composable
 private fun KnowledgeGraphSection(
-    nodes: List<GraphNodeUiModel>,
-    accent: Color,
-    onExpand: () -> Unit
+    d3NodesJson: String,
+    d3EdgesJson: String,
+    isGraphLoading: Boolean,
 ) {
+    val isDarkMode = isSystemInDarkTheme()
+
     SectionHeader(
         title = "Mapa del curso",
-        subtitle = "Vista previa · toca para expandir",
+        subtitle = "Grafo interactivo de conceptos",
         onAction = null,
         actionIcon = null,
         actionDescription = null
     )
 
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(240.dp)
-            .clickable(onClick = onExpand),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        tonalElevation = 1.dp
+    Card(
+        modifier = Modifier.fillMaxWidth().height(280.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     ) {
-        if (nodes.isEmpty()) {
-            GraphEmptyState()
-        } else {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Líneas conectoras entre los nodos consecutivos
-                if (nodes.size > 1) {
-                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                        val outlineColor = MaterialTheme.colorScheme.outlineVariant
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            for (i in 0 until nodes.size - 1) {
-                                val start = Offset(
-                                    size.width * nodes[i].xOffsetFraction,
-                                    size.height * nodes[i].yOffsetFraction
-                                )
-                                val end = Offset(
-                                    size.width * nodes[i + 1].xOffsetFraction,
-                                    size.height * nodes[i + 1].yOffsetFraction
-                                )
-                                drawLine(
-                                    color = outlineColor,
-                                    start = start,
-                                    end = end,
-                                    strokeWidth = 2.5f
-                                )
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (isGraphLoading || d3NodesJson == "[]") {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                }
+            } else {
+                androidx.compose.ui.viewinterop.AndroidView(
+                    factory = { ctx ->
+                        android.webkit.WebView(ctx).apply {
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.allowFileAccess = true
+                            settings.setSupportZoom(true)
+                            settings.builtInZoomControls = true
+                            settings.displayZoomControls = false
+                            webViewClient = object : android.webkit.WebViewClient() {
+                                override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    val nb64 = android.util.Base64.encodeToString(
+                                        d3NodesJson.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP
+                                    )
+                                    val eb64 = android.util.Base64.encodeToString(
+                                        d3EdgesJson.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP
+                                    )
+                                    view?.evaluateJavascript("loadGraph('$nb64', '$eb64', $isDarkMode)", null)
+                                }
                             }
+                            loadUrl("file:///android_asset/mindmap.html")
                         }
-                    }
-                }
-
-                // Nodos
-                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    val widthDp = maxWidth
-                    val heightDp = maxHeight
-                    nodes.forEach { node ->
-                        val xPos = widthDp * node.xOffsetFraction - 28.dp
-                        val yPos = heightDp * node.yOffsetFraction - 16.dp
-                        GraphNodeBubble(
-                            node = node,
-                            accent = accent,
-                            modifier = Modifier.offset(x = xPos, y = yPos)
-                        )
-                    }
-                }
-
-                // CTA flotante
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    tonalElevation = 3.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.OpenInFull,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Expandir grafo", style = MaterialTheme.typography.labelLarge)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GraphNodeBubble(node: GraphNodeUiModel, accent: Color, modifier: Modifier = Modifier) {
-    val (bg, fg) = when (node.status) {
-        NodeStatus.DOMINADO -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
-        NodeStatus.EN_PROGRESO -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
-        NodeStatus.BLOQUEADO -> MaterialTheme.colorScheme.surfaceContainerHigh to MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val icon: ImageVector = when (node.status) {
-        NodeStatus.DOMINADO -> Icons.Default.Check
-        NodeStatus.EN_PROGRESO -> Icons.Default.AutoAwesome
-        NodeStatus.BLOQUEADO -> Icons.Default.Lock
-    }
-
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = bg,
-            modifier = Modifier.size(40.dp),
-            tonalElevation = 2.dp
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = fg,
-                    modifier = Modifier.size(18.dp)
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-        }
-        Surface(
-            shape = MaterialTheme.shapes.extraSmall,
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-            tonalElevation = 1.dp
-        ) {
-            Text(
-                text = node.label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-            )
         }
     }
 }
@@ -1351,9 +1343,9 @@ private fun ReviewRow(
             .clickable {
                 if (isSelectionMode) onToggleSelection() else onStudy()
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Leading: checkbox (en modo selección) o ícono de estado (en modo normal)
         if (isSelectionMode) {
@@ -1379,43 +1371,40 @@ private fun ReviewRow(
         }
 
         // Contenido: nombre + meta info
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                DifficultyChip(label = difficultyLabel, tone = task.difficulty)
-                MetaDot()
                 Text(
-                    text = task.dueLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (task.isUrgent)
-                        MaterialTheme.colorScheme.error
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (task.isUrgent) FontWeight.SemiBold else FontWeight.Normal
+                    text = task.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
-                if (task.repetitions > 0) {
-                    MetaDot()
-                    Text(
-                        text = "${task.repetitions} repasos",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    DifficultyChip(label = difficultyLabel, tone = task.difficulty)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = task.dueLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (task.isUrgent)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (task.isUrgent) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                        if (task.repetitions > 0) {
+                            Text(
+                                text = "(${task.repetitions} repasos)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
-        }
 
         // Trailing: chevron en modo normal
         if (!isSelectionMode) {

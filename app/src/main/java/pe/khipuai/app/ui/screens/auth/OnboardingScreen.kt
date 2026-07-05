@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.auth
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -7,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,15 +26,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OnboardingScreen(
-    onNavigateToHome: () -> Unit,
-    viewModel: OnboardingViewModel = hiltViewModel()
-) {
-    val uiState by viewModel.uiState.collectAsState()
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+    @Composable
+    fun OnboardingScreen(
+        onNavigateToHome: () -> Unit,
+        viewModel: OnboardingViewModel = hiltViewModel()
+    ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var fullName by remember { mutableStateOf("") }
     var selectedProfile by remember { mutableStateOf("ingenieria") }
+
+    LaunchedEffect(uiState.fullName) {
+        if (fullName.isBlank() && uiState.fullName.isNotBlank()) {
+            fullName = uiState.fullName
+        }
+    }
 
     LaunchedEffect(selectedProfile) {
         viewModel.loadCatalog(selectedProfile)
@@ -95,49 +104,35 @@ fun OnboardingScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ProfileCard(
-                            title = "Ingeniería",
-                            icon = Icons.Default.Terminal,
-                            isSelected = selectedProfile == "ingenieria",
-                            modifier = Modifier.weight(1f),
-                            onClick = { selectedProfile = "ingenieria" }
-                        )
-                        ProfileCard(
-                            title = "Ciencias",
-                            icon = Icons.Default.Science,
-                            isSelected = selectedProfile == "ciencias",
-                            modifier = Modifier.weight(1f),
-                            onClick = { selectedProfile = "ciencias" }
-                        )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProfileCard("Preuniversitario", Icons.Default.School, selectedProfile == "preuniversitario", Modifier.weight(1f)) { selectedProfile = "preuniversitario" }
+                        ProfileCard("Ingeniería", Icons.Default.Terminal, selectedProfile == "ingenieria", Modifier.weight(1f)) { selectedProfile = "ingenieria" }
+                        ProfileCard("Ciencias", Icons.Default.Science, selectedProfile == "ciencias", Modifier.weight(1f)) { selectedProfile = "ciencias" }
                     }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ProfileCard(
-                            title = "Medicina",
-                            icon = Icons.Default.MedicalServices,
-                            isSelected = selectedProfile == "medicina",
-                            modifier = Modifier.weight(1f),
-                            onClick = { selectedProfile = "medicina" }
-                        )
-                        ProfileCard(
-                            title = "Humanidades",
-                            icon = Icons.Default.AccountBalance,
-                            isSelected = selectedProfile == "humanidades",
-                            modifier = Modifier.weight(1f),
-                            onClick = { selectedProfile = "humanidades" }
-                        )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProfileCard("Medicina", Icons.Default.MedicalServices, selectedProfile == "medicina", Modifier.weight(1f)) { selectedProfile = "medicina" }
+                        ProfileCard("Administración", Icons.Default.Business, selectedProfile == "administracion", Modifier.weight(1f)) { selectedProfile = "administracion" }
+                        ProfileCard("Derecho", Icons.Default.Gavel, selectedProfile == "derecho", Modifier.weight(1f)) { selectedProfile = "derecho" }
                     }
                 }
             }
 
-            // Listado de Asignaturas Encontradas
+            // Listado de Asignaturas
             item {
-                Text(
-                    text = "Asignaturas Disponibles en Catálogo",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Selecciona tus cursos",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = "${uiState.selectedCourses.size}/3",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (uiState.selectedCourses.size >= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             if (uiState.isLoading) {
@@ -146,73 +141,51 @@ fun OnboardingScreen(
                         CircularProgressIndicator(strokeWidth = 3.dp)
                     }
                 }
+            } else if (uiState.catalogCourses.isEmpty()) {
+                item {
+                    Text(
+                        text = "No se encontraron cursos para este perfil.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
-                items(uiState.catalogCourses) { course ->
-                    val isChecked = uiState.selectedCourses.contains(course)
-
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable { viewModel.toggleCourseSelection(course) },
-                        color = if (isChecked) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(
-                            width = if (isChecked) 2.dp else 1.dp,
-                            color = if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-                        ),
-                        shape = RoundedCornerShape(16.dp)
+                item {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Book,
-                                        contentDescription = null,
-                                        tint = if (isChecked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text = course,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            Checkbox(
-                                checked = isChecked,
-                                onCheckedChange = { viewModel.toggleCourseSelection(course) },
-                                colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
+                        uiState.catalogCourses.forEach { course ->
+                            val isSelected = uiState.selectedCourses.contains(course)
+                            val atLimit = !isSelected && uiState.selectedCourses.size >= 3
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    if (!atLimit || isSelected) viewModel.toggleCourseSelection(course)
+                                },
+                                label = { Text(course, style = MaterialTheme.typography.bodySmall) },
+                                enabled = !atLimit || isSelected,
+                                leadingIcon = if (isSelected) {
+                                    { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                } else null,
                             )
                         }
                     }
                 }
             }
 
-            // Botón de Enfoque Comercial Final
+            // Botón guardar
             item {
                 Button(
                     onClick = { viewModel.saveOnboarding(fullName, selectedProfile, onNavigateToHome) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(58.dp)
-                        .padding(vertical = 4.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
                     enabled = !uiState.isLoading && uiState.selectedCourses.isNotEmpty() && fullName.isNotBlank()
                 ) {
-                    Text("Configurar mi espacio Khipu AI", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Configurar mi espacio Khipu AI", fontWeight = FontWeight.Bold)
                 }
             }
 

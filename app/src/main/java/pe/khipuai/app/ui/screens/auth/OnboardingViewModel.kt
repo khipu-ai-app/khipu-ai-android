@@ -8,9 +8,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pe.khipuai.app.data.repository.CourseRepository
+import pe.khipuai.app.data.repository.AuthRepository
 import javax.inject.Inject
 
 data class OnboardingUiState(
+    val fullName: String = "",
     val catalogCourses: List<String> = emptyList(),
     val selectedCourses: List<String> = emptyList(),
     val isLoading: Boolean = false,
@@ -20,18 +22,31 @@ data class OnboardingUiState(
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
-    private val courseRepository: CourseRepository
+    private val courseRepository: CourseRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
+
+    init {
+        loadUserProfile()
+    }
+
+    private fun loadUserProfile() {
+        viewModelScope.launch {
+            authRepository.fetchMyProfile().onSuccess { profile ->
+                _uiState.value = _uiState.value.copy(fullName = profile.fullName ?: "")
+            }
+        }
+    }
 
     fun loadCatalog(profileType: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             courseRepository.getCatalog(profileType)
                 .onSuccess { list ->
-                    _uiState.value = _uiState.value.copy(catalogCourses = list, selectedCourses = list, isLoading = false)
+                    _uiState.value = _uiState.value.copy(catalogCourses = list, selectedCourses = emptyList(), isLoading = false)
                 }
                 .onFailure { err ->
                     _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(err).message)

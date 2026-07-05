@@ -1,4 +1,4 @@
-﻿package pe.khipuai.app.ui.screens.home
+package pe.khipuai.app.ui.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -41,7 +42,7 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Refresh al volver a la pantalla (después de subir un archivo, etc.)
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -59,7 +60,13 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = pe.khipuai.app.R.mipmap.ic_launcher_foreground),
+                            contentDescription = "Logo Khipu AI",
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Khipu AI",
                             style = MaterialTheme.typography.titleLarge,

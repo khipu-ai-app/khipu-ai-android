@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.subscription
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -26,7 +27,7 @@ fun SubscriptionScreen(
     reason: String? = null,
     viewModel: SubscriptionViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Mensaje contextual en la parte superior: si el usuario llegó aquí
     // porque llegó al límite de capturas, mostramos un callout destacado.

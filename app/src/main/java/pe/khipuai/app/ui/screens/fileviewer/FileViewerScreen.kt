@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.fileviewer
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,7 +34,7 @@ fun FileViewerScreen(
         viewModel.setUploadId(uploadId)
     }
 
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
     var pdfFileUri by remember { mutableStateOf<android.net.Uri?>(null) }

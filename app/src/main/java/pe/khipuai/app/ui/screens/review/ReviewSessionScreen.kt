@@ -1,33 +1,32 @@
 package pe.khipuai.app.ui.screens.review
 
-import android.content.Context
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import kotlinx.coroutines.delay
 import pe.khipuai.app.data.remote.dto.ReviewConceptResponse
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,22 +34,24 @@ import pe.khipuai.app.data.remote.dto.ReviewConceptResponse
 fun ReviewSessionScreen(
     onBackClick: () -> Unit,
     onComplete: () -> Unit,
+    onNavigateToHome: () -> Unit = {},
+    onViewNote: (String) -> Unit = {},
     viewModel: ReviewSessionViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val prefs = context.getSharedPreferences("khipu_prefs", Context.MODE_PRIVATE)
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
 
     var showExitDialog by remember { mutableStateOf(false) }
-    var showTutorial by remember {
-        mutableStateOf(!prefs.getBoolean("review_session_tutorial_shown", false))
-    }
-
-    if (showTutorial && !uiState.isLoading && !uiState.isComplete && uiState.concepts.isNotEmpty()) {
-        LaunchedEffect(Unit) {
-            delay(2000)
-            prefs.edit().putBoolean("review_session_tutorial_shown", true).apply()
-            showTutorial = false
+    var showConceptList by remember { mutableStateOf(false) }
+    var showTutorSheet by remember { mutableStateOf(false) }
+    var tutorQuestion by remember { mutableStateOf("") }
+    var tutorAnswers by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var isTutorLoading by remember { mutableStateOf(false) }
+    var previousFlashcardIndex by remember { mutableStateOf(uiState.currentIndex) }
+    LaunchedEffect(uiState.currentIndex) {
+        if (uiState.currentIndex != previousFlashcardIndex) {
+            tutorAnswers = emptyMap()
+            previousFlashcardIndex = uiState.currentIndex
         }
     }
 
@@ -63,14 +64,40 @@ fun ReviewSessionScreen(
                 TextButton(onClick = {
                     showExitDialog = false
                     onBackClick()
-                }) {
-                    Text("Salir")
-                }
+                }) { Text("Salir") }
             },
             dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text("Cancelar")
+                TextButton(onClick = { showExitDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    if (showConceptList && !uiState.isComplete) {
+        AlertDialog(
+            onDismissRequest = { showConceptList = false },
+            title = { Text("Conceptos del mazo") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    uiState.concepts.forEachIndexed { index, concept ->
+                        val status = when {
+                            index < uiState.currentIndex -> "✅"
+                            index == uiState.currentIndex -> "◀"
+                            else -> "○"
+                        }
+                        Text(
+                            text = "$status ${concept.label}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = when {
+                                index < uiState.currentIndex -> MaterialTheme.colorScheme.onSurfaceVariant
+                                index == uiState.currentIndex -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.onSurface
+                            }
+                        )
+                    }
                 }
+            },
+            confirmButton = {
+                TextButton(onClick = { showConceptList = false }) { Text("Cerrar") }
             }
         )
     }
@@ -84,9 +111,7 @@ fun ReviewSessionScreen(
                 TextButton(onClick = {
                     viewModel.dismissError()
                     viewModel.loadReviewSession()
-                }) {
-                    Text("Reintentar")
-                }
+                }) { Text("Reintentar") }
             }
         )
     }
@@ -97,7 +122,7 @@ fun ReviewSessionScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Repasando: ${uiState.noteTitle}",
+                            text = uiState.noteTitle,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                         )
@@ -112,10 +137,17 @@ fun ReviewSessionScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { showExitDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                        )
+                        Icon(Icons.Default.Close, contentDescription = "Cerrar")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToHome) {
+                        Icon(Icons.Default.Home, contentDescription = "Inicio")
+                    }
+                    if (!uiState.isComplete && uiState.concepts.isNotEmpty()) {
+                        IconButton(onClick = { showConceptList = true }) {
+                            Icon(Icons.Default.List, contentDescription = "Lista de conceptos")
+                        }
                     }
                 },
             )
@@ -142,7 +174,7 @@ fun ReviewSessionScreen(
                         )
                     }
                 }
-                
+
                 uiState.concepts.isEmpty() && !uiState.isLoading -> {
                     Column(
                         modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -163,7 +195,12 @@ fun ReviewSessionScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Esta nota aún no tiene conceptos extraídos para repasar.",
+                            text = when (uiState.entryPoint) {
+                                ReviewEntryPoint.DAILY_DECK -> "No hay conceptos pendientes de repaso hoy."
+                                ReviewEntryPoint.COURSE -> "Este curso no tiene conceptos pendientes."
+                                ReviewEntryPoint.NOTE -> "Esta nota no tiene conceptos para repasar."
+                                ReviewEntryPoint.CONCEPT -> "No se encontró el concepto."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -172,9 +209,7 @@ fun ReviewSessionScreen(
                         Button(
                             onClick = onBackClick,
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Volver")
-                        }
+                        ) { Text("Volver") }
                     }
                 }
 
@@ -182,11 +217,12 @@ fun ReviewSessionScreen(
                     if (uiState.resultsSummary != null) {
                         ReviewResultContent(
                             summary = uiState.resultsSummary!!,
+                            entryPoint = uiState.entryPoint,
                             onComplete = onComplete,
+                            onNavigateToHome = onNavigateToHome,
                             onRestartDifficult = { viewModel.restartWithDifficult() }
                         )
                     } else {
-                        // Empty state (no concepts due)
                         Column(
                             modifier = Modifier.fillMaxSize().padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -206,7 +242,7 @@ fun ReviewSessionScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "No tienes conceptos pendientes de esta nota. Tu próximo repaso es pronto.",
+                                text = "No tienes conceptos pendientes ahora.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -215,100 +251,120 @@ fun ReviewSessionScreen(
                             Button(
                                 onClick = onBackClick,
                                 modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Volver")
-                            }
+                            ) { Text("Volver") }
                         }
                     }
                 }
-                
+
                 else -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Progress
-                        LinearProgressIndicator(
-                            progress = { uiState.progressPercent },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                        Text(
-                            text = uiState.progress,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.align(Alignment.Start).padding(horizontal = 16.dp),
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Flashcard
-                        AnimatedContent(
-                            targetState = uiState.currentIndex,
-                            transitionSpec = {
-                                slideInHorizontally(
-                                    animationSpec = tween(400),
-                                    initialOffsetX = { fullWidth -> fullWidth }
-                                ) togetherWith slideOutHorizontally(
-                                    animationSpec = tween(400),
-                                    targetOffsetX = { fullWidth -> -fullWidth }
-                                )
-                            },
-                            label = "Flashcard Transition"
-                        ) { index ->
-                            val concept = uiState.concepts[index]
-                            FlashcardView(
-                                concept = concept,
-                                isFlipped = uiState.isFlipped,
-                                onToggleFlip = { viewModel.toggleFlip() }
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        // Rating buttons
-                        if (uiState.isFlipped) {
-                            RatingSection(
-                                isSubmitting = uiState.isSubmitting,
-                                onRate = { viewModel.submitRating(it) }
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(32.dp))
-                    }
+                    ReviewActiveContent(
+                        uiState = uiState,
+                        onToggleFlip = { viewModel.toggleFlip() },
+                        onRate = { rating ->
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.submitRating(rating)
+                        },
+                        onSkip = { viewModel.skipConcept() },
+                        onGoBack = { viewModel.goBack() },
+                        onViewNote = onViewNote,
+                        onAskTutor = { concept ->
+                            val existing = tutorAnswers[concept.label]
+                            showTutorSheet = true
+                            tutorQuestion = ""
+                            if (existing == null) {
+                                isTutorLoading = false
+                            }
+                        },
+                    )
                 }
             }
-            
-            // Tutorial overlay
-            if (showTutorial && !uiState.isLoading && !uiState.isComplete && uiState.concepts.isNotEmpty()) {
-                Box(
+        }
+    }
+
+    if (showTutorSheet) {
+        val currentConcept = uiState.currentConcept
+        if (currentConcept != null) {
+            val existingAnswer = tutorAnswers[currentConcept.label]
+            val context = LocalContext.current
+
+            ModalBottomSheet(
+                onDismissRequest = { showTutorSheet = false },
+                dragHandle = { BottomSheetDefaults.DragHandle() },
+            ) {
+                Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .clickable(enabled = false) {},
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 32.dp),
                 ) {
-                    Card(
-                        modifier = Modifier.padding(32.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                    Text(
+                        text = currentConcept.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (existingAnswer == null) {
+                        OutlinedTextField(
+                            value = tutorQuestion,
+                            onValueChange = { tutorQuestion = it },
+                            label = { Text("¿Qué quieres saber sobre este concepto?") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 2,
+                            maxLines = 4,
+                            enabled = !isTutorLoading,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = {
+                                if (tutorQuestion.isNotBlank()) {
+                                    isTutorLoading = true
+                                    viewModel.askAboutConcept(
+                                        conceptName = currentConcept.label,
+                                        definition = currentConcept.definition,
+                                        noteTitle = currentConcept.sourceNoteTitle,
+                                        question = tutorQuestion,
+                                        onResult = { result ->
+                                            isTutorLoading = false
+                                            val answer = result.getOrElse { "Error al consultar al tutor." }
+                                            tutorAnswers = tutorAnswers + (currentConcept.label to answer)
+                                        },
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isTutorLoading && tutorQuestion.isNotBlank(),
                         ) {
-                            Text(
-                                "Auto-evaluación",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "Evalúa qué tan bien recuerdas el concepto en una escala de 0 a 5. Esto nos ayuda a programar el próximo repaso.",
-                                textAlign = TextAlign.Center
-                            )
+                            if (isTutorLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            } else {
+                                Text("Preguntar")
+                            }
+                        }
+                    } else {
+                        Column(modifier = Modifier.verticalScroll(rememberScrollState()).fillMaxWidth()) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Text(
+                                    text = existingAnswer
+                                        .replace(Regex("###?\\s*"), "")
+                                        .replace(Regex("\\*\\*(.+?)\\*\\*"), "$1")
+                                        .replace(Regex("\\*(.+?)\\*"), "$1")
+                                        .replace(Regex("`(.+?)`"), "$1"),
+                                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            TextButton(onClick = { showTutorSheet = false }) {
+                                Text("Cerrar")
+                            }
                         }
                     }
                 }
@@ -317,11 +373,116 @@ fun ReviewSessionScreen(
     }
 }
 
+private fun markdownToHtml(md: String): String {
+    return md
+        .replace(Regex("### (.+)"), "<h3>$1</h3>")
+        .replace(Regex("\\*\\*(.+?)\\*\\*"), "<b>$1</b>")
+        .replace(Regex("\\*(.+?)\\*"), "<i>$1</i>")
+        .replace(Regex("`(.+?)`"), "<code>$1</code>")
+        .replace(Regex("^[-*] (.+)", RegexOption.MULTILINE), "• $1")
+        .replace(Regex("\\[([^]]+)]\\(([^)]+)\\)"), "<a href='$2'>$1</a>")
+        .replace("\n", "<br>")
+}
+
+@Composable
+private fun ReviewActiveContent(
+    uiState: ReviewSessionUiState,
+    onToggleFlip: () -> Unit,
+    onRate: (Int) -> Unit,
+    onSkip: () -> Unit,
+    onGoBack: () -> Unit,
+    onViewNote: (String) -> Unit,
+    onAskTutor: (ReviewConceptResponse) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        LinearProgressIndicator(
+            progress = { uiState.progressPercent },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        Text(
+            text = uiState.progress,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.Start).padding(horizontal = 16.dp),
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        AnimatedContent(
+            targetState = uiState.currentIndex,
+            transitionSpec = {
+                slideInHorizontally(
+                    animationSpec = tween(400),
+                    initialOffsetX = { fullWidth -> fullWidth }
+                ) togetherWith slideOutHorizontally(
+                    animationSpec = tween(400),
+                    targetOffsetX = { fullWidth -> -fullWidth }
+                )
+            },
+            label = "Flashcard Transition"
+        ) { index ->
+            val concept = uiState.concepts[index]
+            FlashcardView(
+                concept = concept,
+                isFlipped = uiState.isFlipped,
+                onToggleFlip = onToggleFlip,
+                onViewNote = { noteId -> onViewNote(noteId) },
+                onAskTutor = { onAskTutor(concept) },
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (uiState.isFlipped) {
+            RatingSection(
+                isSubmitting = uiState.isSubmitting,
+                onRate = onRate,
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            if (uiState.canGoBack) {
+                TextButton(onClick = onGoBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Anterior", style = MaterialTheme.typography.labelMedium)
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            if (uiState.canSkip) {
+                TextButton(onClick = onSkip) {
+                    Text("Saltar", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
 @Composable
 fun FlashcardView(
     concept: ReviewConceptResponse,
     isFlipped: Boolean,
-    onToggleFlip: () -> Unit
+    onToggleFlip: () -> Unit,
+    onViewNote: (String) -> Unit = {},
+    onAskTutor: () -> Unit = {},
 ) {
     val rotation by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
@@ -332,76 +493,145 @@ fun FlashcardView(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp)
-            .padding(horizontal = 24.dp)
+            .heightIn(min = 300.dp)
+            .padding(horizontal = 20.dp)
             .graphicsLayer {
                 rotationY = rotation
                 cameraDistance = 12f * density
             }
             .clickable(onClick = onToggleFlip),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            containerColor = if (rotation <= 90f) MaterialTheme.colorScheme.surface
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         if (rotation <= 90f) {
-            // Front
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+            Box(
+                modifier = Modifier.fillMaxSize().padding(32.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = concept.label,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "¿Recuerdas este concepto?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                OutlinedButton(onClick = onToggleFlip) {
-                    Text("Ver definición")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = concept.label,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Icon(
+                        imageVector = Icons.Default.SmartButton,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Toca para ver la respuesta",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
                 }
             }
         } else {
-            // Back (Rotated by -180 internally so text is readable)
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp)
-                    .graphicsLayer { rotationY = 180f },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Top
+                    .fillMaxWidth()
+                    .padding(28.dp)
+                    .graphicsLayer { rotationY = 180f }
             ) {
                 Text(
                     text = concept.label,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    color = MaterialTheme.colorScheme.primary
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text(
-                    text = concept.definition ?: concept.sourceSnippet ?: "Definición no disponible.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f)
-                )
+
+                val hasDefinition = concept.definition != null && concept.definition != "Definición no disponible." && concept.definition != ""
+                val hasSnippet = concept.sourceSnippet != null && concept.sourceSnippet != ""
+
+                when {
+                    hasDefinition -> {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = concept.definition!!,
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Start,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                    hasSnippet -> {
+                        Text(
+                            text = "Contexto de la nota",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(
+                                text = "\"${concept.sourceSnippet}\"",
+                                modifier = Modifier.padding(14.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Start,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                    else -> {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "No hay definición disponible para este concepto.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        if (concept.noteId != null) {
+                            OutlinedButton(
+                                onClick = { onViewNote(concept.noteId) },
+                                shape = RoundedCornerShape(99.dp),
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Ver en la nota", fontWeight = FontWeight.Medium)
+                            }
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onAskTutor,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(99.dp),
+                ) {
+                    Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Preguntar al tutor", fontWeight = FontWeight.Medium)
+                }
 
                 if (concept.sourceNoteTitle != null) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "De: ${concept.sourceNoteTitle}",
+                        text = "📖 ${concept.sourceNoteTitle}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -416,20 +646,13 @@ fun RatingSection(
     isSubmitting: Boolean,
     onRate: (Int) -> Unit
 ) {
-    // 0 No recuerdo nada (Rojo oscuro)
-    // 1 Casi nada (Rojo)
-    // 2 Lo recuerdo poco (Naranja)
-    // 3 Lo recuerdo con esfuerzo (Amarillo)
-    // 4 Lo recuerdo bien (Verde claro)
-    // 5 Lo recuerdo perfecto (Verde)
-    
     val colors = listOf(
-        Color(0xFF8B0000), // Rojo oscuro
-        Color(0xFFF44336), // Rojo
-        Color(0xFFFF9800), // Naranja
-        Color(0xFFFFC107), // Amarillo
-        Color(0xFF8BC34A), // Verde claro
-        Color(0xFF4CAF50)  // Verde
+        Color(0xFF8B0000),
+        Color(0xFFF44336),
+        Color(0xFFFF9800),
+        Color(0xFFFFC107),
+        Color(0xFF8BC34A),
+        Color(0xFF4CAF50),
     )
     val labels = listOf("Nada", "Casi nada", "Poco", "Esfuerzo", "Bien", "Perfecto")
 
@@ -442,29 +665,34 @@ fun RatingSection(
         if (isSubmitting) {
             CircularProgressIndicator(modifier = Modifier.padding(16.dp))
         } else {
-            Text(
-                "Evalúa tu recuerdo",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Evalúa tu recuerdo",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 for (i in 0..2) {
                     RatingButton(i, labels[i], colors[i], Modifier.weight(1f)) { onRate(i) }
-                    Spacer(modifier = Modifier.width(8.dp))
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 for (i in 3..5) {
                     RatingButton(i, labels[i], colors[i], Modifier.weight(1f)) { onRate(i) }
-                    if (i < 5) Spacer(modifier = Modifier.width(8.dp))
                 }
             }
         }
@@ -495,7 +723,9 @@ fun RatingButton(
 @Composable
 private fun ReviewResultContent(
     summary: ReviewResultsSummary,
+    entryPoint: ReviewEntryPoint,
     onComplete: () -> Unit,
+    onNavigateToHome: () -> Unit = {},
     onRestartDifficult: () -> Unit
 ) {
     Column(
@@ -506,7 +736,7 @@ private fun ReviewResultContent(
         verticalArrangement = Arrangement.Center,
     ) {
         val percent = if (summary.total > 0) ((summary.remembered.toFloat() / summary.total) * 100).toInt() else 100
-        
+
         Box(contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
                 progress = { percent / 100f },
@@ -521,7 +751,7 @@ private fun ReviewResultContent(
                 fontWeight = FontWeight.Bold
             )
         }
-        
+
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "¡Repaso completado!",
@@ -542,7 +772,7 @@ private fun ReviewResultContent(
             color = Color(0xFFFF9800),
             fontWeight = FontWeight.Medium
         )
-        
+
         if (summary.nextReviewDate.isNotBlank()) {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -552,15 +782,54 @@ private fun ReviewResultContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Detalle por concepto",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        summary.results.forEach { result ->
+            val remembered = result.rating >= 3
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                Text(
+                    text = if (remembered) "✅" else "❌",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = result.conceptName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "${result.rating}/5",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (remembered) Color(0xFF4CAF50) else Color(0xFFFF9800),
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
         Button(
-            onClick = onComplete,
+            onClick = if (entryPoint == ReviewEntryPoint.DAILY_DECK) onNavigateToHome else onComplete,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(99.dp),
         ) {
-            Text("Volver a la nota", fontWeight = FontWeight.Bold)
+            Text(
+                text = when (entryPoint) {
+                    ReviewEntryPoint.DAILY_DECK -> "Volver al Planner"
+                    ReviewEntryPoint.COURSE -> "Volver al curso"
+                    ReviewEntryPoint.NOTE -> "Volver a la nota"
+                    ReviewEntryPoint.CONCEPT -> "Volver"
+                },
+                fontWeight = FontWeight.Bold
+            )
         }
-        
+
         if (summary.forgotten > 0) {
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(

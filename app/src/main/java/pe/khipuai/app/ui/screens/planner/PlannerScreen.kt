@@ -1,27 +1,29 @@
-﻿package pe.khipuai.app.ui.screens.planner
+package pe.khipuai.app.ui.screens.planner
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import pe.khipuai.app.ui.components.BottomNavigationBar
 import pe.khipuai.app.core.ui.ContextualTip
@@ -37,8 +39,20 @@ fun PlannerScreen(
     onStartCourseReview: (String) -> Unit = {},  // T-10: noteId de la primera nota del bloque
     viewModel: PlannerViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.loadRemotePlanner()
+        }
+    }
+
+    val onTaskClick: (Task) -> Unit = { task ->
+        if (task.noteId != null) onNavigateToNote(task.noteId)
+        else onNavigateToConcept(task.title)
+    }
 
     // C-06: tip contextual al abrir el Planner por primera vez
     ContextualTip(
@@ -54,59 +68,27 @@ fun PlannerScreen(
         }
     }
 
-    // Diálogo de confirmación para "Marcar todo como completado"
-    uiState.confirmCompleteBlockId?.let { blockId ->
-        val block = uiState.studyBlocks.find { it.id == blockId }
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissConfirmMarkAll() },
-            title = { Text("Marcar como completado") },
-            text = {
-                Text(
-                    "Esto marcará ${block?.tasks?.size ?: 0} conceptos como recordados (calidad 4). " +
-                    "El algoritmo SM-2 los reprogramará automáticamente. ¿Continuar?"
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { viewModel.confirmMarkAllCompleted() }) {
-                    Text("Confirmar", color = MaterialTheme.colorScheme.primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissConfirmMarkAll() }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
-
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Khipu AI",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
-                navigationIcon = {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = pe.khipuai.app.R.mipmap.ic_launcher_foreground),
+                            contentDescription = "Logo Khipu AI",
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = uiState.userName.firstOrNull()?.toString()?.uppercase() ?: "U",
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            text = "Khipu AI",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
+
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -160,6 +142,62 @@ fun PlannerScreen(
 
                 item { 
                     DailyAgendaHeader(onCalendarClick = onNavigateToCalendar) 
+                }
+
+                item {
+                    DailyProgressTimeline(
+                        streakDays = uiState.streakDays,
+                        masteryPercentage = uiState.masteryPercentage,
+                        totalConceptsToday = totalDue,
+                        completedToday = totalCompletedToday
+                    )
+                }
+
+                if (totalCompletedToday > 0) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Completados hoy ($totalCompletedToday)",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                uiState.studyBlocks.forEach { block ->
+                                    val completed = block.tasks.filter { it.isCompleted }
+                                    if (completed.isNotEmpty()) {
+                                        Text(
+                                            text = block.subject,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+                                        )
+                                        completed.forEach { task ->
+                                            ConceptTaskItem(
+                                                task = task,
+                                                onTap = { onTaskClick(task) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if (totalDue == 0) {
@@ -218,39 +256,13 @@ fun PlannerScreen(
                     items(uiState.studyBlocks) { block ->
                         CourseBreakdownCard(
                             block = block,
-                            onTaskClick = { task ->
-                                if (task.noteId != null) {
-                                    onNavigateToNote(task.noteId)
-                                } else {
-                                    // El concepto existe pero aún no está
-                                    // en ninguna nota. Mostramos el grafo del
-                                    // concepto para que el usuario explore
-                                    // (o confirme que el concepto no está
-                                    // conectado a nada todavía).
-                                    onNavigateToConcept(task.title)
-                                }
-                            },
-                            onSubmitRating = { conceptId, rating ->
-                                viewModel.submitRating(block.id, conceptId, rating)
-                            },
+                            onTaskClick = onTaskClick,
                             onPostpone = { viewModel.postponeBlock(block.id) },
-                            onMarkAllCompleted = { viewModel.requestMarkAllCompleted(block.id) },
-                            onStartReview = { _ ->
-                                // T-10: navega a ReviewSession usando la
-                                // primera nota del bloque que tenga noteId.
-                                // Si NINGÚN concepto del bloque tiene nota
-                                // (caso raro, ej. conceptos huérfanos en el
-                                // grafo), igual abrimos la ReviewSession sin
-                                // nota: el backend devolverá un set vacío o
-                                // un error 404 manejable. En ese caso el
-                                // usuario puede cerrar la pantalla.
-                                val firstNoteId = block.tasks.mapNotNull { it.noteId }.firstOrNull()
-                                if (firstNoteId != null) {
-                                    onStartCourseReview(firstNoteId)
+                            onStartReview = { noteId ->
+                                if (noteId != null) {
+                                    onStartCourseReview(noteId)
                                 } else {
-                                    viewModel.setSnackbarMessage(
-                                        "Este bloque no tiene notas asociadas todavía. Sube apuntes primero."
-                                    )
+                                    viewModel.setSnackbarMessage("Este curso no tiene notas asociadas aún. Sube apuntes primero.")
                                 }
                             }
                         )
@@ -392,12 +404,13 @@ private fun StudyDeckLauncherCard(
 private fun CourseBreakdownCard(
     block: StudyBlock,
     onTaskClick: (Task) -> Unit,
-    onSubmitRating: (conceptId: String, rating: Int) -> Unit,
     onPostpone: () -> Unit,
-    onMarkAllCompleted: () -> Unit,
     onStartReview: (noteId: String?) -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val total = block.tasks.size
+    val completedCount = block.tasks.count { it.isCompleted }
+    val pendingCount = total - completedCount
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -407,11 +420,10 @@ private fun CourseBreakdownCard(
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Cabecera del bloque
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -421,12 +433,6 @@ private fun CourseBreakdownCard(
                             .background(block.color)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = block.time,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
                     if (block.isAISuggestion) {
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
@@ -451,10 +457,10 @@ private fun CourseBreakdownCard(
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = block.duration,
+                        text = "$total conceptos",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -485,16 +491,6 @@ private fun CourseBreakdownCard(
                                 Icon(Icons.Default.Schedule, contentDescription = null)
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text("Marcar todos como completados") },
-                            onClick = {
-                                menuExpanded = false
-                                onMarkAllCompleted()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.DoneAll, contentDescription = null)
-                            }
-                        )
                     }
                 }
             }
@@ -508,87 +504,49 @@ private fun CourseBreakdownCard(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
+            if (total > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { completedCount.toFloat() / total },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "$completedCount/$total repasados hoy ($pendingCount pendientes)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
-            // T-10/T-13: lista de conceptos con autoevaluación inline [0-5] y
-            // long-press para "Ver nota donde aparece". Separamos
-            // visualmente los pendientes (arriba) de los repasados hoy
-            // (abajo) con un Divider con texto.
             val pending = block.tasks.filter { !it.isCompleted }
-            val completed = block.tasks.filter { it.isCompleted }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                pending.forEach { task ->
-                    ConceptTaskItem(
-                        task = task,
-                        onTap = { onTaskClick(task) },
-                        onSubmitRating = { rating -> onSubmitRating(task.id, rating) }
-                    )
-                }
-                if (completed.isNotEmpty() && pending.isNotEmpty()) {
-                    // T-13: separador visual. Solo aparece si hay
-                    // AMBOS grupos (sino no aporta nada).
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Repasados hoy",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        HorizontalDivider(
-                            modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.outlineVariant
+            if (pending.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    pending.forEach { task ->
+                        ConceptTaskItem(
+                            task = task,
+                            onTap = { onTaskClick(task) }
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-                completed.forEach { task ->
-                    ConceptTaskItem(
-                        task = task,
-                        onTap = { onTaskClick(task) },
-                        onSubmitRating = { rating -> onSubmitRating(task.id, rating) }
-                    )
                 }
             }
 
-            // T-10: botón "Iniciar repaso →" al final de cada bloque de curso.
-            // Diferencia con "Comenzar Repaso Diario": este es SOLO los
-            // conceptos pendientes de ESE bloque, no del mazo completo.
-            // El botón aparece si hay tareas pendientes. El noteId se
-            // resuelve dentro del callback (puede ser null si el bloque
-            // es de conceptos huérfanos, en cuyo caso se muestra un
-            // snackbar al usuario).
-            if (block.tasks.any { !it.isCompleted }) {
+            if (pending.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Button(
+                TextButton(
                     onClick = { onStartReview(block.noteId) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Iniciar repaso",
-                        style = MaterialTheme.typography.labelLarge,
+                        text = "Repasar este curso ",
                         fontWeight = FontWeight.SemiBold
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text("→")
                 }
             }
@@ -597,149 +555,150 @@ private fun CourseBreakdownCard(
 }
 
 /**
- * T-10: un concepto de un bloque de curso. Autoevaluación inline con
- * botones [0][1][2][3][4][5] (toca un número = SM-2 rating). El
- * long-press muestra un menu con "Ver nota donde aparece este concepto".
- *
- * Los botones se muestran SIEMPRE (incluso si está completado) para
- * permitir corregir la calificación. El último rating queda
- * visualmente resaltado con un fondo más fuerte.
+ * T-10: un concepto de un bloque de curso. Muestra el nombre del
+ * concepto con indicador de completado y badge del último rating.
+ * Tap → navega a la nota donde aparece. Long-press → "Ver nota".
+ * Los botones de rating 0-5 se eliminaron para simplificar la UI
+ * (el rating se hace en ReviewSessionScreen con las flashcards).
  */
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun ConceptTaskItem(
     task: Task,
-    onTap: () -> Unit,
-    onSubmitRating: (Int) -> Unit
+    onTap: () -> Unit
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (task.isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                else Color.Transparent
-            )
-            .combinedClickable(
-                onClick = onTap,
-                onLongClick = { menuExpanded = true }
-            )
-            .padding(vertical = 6.dp, horizontal = 8.dp)
+            .clickable(onClick = onTap)
+            .padding(vertical = 4.dp, horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Checkbox de completado
-            Icon(
-                imageVector = if (task.isCompleted) Icons.Default.CheckCircle
-                              else Icons.Default.RadioButtonUnchecked,
-                contentDescription = if (task.isCompleted) "Completado" else "Pendiente",
-                tint = if (task.isCompleted) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant
-                        else MaterialTheme.colorScheme.onSurface,
-                textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                modifier = Modifier.weight(1f),
-                maxLines = 1
-            )
-            // T-13: badge "X/5" cuando el concepto está completado y
-            // tenemos el rating. Color verde si fue ≥3 (recordado),
-            // rojo si fue <3 (olvidado). Esto refuerza el feedback del
-            // SM-2 sin tener que abrir la nota.
-            if (task.isCompleted && task.lastRating != null) {
-                Spacer(modifier = Modifier.width(8.dp))
-                val rating = task.lastRating!!
-                val isRemembered = rating >= 3
-                val badgeColor = if (isRemembered) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
-                Surface(
-                    color = badgeColor.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(8.dp)
+        Text(
+            text = task.title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface,
+            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
+            modifier = Modifier.weight(1f),
+            maxLines = 1
+        )
+        if (task.isCompleted && task.lastRating != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            val rating = task.lastRating!!
+            val isRemembered = rating >= 3
+            val badgeColor = if (isRemembered) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+            Surface(
+                color = badgeColor.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (isRemembered) Icons.Default.ThumbUp
-                                          else Icons.Default.ThumbDown,
-                            contentDescription = null,
-                            tint = badgeColor,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = "$rating/5",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = badgeColor,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        // Botones de autoevaluación [0-5] SM-2. SIEMPRE visibles para
-        // permitir re-calificar (ej. el usuario tap [4] por error y
-        // quiere cambiar a [2]). El botón del último rating queda
-        // más oscuro para feedback visual.
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            listOf(0, 1, 2, 3, 4, 5).forEach { rating ->
-                val color = when (rating) {
-                    0, 1 -> MaterialTheme.colorScheme.error
-                    2 -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.primary
-                }
-                // Si el último rating guardado es este, lo resaltamos
-                val isLast = task.lastRating == rating
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(32.dp)
-                        .padding(horizontal = 2.dp)
-                        .clickable { onSubmitRating(rating) },
-                    color = if (isLast) color.copy(alpha = 0.45f) else color.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "$rating",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (isLast) FontWeight.ExtraBold else FontWeight.Bold,
-                            color = if (isLast) MaterialTheme.colorScheme.onPrimary
-                                    else color
-                        )
-                    }
+                    Icon(
+                        imageVector = if (isRemembered) Icons.Default.ThumbUp
+                                      else Icons.Default.ThumbDown,
+                        contentDescription = null,
+                        tint = badgeColor,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "$rating/5",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = badgeColor,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
     }
+}
 
-    // Long-press menu: "Ver nota donde aparece"
-    DropdownMenu(
-        expanded = menuExpanded,
-        onDismissRequest = { menuExpanded = false }
+@Composable
+private fun DailyProgressTimeline(
+    streakDays: Int,
+    masteryPercentage: Int,
+    totalConceptsToday: Int,
+    completedToday: Int
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        DropdownMenuItem(
-            text = { Text("Ver nota donde aparece") },
-            onClick = {
-                menuExpanded = false
-                onTap()
-            },
-            leadingIcon = {
-                Icon(Icons.Default.Article, contentDescription = null)
-            }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TimelineStat(
+                label = "Racha",
+                value = "$streakDays ${if (streakDays == 1) "día" else "días"}",
+                icon = Icons.Default.LocalFireDepartment,
+                color = MaterialTheme.colorScheme.error
+            )
+            TimelineDivider()
+            TimelineStat(
+                label = "Dominio",
+                value = "$masteryPercentage%",
+                icon = Icons.Default.Psychology,
+                color = MaterialTheme.colorScheme.tertiary
+            )
+            TimelineDivider()
+            TimelineStat(
+                label = "Hoy",
+                value = if (totalConceptsToday > 0) "$completedToday/$totalConceptsToday" else "—",
+                icon = Icons.Default.Today,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimelineStat(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    color: Color
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+@Composable
+private fun TimelineDivider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(40.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    )
 }
 
 @Composable

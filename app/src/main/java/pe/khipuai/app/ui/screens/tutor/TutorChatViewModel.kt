@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pe.khipuai.app.data.repository.TutorRepository
@@ -57,11 +58,11 @@ class TutorChatViewModel @Inject constructor(
     private val noteTitleArg: String? = savedStateHandle["noteTitle"]
 
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
-        _uiState.value = _uiState.value.copy(
+        _uiState.update { it.copy(
             isLoading = false,
             isStreaming = false,
             errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
-        )
+        ) }
     }
 
     private val _uiState = MutableStateFlow(TutorChatUiState())
@@ -69,7 +70,7 @@ class TutorChatViewModel @Inject constructor(
 
     fun loadMessages(sessionId: String) {
         viewModelScope.launch(exceptionHandler) {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.update { it.copy(isLoading = true) }
             tutorRepository.getMessages(sessionId)
                 .onSuccess { list ->
                     val mapped = list.map { dto ->
@@ -87,19 +88,19 @@ class TutorChatViewModel @Inject constructor(
                             } ?: emptyList()
                         )
                     }
-                    _uiState.value = _uiState.value.copy(messages = mapped, isLoading = false)
+                    _uiState.update { it.copy(messages = mapped, isLoading = false) }
                 }
                 .onFailure { err ->
-                    _uiState.value = _uiState.value.copy(
+                    _uiState.update { it.copy(
                         isLoading = false,
                         errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(err).message
-                    )
+                    ) }
                 }
         }
     }
 
     fun onInputTextChanged(text: String) {
-        _uiState.value = _uiState.value.copy(inputText = text)
+        _uiState.update { it.copy(inputText = text) }
     }
 
     fun sendMessage() {
@@ -125,12 +126,12 @@ class TutorChatViewModel @Inject constructor(
             timestamp = "Generando..."
         )
 
-        _uiState.value = _uiState.value.copy(
+        _uiState.update { it.copy(
             messages = _uiState.value.messages + userMessage + aiPlaceholder,
             inputText = "",
             isStreaming = true,
             errorMessage = null
-        )
+        ) }
 
         if (isNewSession) {
             // Solo creamos la sesión en el backend cuando el usuario efectivamente
@@ -149,10 +150,10 @@ class TutorChatViewModel @Inject constructor(
 
             tutorRepository.createSession(cType, cId)
                 .onSuccess { session ->
-                    _uiState.value = _uiState.value.copy(
+                    _uiState.update { it.copy(
                         sessionId = session.id,
                         courseName = session.title
-                    )
+                    ) }
                     val realCType = if (courseIdArg != null) "course" else (contextTypeArg ?: "general")
                     val realCId = courseIdArg ?: contextIdArg
                     streamResponseInternal(session.id, query, aiPlaceholderId, realCType, realCId)
@@ -160,7 +161,7 @@ class TutorChatViewModel @Inject constructor(
                 .onFailure { err ->
                     // Si falla la creación, limpiamos los placeholders para no dejar
                     // el chat en un estado inconsistente.
-                    _uiState.value = _uiState.value.copy(
+                    _uiState.update { it.copy(
                         messages = _uiState.value.messages.filterNot {
                             it.id == aiPlaceholderId || it.id.startsWith("user_") &&
                                 it.content == query
@@ -168,7 +169,7 @@ class TutorChatViewModel @Inject constructor(
                         inputText = query,  // Devolvemos lo que escribió para que no pierda el texto
                         isStreaming = false,
                         errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(err).message
-                    )
+                    ) }
                 }
         }
     }
@@ -200,7 +201,7 @@ class TutorChatViewModel @Inject constructor(
                             updateAiMessageContent(aiPlaceholderId, fullTextAccumulated)
                         }
                         is TutorStreamEvent.Done -> {
-                            _uiState.value = _uiState.value.copy(isStreaming = false)
+                            _uiState.update { it.copy(isStreaming = false) }
                             val refs = event.references.map {
                                 KnowledgeNodeRef(it.noteId, it.noteTitle, it.snippet)
                             }
@@ -208,10 +209,10 @@ class TutorChatViewModel @Inject constructor(
                         }
                         is TutorStreamEvent.Error -> {
                             updateAiMessageContent(aiPlaceholderId, "❌ " + event.message)
-                            _uiState.value = _uiState.value.copy(
+                            _uiState.update { it.copy(
                                 isStreaming = false,
                                 errorMessage = event.message
-                            )
+                            ) }
                         }
                     }
                 }
@@ -224,7 +225,7 @@ class TutorChatViewModel @Inject constructor(
                 msg.copy(content = content)
             } else msg
         }
-        _uiState.value = _uiState.value.copy(messages = updated)
+        _uiState.update { it.copy(messages = updated) }
     }
 
     private fun updateAiMessageFinal(messageId: String, content: String, refs: List<KnowledgeNodeRef>) {
@@ -233,17 +234,17 @@ class TutorChatViewModel @Inject constructor(
                 msg.copy(content = content, referenceNodes = refs)
             } else msg
         }
-        _uiState.value = _uiState.value.copy(messages = updated)
+        _uiState.update { it.copy(messages = updated) }
     }
 
     init {
-        _uiState.value = _uiState.value.copy(
+        _uiState.update { it.copy(
             quickActions = listOf("Explícame más", "Dame un ejemplo", "Hazme una pregunta")
-        )
+        ) }
 
         if (sessionIdArg != null && sessionIdArg != "new" && sessionIdArg != "new_session") {
             // Sesión existente: solo cargamos mensajes. NO pre-rellenamos.
-            _uiState.value = _uiState.value.copy(sessionId = sessionIdArg)
+            _uiState.update { it.copy(sessionId = sessionIdArg) }
             loadMessages(sessionIdArg)
         } else {
             // Sesión nueva: pre-rellenamos el input si viene contexto, pero
@@ -254,7 +255,7 @@ class TutorChatViewModel @Inject constructor(
                 noteTitle = noteTitleArg
             )
             if (prefillText != null) {
-                _uiState.value = _uiState.value.copy(inputText = prefillText)
+                _uiState.update { it.copy(inputText = prefillText) }
             }
             // sessionId se queda en null — el envío lo creará on-demand.
         }

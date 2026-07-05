@@ -140,5 +140,14 @@ class NoteRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun askAboutConcept(request: ConceptTutorRequest): Result<String> {
+        return try {
+            val response = apiService.askAboutConcept(request)
+            Result.success(response.answer)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 

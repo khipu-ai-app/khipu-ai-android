@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.auth
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,7 +30,7 @@ fun ForgotPasswordScreen(
     onNavigateBack: () -> Unit,
     viewModel: ForgotPasswordViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     if (uiState.errorMessage != null) {
         AlertDialog(

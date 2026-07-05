@@ -24,9 +24,7 @@ data class PlannerUiState(
     val totalConcepts: Int = 0,
     val weeklySchedule: List<ScheduleDayResponse> = emptyList(),
     val userName: String = "Estudiante",
-    val snackbarMessage: String? = null,
-    // Diálogo de confirmación para "Marcar todo como completado"
-    val confirmCompleteBlockId: String? = null
+    val snackbarMessage: String? = null
 )
 
 data class StudyBlock(
@@ -227,67 +225,6 @@ class PlannerViewModel @Inject constructor(
         }
     }
 
-    fun toggleTask(blockId: String, conceptId: String) {
-        viewModelScope.launch(exceptionHandler) {
-            val currentBlocks = _uiState.value.studyBlocks
-            var finalIsCompleted = false
-
-            val updatedBlocks = currentBlocks.map { block ->
-                if (block.id == blockId) {
-                    val updatedTasks = block.tasks.map { task ->
-                        if (task.id == conceptId) {
-                            finalIsCompleted = !task.isCompleted
-                            task.copy(isCompleted = finalIsCompleted)
-                        } else {
-                            task
-                        }
-                    }
-                    block.copy(tasks = updatedTasks)
-                } else {
-                    block
-                }
-            }
-            _uiState.value = _uiState.value.copy(studyBlocks = updatedBlocks)
-
-            val score = if (finalIsCompleted) 5 else 1
-
-            plannerRepository.submitReviewRating(conceptId, score)
-                .onFailure {
-                    loadRemotePlanner()
-                }
-        }
-    }
-
-    fun submitRating(blockId: String, conceptId: String, rating: Int) {
-        viewModelScope.launch(exceptionHandler) {
-            val currentBlocks = _uiState.value.studyBlocks
-            val updatedBlocks = currentBlocks.map { block ->
-                if (block.id == blockId) {
-                    val updatedTasks = block.tasks.map { task ->
-                        if (task.id == conceptId) {
-                            // Optimista: marcamos completado y guardamos
-                            // el rating. T-10: NO ocultamos los botones
-                            // (la UI los sigue mostrando) para permitir
-                            // re-calificar.
-                            task.copy(isCompleted = true, lastRating = rating)
-                        } else {
-                            task
-                        }
-                    }
-                    block.copy(tasks = updatedTasks)
-                } else {
-                    block
-                }
-            }
-            _uiState.value = _uiState.value.copy(studyBlocks = updatedBlocks)
-
-            plannerRepository.submitReviewRating(conceptId, rating)
-                .onFailure {
-                    loadRemotePlanner()
-                }
-        }
-    }
-
     // ── F-10: Posponer al mañana ─────────────────────────────────────────────
     fun postponeBlock(blockId: String) {
         viewModelScope.launch(exceptionHandler) {
@@ -308,42 +245,6 @@ class PlannerViewModel @Inject constructor(
                         snackbarMessage = "No se pudo posponer. Intenta de nuevo."
                     )
                 }
-        }
-    }
-
-    // ── F-10: Solicitar confirmación para marcar todo como completado ────────
-    fun requestMarkAllCompleted(blockId: String) {
-        _uiState.value = _uiState.value.copy(confirmCompleteBlockId = blockId)
-    }
-
-    fun dismissConfirmMarkAll() {
-        _uiState.value = _uiState.value.copy(confirmCompleteBlockId = null)
-    }
-
-    // ── F-10: Confirmar marcar todos los conceptos del bloque como rating 4 ──
-    fun confirmMarkAllCompleted() {
-        val blockId = _uiState.value.confirmCompleteBlockId ?: return
-        _uiState.value = _uiState.value.copy(confirmCompleteBlockId = null)
-
-        viewModelScope.launch(exceptionHandler) {
-            val block = _uiState.value.studyBlocks.find { it.id == blockId } ?: return@launch
-
-            // Marcar todos visualmente como completados
-            val updatedBlocks = _uiState.value.studyBlocks.map { b ->
-                if (b.id == blockId) b.copy(tasks = b.tasks.map { it.copy(isCompleted = true) })
-                else b
-            }
-            _uiState.value = _uiState.value.copy(studyBlocks = updatedBlocks)
-
-            // Enviar rating 4 para cada concepto del bloque
-            block.tasks.forEach { task ->
-                plannerRepository.submitReviewRating(task.id, 4)
-            }
-
-            // Dar feedback al usuario
-            _uiState.value = _uiState.value.copy(
-                snackbarMessage = "${block.tasks.size} conceptos marcados como recordados"
-            )
         }
     }
 

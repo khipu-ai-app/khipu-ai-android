@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.exam
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,7 +27,7 @@ fun ExamScreen(
     onBack: () -> Unit,
     viewModel: ExamViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val questions = state.questions
     val currentIndex = state.currentIndex
     val q = questions.getOrNull(currentIndex)

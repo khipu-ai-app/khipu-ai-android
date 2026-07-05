@@ -3,6 +3,7 @@ package pe.khipuai.app.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -59,7 +60,7 @@ fun KhipuNavigation(
         authStartupChecker.runOnce()
     }
 
-    val startupState by authStartupChecker.state.collectAsState()
+    val startupState by authStartupChecker.state.collectAsStateWithLifecycle()
 
     // T-08: si el refresh token falla, el Authenticator emite SessionExpired
     // y navegamos a Login limpiando todo el backstack.
@@ -428,6 +429,9 @@ fun KhipuNavigation(
         ) {
             StudyGuideScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                },
                 onNavigateToReview = { reviewNoteId ->
                     navController.navigate("${Screen.ReviewSession.route}/$reviewNoteId")
                 }
@@ -661,10 +665,15 @@ fun KhipuNavigation(
             ReviewSessionScreen(
                 onBackClick = { navController.popBackStack() },
                 onComplete = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                },
+                onViewNote = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
+                },
             )
         }
 
-        // CE-03: ruta para repaso por curso
         composable(
             route = "review_session/by-course/{courseId}",
             arguments = listOf(
@@ -674,11 +683,15 @@ fun KhipuNavigation(
             ReviewSessionScreen(
                 onBackClick = { navController.popBackStack() },
                 onComplete = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                },
+                onViewNote = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
+                },
             )
         }
 
-        // Ruta dedicada para repasos por concepto (F-09, disparado desde el
-        // ConceptBottomSheet del grafo de Maps).
         composable(
             route = "review_session/by-concept?conceptName={conceptName}",
             arguments = listOf(
@@ -692,14 +705,25 @@ fun KhipuNavigation(
             ReviewSessionScreen(
                 onBackClick = { navController.popBackStack() },
                 onComplete = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                },
+                onViewNote = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
+                },
             )
         }
 
-        // Ruta dedicada para el Mazo Diario Global (F-10 Opción 1)
         composable("daily_deck_session") {
             ReviewSessionScreen(
                 onBackClick = { navController.popBackStack() },
                 onComplete = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                },
+                onViewNote = { noteId ->
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId")
+                },
             )
         }
 
@@ -708,7 +732,10 @@ fun KhipuNavigation(
             arguments = listOf(navArgument("noteId") { type = NavType.StringType })
         ) {
             QuizCreationScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                },
             )
         }
 
@@ -849,7 +876,7 @@ fun ExamHostScreen(
     onBack: () -> Unit,
     viewModel: ExamViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     when (state.step) {
         ExamStep.CONFIG -> ExamConfigScreen(onBack = onBack, onStartExam = { })
         ExamStep.EXAM -> ExamScreen(onBack = onBack)

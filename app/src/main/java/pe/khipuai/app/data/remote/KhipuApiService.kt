@@ -150,6 +150,9 @@ interface KhipuApiService {
     @GET("v1/planner/review-session/by-course/{course_id}")
     suspend fun getCourseReviewSession(@Path("course_id") courseId: String): List<ReviewConceptResponse>
 
+    @POST("v1/tutor/concept")
+    suspend fun askAboutConcept(@Body request: ConceptTutorRequest): ConceptTutorResponse
+
     @POST("v1/planner/review")
     suspend fun submitConceptReview(
         @Body request: ReviewRequest

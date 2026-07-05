@@ -63,8 +63,8 @@ class CoursesViewModel @Inject constructor(
                 val key = entity.name.lowercase()
                 val courseConcepts = conceptsByCourse[key] ?: emptyList()
                 val total = courseConcepts.size
-                val due = courseConcepts.count { it.isDue }
-                val mastered = total - due
+                val mastered = courseConcepts.count { it.reviewedToday || !it.isDue }
+                val pending = total - mastered
 
                 CourseUiModel(
                     id = entity.id,
@@ -75,7 +75,7 @@ class CoursesViewModel @Inject constructor(
                     priorityTag = null,
                     progressPercentage = if (total > 0) (mastered * 100 / total).coerceIn(0, 100) else 0,
                     masteredCount = mastered.coerceAtLeast(0),
-                    pendingCount = due,
+                    pendingCount = pending.coerceAtLeast(0),
                     iconName = courseIcon(entity.name),
                     color = entity.color,
                     isActive = entity.isActive
@@ -152,6 +152,11 @@ class CoursesViewModel @Inject constructor(
     fun deleteCoursePermanently(courseId: String) {
         viewModelScope.launch {
             courseRepository.deleteCoursePermanently(courseId)
+                .onSuccess {
+                    // Refrescar la caché local después de eliminar
+                    courseRepository.fetchMyCourses()
+                    loadPlannerData()
+                }
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(
                         errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message

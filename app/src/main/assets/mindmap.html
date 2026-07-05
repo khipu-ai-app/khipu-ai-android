@@ -5,26 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
         :root {
-            --bg-color: #f8fafc;
-            --text-color: #1e293b;
-            --label-color: #334155;
-            --label-shadow: rgba(255, 255, 255, 0.9);
-            --link-color: rgba(0, 0, 0, 0.15);
-            --link-label: #64748b;
-            --link-label-shadow: rgba(255, 255, 255, 0.9);
+            --bg-color-light: #f8fafc;
+            --text-color-light: #1e293b;
+            --label-color-light: #334155;
+            --label-shadow-light: rgba(255, 255, 255, 0.9);
+            --link-color-light: rgba(0, 0, 0, 0.15);
+            --link-label-light: #64748b;
+            --link-label-shadow-light: rgba(255, 255, 255, 0.9);
+            --bg-color-dark: #121212;
+            --text-color-dark: #ffffff;
+            --label-color-dark: #e2e8f0;
+            --label-shadow-dark: rgba(0, 0, 0, 0.9);
+            --link-color-dark: rgba(255, 255, 255, 0.2);
+            --link-label-dark: #9ca3af;
+            --link-label-shadow-dark: rgba(0, 0, 0, 0.8);
         }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg-color: #121212;
-                --text-color: #ffffff;
-                --label-color: #e2e8f0;
-                --label-shadow: rgba(0, 0, 0, 0.9);
-                --link-color: rgba(255, 255, 255, 0.15);
-                --link-label: #9ca3af;
-                --link-label-shadow: rgba(0, 0, 0, 0.8);
-            }
-        }
+        body.light { --bg-color: var(--bg-color-light); --text-color: var(--text-color-light); --label-color: var(--label-color-light); --label-shadow: var(--label-shadow-light); --link-color: var(--link-color-light); --link-label: var(--link-label-light); --link-label-shadow: var(--link-label-shadow-light); }
+        body.dark { --bg-color: var(--bg-color-dark); --text-color: var(--text-color-dark); --label-color: var(--label-color-dark); --label-shadow: var(--label-shadow-dark); --link-color: var(--link-color-dark); --link-label: var(--link-label-dark); --link-label-shadow: var(--link-label-shadow-dark); }
 
         body {
             margin: 0;
@@ -177,7 +174,12 @@
         return false;
     }
 
-    function loadGraph(nodesJsonStr, edgesJsonStr) {
+    function setTheme(isDark) {
+        document.body.className = isDark ? 'dark' : 'light';
+    }
+
+    function loadGraph(nodesJsonStr, edgesJsonStr, isDark) {
+        if (isDark !== undefined) setTheme(isDark);
         let decodedNodes = nodesJsonStr;
         let decodedEdges = edgesJsonStr;
         try {

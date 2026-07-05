@@ -11,6 +11,7 @@ data class ReviewConceptResponse(
     @SerialName("definition") val definition: String? = null,
     @SerialName("source_note_title") val sourceNoteTitle: String? = null,
     @SerialName("source_snippet") val sourceSnippet: String? = null,
+    @SerialName("note_id") val noteId: String? = null,
     @SerialName("ease_factor") val easeFactor: Float = 2.5f,
     @SerialName("interval") val interval: Int = 0,
     @SerialName("repetitions") val repetitions: Int = 0,

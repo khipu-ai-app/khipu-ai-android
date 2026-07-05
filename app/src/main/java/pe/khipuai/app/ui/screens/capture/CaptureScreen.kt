@@ -1,5 +1,6 @@
-﻿package pe.khipuai.app.ui.screens.capture
+package pe.khipuai.app.ui.screens.capture
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -56,7 +57,7 @@ fun CaptureScreen(
     onNavigateToNoteDetail: (String) -> Unit = {},
     viewModel: CaptureViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     // T-02: escuchar el evento de "límite alcanzado" y navegar a Subscription
@@ -103,29 +104,52 @@ fun CaptureScreen(
     // T-05: el modo default es CAMERA según el plan de T-05
     var mode by remember { mutableStateOf(CaptureMode.CAMERA) }
 
-    // Photo picker para el modo UPLOAD
+    // Photo picker para el modo UPLOAD (múltiple)
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let { safeUri ->
-            val file = uriToFile(context, safeUri, ".jpg")
-            if (file != null) {
-                viewModel.processAndUploadImage(file) { id ->
-                    if (id != null) onNavigateToProcessing(id)
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10)
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            val files = uris.mapNotNull { uriToFile(context, it, ".jpg") }
+            if (files.isNotEmpty()) {
+                if (uiState.combineMode) {
+                    files.forEach { viewModel.addFileToCombineBuffer(it) }
+                } else {
+                    var lastId: String? = null
+                    files.forEachIndexed { index, file ->
+                        viewModel.processAndUploadImage(file) { id ->
+                            if (id != null) {
+                                lastId = id
+                                if (index == files.lastIndex) {
+                                    onNavigateToProcessing(id)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
-    // PDF picker para el modo PDF
     val pdfPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let { safeUri ->
-            val file = uriToFile(context, safeUri, ".pdf")
-            if (file != null) {
-                viewModel.processAndUploadDocument(file, "application/pdf") { id ->
-                    if (id != null) onNavigateToProcessing(id)
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            val files = uris.mapNotNull { uriToFile(context, it, ".pdf") }
+            if (files.isNotEmpty()) {
+                if (uiState.combineMode) {
+                    files.forEach { viewModel.addFileToCombineBuffer(it) }
+                } else {
+                    var lastId: String? = null
+                    files.forEachIndexed { index, file ->
+                        viewModel.processAndUploadDocument(file, "application/pdf") { id ->
+                            if (id != null) {
+                                lastId = id
+                                if (index == files.lastIndex) {
+                                    onNavigateToProcessing(id)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -135,12 +159,20 @@ fun CaptureScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Khipu AI",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = pe.khipuai.app.R.mipmap.ic_launcher_foreground),
+                            contentDescription = "Logo Khipu AI",
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Khipu AI",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -188,6 +220,7 @@ fun CaptureScreen(
                     }
                 )
                 CaptureMode.UPLOAD -> UploadModeBody(
+                    combineMode = uiState.combineMode,
                     onPickImage = {
                         imagePickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -195,6 +228,7 @@ fun CaptureScreen(
                     }
                 )
                 CaptureMode.PDF -> PdfModeBody(
+                    combineMode = uiState.combineMode,
                     onPickPdf = {
                         pdfPickerLauncher.launch(arrayOf("application/pdf"))
                     }
@@ -595,7 +629,7 @@ private fun openAppSettings(context: Context) {
 // ── Cuerpos de los otros modos (reutilizan la UI previa) ────────────────────
 
 @Composable
-private fun UploadModeBody(onPickImage: () -> Unit) {
+private fun UploadModeBody(combineMode: Boolean, onPickImage: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -604,7 +638,7 @@ private fun UploadModeBody(onPickImage: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "Sube una imagen desde tu galería",
+                text = if (combineMode) "Selecciona varias imágenes para combinar" else "Sube imágenes desde tu galería",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -612,14 +646,14 @@ private fun UploadModeBody(onPickImage: () -> Unit) {
             Button(onClick = onPickImage) {
                 Icon(Icons.Default.Image, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Elegir imagen")
+                Text(if (combineMode) "Elegir imágenes" else "Elegir imagen")
             }
         }
     }
 }
 
 @Composable
-private fun PdfModeBody(onPickPdf: () -> Unit) {
+private fun PdfModeBody(combineMode: Boolean, onPickPdf: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -628,7 +662,7 @@ private fun PdfModeBody(onPickPdf: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "Sube un PDF desde tu dispositivo",
+                text = if (combineMode) "Selecciona varios PDFs para combinar" else "Sube PDFs desde tu dispositivo",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -636,7 +670,7 @@ private fun PdfModeBody(onPickPdf: () -> Unit) {
             Button(onClick = onPickPdf) {
                 Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Elegir PDF")
+                Text(if (combineMode) "Elegir PDFs" else "Elegir PDF")
             }
         }
     }

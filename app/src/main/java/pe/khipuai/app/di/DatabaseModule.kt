@@ -26,7 +26,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "khipu_database"
         )
-        .fallbackToDestructiveMigration() // En desarrollo: borrar y recrear al cambiar versión
+        // .fallbackToDestructiveMigration() removed for production safety
         .build()
 
     @Provides

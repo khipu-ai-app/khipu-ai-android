@@ -1,5 +1,6 @@
 ﻿package pe.khipuai.app.ui.screens.processing
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -31,7 +32,7 @@ fun ProcessingScreen(
     onErrorEscape: () -> Unit = {},
     viewModel: ProcessingViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState.isComplete) {
         val currentNoteId = uiState.noteId

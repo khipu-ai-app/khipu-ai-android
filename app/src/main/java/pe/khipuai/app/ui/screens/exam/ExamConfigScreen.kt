@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.exam
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +24,7 @@ fun ExamConfigScreen(
     onStartExam: () -> Unit,
     viewModel: ExamViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {

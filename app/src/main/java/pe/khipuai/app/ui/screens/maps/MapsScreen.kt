@@ -1,5 +1,6 @@
-﻿package pe.khipuai.app.ui.screens.maps
+package pe.khipuai.app.ui.screens.maps
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.util.Base64
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -36,7 +37,7 @@ fun MapsScreen(
     onAskTutor: (conceptName: String) -> Unit = {},
     viewModel: MapsViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Referencia estable a la WebView para poder inyectarle datos vía evaluateJavascript
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
@@ -54,29 +55,22 @@ fun MapsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Mapa Cognitivo",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
-                navigationIcon = {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = pe.khipuai.app.R.mipmap.ic_launcher_foreground),
+                            contentDescription = "Logo Khipu AI",
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "K",
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            text = "Mapa Cognitivo",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
+
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )

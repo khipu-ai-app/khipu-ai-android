@@ -12,5 +12,9 @@
     <color name="khipu_on_surface_variant">#FF49454F</color>
     <color name="khipu_outline_variant">#FFCAC4D0</color>
     <color name="khipu_surface">#FFFFFBFE</color>
-    <color name="khipu_success">#FF2E7D32</color>
+    <color name="khipu_success">#FF10B981</color>
+    <color name="khipu_error">#FFEF4444</color>
+    <color name="brand_primary">#FF7C3AED</color>
+    <color name="brand_surface">#FFF8FAFC</color>
+    <color name="ic_launcher_background">#FFF8FAFC</color>
 </resources>

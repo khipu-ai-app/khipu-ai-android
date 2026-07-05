@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import pe.khipuai.app.data.local.entity.NoteEntity
 import pe.khipuai.app.data.repository.CourseRepository
 import pe.khipuai.app.data.repository.GraphRepository
@@ -66,6 +68,10 @@ data class CourseDetailUiState(
     // C-04
     val examDate: String? = null,
     val isRescheduling: Boolean = false,
+    val snackbarMessage: String? = null,
+    val d3NodesJson: String = "[]",
+    val d3EdgesJson: String = "[]",
+    val isGraphLoading: Boolean = false,
 )
 
 @HiltViewModel
@@ -187,11 +193,19 @@ class CourseDetailViewModel @Inject constructor(
 
     fun clearExamDate() = setExamDate(null)
 
+    fun clearSnackbar() {
+        _uiState.update { it.copy(snackbarMessage = null) }
+    }
+
     private suspend fun rescheduleForExam(date: String) {
         _uiState.update { it.copy(isRescheduling = true) }
         try {
-            apiService.rescheduleForExam(courseId, pe.khipuai.app.data.remote.dto.RescheduleForExamRequest(date))
-        } catch (_: Exception) {}
+            val response = apiService.rescheduleForExam(courseId, pe.khipuai.app.data.remote.dto.RescheduleForExamRequest(date))
+            val count = response.conceptsRescheduled
+            _uiState.update { it.copy(snackbarMessage = "$count conceptos reprogramados para repasar antes del examen.") }
+        } catch (_: Exception) {
+            _uiState.update { it.copy(snackbarMessage = "No se pudieron reprogramar los conceptos.") }
+        }
         _uiState.update { it.copy(isRescheduling = false) }
     }
 
@@ -231,7 +245,6 @@ class CourseDetailViewModel @Inject constructor(
      * para renderizar en el mini-mapa. Falla de forma silenciosa.
      */
     private suspend fun loadGraphPreview() {
-        // Posiciones fijas que coinciden con las líneas del Canvas dibujado en CourseDetailScreen
         val positions = listOf(
             0.5f to 0.2f,
             0.3f to 0.5f,
@@ -240,44 +253,51 @@ class CourseDetailViewModel @Inject constructor(
             0.8f to 0.8f
         )
 
+        // Cargar progreso desde la agenda
+        plannerRepository.fetchDailyAgenda().onSuccess { agenda ->
+            val courseName = _uiState.value.courseName.lowercase()
+            val courseConcepts = agenda.filter { it.courseName.lowercase() == courseName }
+            val total = courseConcepts.size
+            val mastered = courseConcepts.count { it.reviewedToday || !it.isDue }
+            val progress = if (total > 0) ((mastered * 100) / total).coerceIn(0, 100) else 0
+            _uiState.value = _uiState.value.copy(courseProgress = progress)
+        }
+
+        // Cargar grafo completo para el D3 WebView
+        _uiState.value = _uiState.value.copy(isGraphLoading = true)
         graphRepository.fetchCourseGraph(courseId)
             .onSuccess { graph ->
-                val conceptNodes = graph.nodes.filter { it.type == "concept" }.take(5)
-                
-                // Calcular progreso mockeado basado en si tienen status
-                var mastered = 0
-                val total = conceptNodes.size.coerceAtLeast(1)
-
-                val nodes = conceptNodes
-                    .mapIndexed { index, node ->
-                        val (x, y) = positions.getOrElse(index) { 0.5f to 0.5f }
-                        val status = when {
-                            node.reviewPending == true -> NodeStatus.EN_PROGRESO
-                            (node.easeFactor ?: 0f) >= 2.5f -> NodeStatus.DOMINADO
-                            else -> NodeStatus.BLOQUEADO
-                        }
-                        if (status == NodeStatus.DOMINADO) mastered++
-                        
-                        GraphNodeUiModel(
-                            label = node.label,
-                            iconName = when (status) {
-                                NodeStatus.DOMINADO -> "check"
-                                NodeStatus.EN_PROGRESO -> "circle"
-                                NodeStatus.BLOQUEADO -> "lock"
-                            },
-                            status = status,
-                            xOffsetFraction = x,
-                            yOffsetFraction = y
-                        )
-                    }
-                
-                val progress = ((mastered.toFloat() / total.toFloat()) * 100).toInt()
                 _uiState.value = _uiState.value.copy(
-                    previewNodes = nodes,
-                    courseProgress = progress
+                    d3NodesJson = Json.encodeToString(graph.nodes),
+                    d3EdgesJson = Json.encodeToString(graph.edges),
+                    isGraphLoading = false,
+                )
+                // Preview nodes (primeros 5 para el Canvas)
+                val allConcepts = graph.nodes.filter { it.type == "concept" }
+                val previewNodes = allConcepts.take(5).mapIndexed { index, node ->
+                    val (x, y) = positions.getOrElse(index) { 0.5f to 0.5f }
+                    val status = if (node.reviewPending == true) NodeStatus.EN_PROGRESO else NodeStatus.DOMINADO
+                    GraphNodeUiModel(
+                        label = node.label,
+                        iconName = when (status) {
+                            NodeStatus.DOMINADO -> "check"
+                            NodeStatus.EN_PROGRESO -> "circle"
+                            NodeStatus.BLOQUEADO -> "lock"
+                        },
+                        status = status,
+                        xOffsetFraction = x,
+                        yOffsetFraction = y
+                    )
+                }
+                _uiState.value = _uiState.value.copy(previewNodes = previewNodes)
+            }
+            .onFailure {
+                _uiState.value = _uiState.value.copy(
+                    d3NodesJson = "[]",
+                    d3EdgesJson = "[]",
+                    isGraphLoading = false,
                 )
             }
-            // onFailure: mini-mapa queda vacío, la pantalla no crashea
     }
 
     /**

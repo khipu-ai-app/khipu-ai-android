@@ -1,5 +1,6 @@
 ﻿package pe.khipuai.app.ui.screens.planner
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -156,7 +157,7 @@ fun CalendarScreen(
     onNavigateBack: () -> Unit = {},
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {

@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.achievements
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleIn
@@ -23,7 +24,7 @@ import kotlinx.coroutines.delay
 fun AchievementPopupOverlay(
     manager: AchievementManager
 ) {
-    val queue by manager.popupQueue.collectAsState()
+    val queue by manager.popupQueue.collectAsStateWithLifecycle()
     val current = queue.firstOrNull()
 
     var isVisible by remember(current) { mutableStateOf(current != null) }

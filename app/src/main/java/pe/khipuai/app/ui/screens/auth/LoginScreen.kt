@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.auth
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -35,7 +36,7 @@ fun LoginScreen(
     onNavigateToForgotPassword: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var passwordVisible by remember { mutableStateOf(false) }
 
     Column(
@@ -255,53 +256,6 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium
             )
-        }
-
-        // DEV-ONLY: Quick login con los 2 usuarios sembrados (free/pro).
-        // Esta sección se quitará antes de release. Marcada con etiqueta
-        // obvia para que el equipo la identifique en code review.
-        Spacer(modifier = Modifier.height(32.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Solo desarrollo",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Acceso rápido a los usuarios sembrados en el backend.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(
-                onClick = {
-                    viewModel.quickLogin("free@khipuai.app") { success ->
-                        if (success) onNavigateToHome()
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                enabled = !uiState.isLoading
-            ) {
-                Text("Entrar como Free")
-            }
-            Button(
-                onClick = {
-                    viewModel.quickLogin("pro@khipuai.app") { success ->
-                        if (success) onNavigateToHome()
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                enabled = !uiState.isLoading
-            ) {
-                Text("Entrar como Pro")
-            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))

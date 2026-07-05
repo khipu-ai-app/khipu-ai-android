@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.profile
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,7 +19,7 @@ fun NotificationSettingsScreen(
     onNavigateBack: () -> Unit,
     viewModel: ProfileViewModel
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Assuming we extend uiState to have notification settings or we use local state that is later saved.
     // For now, let's use local state to represent the toggles.

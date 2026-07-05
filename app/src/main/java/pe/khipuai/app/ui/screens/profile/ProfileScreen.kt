@@ -1,5 +1,6 @@
 package pe.khipuai.app.ui.screens.profile
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -41,7 +42,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showPersonalInfoDialog by remember { mutableStateOf(false) }
@@ -69,18 +70,22 @@ fun ProfileScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Khipu AI",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { /* Open drawer */ }) {
-                        Icon(imageVector = Icons.Default.Person, contentDescription = "Perfil", tint = MaterialTheme.colorScheme.onSurface)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = pe.khipuai.app.R.mipmap.ic_launcher_foreground),
+                            contentDescription = "Logo Khipu AI",
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Khipu AI",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
+
                 actions = {
                     IconButton(onClick = { /* Notifications */ }) {
                         Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notificaciones", tint = MaterialTheme.colorScheme.onSurface)

@@ -1,4 +1,4 @@
-﻿package pe.khipuai.app.ui.screens.home
+package pe.khipuai.app.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,6 +7,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.khipuai.app.data.repository.CourseRepository
 import pe.khipuai.app.data.repository.NoteRepository
@@ -69,9 +70,11 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState(isLoading = true))
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val _cachedAgenda = MutableStateFlow<List<pe.khipuai.app.data.remote.dto.DueConceptResponse>>(emptyList())
+
     fun loadDashboardContent() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.update { it.copy(isLoading = true) }
             try {
                 // Check achievements in background
                 launch {
@@ -105,13 +108,14 @@ class HomeViewModel @Inject constructor(
 
                 // Extraer la primera sugerencia de repaso si hay conceptos pendientes
                 agendaResult.onSuccess { agenda ->
-                    if (agenda.isNotEmpty()) {
-                        val firstDue = agenda.first()
+                    _cachedAgenda.value = agenda
+                    val firstPending = agenda.firstOrNull { it.isDue && !it.reviewedToday }
+                    if (firstPending != null) {
                         suggestion = Suggestion(
-                            conceptId = firstDue.conceptId,
-                            conceptName = firstDue.conceptName,
-                            courseName = firstDue.courseName,
-                            label = firstDue.label
+                            conceptId = firstPending.conceptId,
+                            conceptName = firstPending.conceptName,
+                            courseName = firstPending.courseName,
+                            label = firstPending.label
                         )
                     }
                 }
@@ -119,7 +123,7 @@ class HomeViewModel @Inject constructor(
                 val profile = profileResult.getOrNull()
                 val usage = usageResult.getOrNull()
 
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     userName = profile?.fullName?.split(" ")?.firstOrNull() ?: "Estudiante",
                     streak = streak,
                     dailyProgress = dailyProgress,
@@ -128,10 +132,10 @@ class HomeViewModel @Inject constructor(
                     capturesLimit = usage?.capturesLimit ?: 5,
                     isPro = usage?.isPro ?: false,
                     isLoading = false
-                )
+                ) }
 
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false)
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -141,13 +145,26 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             kotlinx.coroutines.flow.combine(
                 courseRepository.observeAll(),
-                offlineFirstNoteRepository.observeAll()
-            ) { localCourses, localNotes ->
+                offlineFirstNoteRepository.observeAll(),
+                _cachedAgenda,
+            ) { localCourses, localNotes, agenda ->
+                val agendaConcepts = mutableMapOf<String, kotlin.Pair<Int, Int>>()
+                agenda.groupBy { it.courseName.lowercase() }.forEach { (courseName, concepts) ->
+                    val total = concepts.size
+                    val mastered = concepts.count { it.reviewedToday || !it.isDue }
+                    agendaConcepts[courseName] = kotlin.Pair(mastered, total)
+                }
+
                 val coursesMapped = localCourses.filter { it.isActive }.map { entity ->
+                    val key = entity.name.lowercase()
+                    val pair = agendaConcepts[key]
+                    val mastered = pair?.first ?: 0
+                    val total = pair?.second ?: 0
+                    val progress = if (total > 0) mastered.toFloat() / total else 0f
                     Course(
                         id = entity.id,
                         name = entity.name,
-                        progress = 0.0f,
+                        progress = progress,
                         filesCount = localNotes.count { it.courseId == entity.id },
                         color = entity.color.ifBlank { "#4B00B2" },
                         icon = "calculate"
@@ -174,10 +191,10 @@ class HomeViewModel @Inject constructor(
     /**
      * Convierte un ISO 8601 a texto relativo legible ("Hoy", "Ayer", "Hace 3 días", etc.).
      */
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     courses = coursesMapped,
                     recentFiles = filesMapped
-                )
+                ) }
             }.collect {}
         }
 

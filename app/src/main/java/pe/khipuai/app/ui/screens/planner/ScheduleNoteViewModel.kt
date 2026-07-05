@@ -1,16 +1,20 @@
 package pe.khipuai.app.ui.screens.planner
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.data.notification.ManualScheduleScheduler
 import pe.khipuai.app.data.remote.dto.ScheduleDayResponse
 import pe.khipuai.app.data.repository.PlannerRepository
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.*
 import javax.inject.Inject
 
@@ -30,6 +34,7 @@ data class ScheduleNoteUiState(
 
 @HiltViewModel
 class ScheduleNoteViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val plannerRepository: PlannerRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -81,6 +86,15 @@ class ScheduleNoteViewModel @Inject constructor(
             val result = plannerRepository.createManualSchedule(noteId, _uiState.value.selectedDate)
             if (result.isSuccess) {
                 _uiState.value = _uiState.value.copy(isScheduling = false, isSuccess = true)
+                runCatching {
+                    val target = LocalDate.parse(_uiState.value.selectedDate)
+                    ManualScheduleScheduler.schedule(
+                        context = context,
+                        noteId = noteId,
+                        noteTitle = _uiState.value.noteTitle.ifBlank { "Tu apunte" },
+                        scheduledDate = target
+                    )
+                }
             } else {
                 _uiState.value = _uiState.value.copy(
                     isScheduling = false,

@@ -183,7 +183,14 @@ class CaptureViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            val mimeTypes = List(files.size) { "image/jpeg" }
+            val mimeTypes = files.map { file ->
+                when {
+                    file.name.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+                    file.name.endsWith(".png", ignoreCase = true) -> "image/png"
+                    file.name.endsWith(".webp", ignoreCase = true) -> "image/webp"
+                    else -> "image/jpeg"
+                }
+            }
             val courseId = _uiState.value.selectedDestinationId
             uploadRepository.combineFiles(files, mimeTypes, courseId)
                 .onSuccess { response ->
