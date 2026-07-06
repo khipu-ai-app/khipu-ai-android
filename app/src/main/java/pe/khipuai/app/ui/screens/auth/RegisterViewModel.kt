@@ -87,7 +87,7 @@ class RegisterViewModel @Inject constructor(
                 is GoogleSignInResult.Success -> {
                     authRepository.loginWithGoogle(result.idToken)
                         .onSuccess {
-                            val profileResult = authRepository.getMyProfile()
+                            val profileResult = authRepository.fetchMyProfile()
                             val needsOnboarding = profileResult.getOrNull()?.university.isNullOrBlank()
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
