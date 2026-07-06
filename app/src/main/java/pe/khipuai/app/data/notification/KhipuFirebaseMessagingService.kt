@@ -5,6 +5,10 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import pe.khipuai.app.data.repository.AuthRepository
 
 /**
  * Servicio encargado de recibir notificaciones Push desde Firebase Cloud Messaging (FCM).
@@ -16,10 +20,22 @@ class KhipuFirebaseMessagingService : FirebaseMessagingService() {
     @FcmDispatcher
     lateinit var fcmDispatcher: NotificationDispatcher
 
+    @Inject
+    lateinit var authRepository: AuthRepository
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d("FCM", "Nuevo token FCM recibido: $token")
-        // TODO: Enviar el token al backend de Khipu AI si es necesario vincularlo al usuario
+        
+        // Enviar el token al backend de Khipu AI
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                authRepository.updateMyProfile(pe.khipuai.app.data.remote.dto.UserUpdateRequest(fcmToken = token))
+                Log.d("FCM", "Token sincronizado con el backend")
+            } catch (e: Exception) {
+                Log.e("FCM", "Error sincronizando token FCM", e)
+            }
+        }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {

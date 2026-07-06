@@ -59,7 +59,8 @@ data class UserUpdateRequest(
     @SerialName("study_goal_minutes") val studyGoalMinutes: Int? = null,
     @SerialName("study_days") val studyDays: List<Int>? = null,
     @SerialName("language") val language: String? = null,
-    @SerialName("notification_preferences") val notificationPreferences: NotificationPreferencesDto? = null
+    @SerialName("notification_preferences") val notificationPreferences: NotificationPreferencesDto? = null,
+    @SerialName("fcm_token") val fcmToken: String? = null
 )
 
 @Serializable
