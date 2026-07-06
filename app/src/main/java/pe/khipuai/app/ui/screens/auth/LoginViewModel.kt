@@ -64,7 +64,7 @@ class LoginViewModel @Inject constructor(
             authRepository.loginWithEmail(email, password)
                 .onSuccess {
                     val profileResult = authRepository.fetchMyProfile()
-                    val needsOnboarding = profileResult.getOrNull()?.university.isNullOrBlank()
+                    val needsOnboarding = profileResult.getOrNull()?.onboardingDone != true
                     _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true, errorMessage = null)
                     onResult(true, needsOnboarding)
                 }
@@ -97,7 +97,7 @@ class LoginViewModel @Inject constructor(
                     authRepository.loginWithGoogle(result.idToken)
                         .onSuccess {
                             val profileResult = authRepository.fetchMyProfile()
-                            val needsOnboarding = profileResult.getOrNull()?.university.isNullOrBlank()
+                            val needsOnboarding = profileResult.getOrNull()?.onboardingDone != true
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 isLoggedIn = true,

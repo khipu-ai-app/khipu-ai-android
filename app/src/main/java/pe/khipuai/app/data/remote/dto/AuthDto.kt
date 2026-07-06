@@ -19,6 +19,7 @@ data class UserProfileResponse(
     @SerialName("email") val email: String,
     @SerialName("full_name") val fullName: String?,
     @SerialName("profile_type") val profileType: String?,
+    @SerialName("onboarding_done") val onboardingDone: Boolean? = false,
     @SerialName("university") val university: String? = null,
     @SerialName("career") val career: String? = null,
     @SerialName("semester") val semester: Int? = null,
