@@ -37,6 +37,10 @@ fun TutorHistoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(Unit) {
+        viewModel.loadSessions()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

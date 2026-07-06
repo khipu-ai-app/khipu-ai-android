@@ -7,6 +7,11 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
+import android.app.Activity
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,13 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import pe.khipuai.app.core.camera.CameraPermissionState
-import pe.khipuai.app.core.camera.rememberCameraPermissionState
-import pe.khipuai.app.core.camera.rememberCameraPermissionRequest
 import pe.khipuai.app.ui.components.BottomNavigationBar
-import pe.khipuai.app.ui.components.camera.CameraPreview
-import pe.khipuai.app.ui.components.camera.CameraState
-import pe.khipuai.app.ui.components.camera.rememberCameraCaptureController
 import java.io.File
 
 /**
@@ -111,21 +110,7 @@ fun CaptureScreen(
         if (uris.isNotEmpty()) {
             val files = uris.mapNotNull { uriToFile(context, it, ".jpg") }
             if (files.isNotEmpty()) {
-                if (uiState.combineMode) {
-                    files.forEach { viewModel.addFileToCombineBuffer(it) }
-                } else {
-                    var lastId: String? = null
-                    files.forEachIndexed { index, file ->
-                        viewModel.processAndUploadImage(file) { id ->
-                            if (id != null) {
-                                lastId = id
-                                if (index == files.lastIndex) {
-                                    onNavigateToProcessing(id)
-                                }
-                            }
-                        }
-                    }
-                }
+                viewModel.processFiles(files)
             }
         }
     }
@@ -136,21 +121,7 @@ fun CaptureScreen(
         if (uris.isNotEmpty()) {
             val files = uris.mapNotNull { uriToFile(context, it, ".pdf") }
             if (files.isNotEmpty()) {
-                if (uiState.combineMode) {
-                    files.forEach { viewModel.addFileToCombineBuffer(it) }
-                } else {
-                    var lastId: String? = null
-                    files.forEachIndexed { index, file ->
-                        viewModel.processAndUploadDocument(file, "application/pdf") { id ->
-                            if (id != null) {
-                                lastId = id
-                                if (index == files.lastIndex) {
-                                    onNavigateToProcessing(id)
-                                }
-                            }
-                        }
-                    }
-                }
+                viewModel.processFiles(files)
             }
         }
     }
@@ -218,23 +189,20 @@ fun CaptureScreen(
             // Cuerpo del modo seleccionado
             when (mode) {
                 CaptureMode.CAMERA -> CameraModeBody(
-                    onProcessFile = { file ->
-                        if (uiState.combineMode) {
-                            viewModel.addFileToCombineBuffer(file)
-                        } else {
-                            viewModel.processAndUploadImage(file) { id ->
-                                if (id != null) onNavigateToProcessing(id)
-                            }
-                        }
+                    modifier = Modifier.weight(1f),
+                    onProcessFiles = { files ->
+                        viewModel.processFiles(files)
                     }
                 )
                 CaptureMode.UPLOAD -> UploadModeBody(
+                    modifier = Modifier.weight(1f),
                     combineMode = uiState.combineMode,
                     onPickImage = {
                         imagePickerLauncher.launch("image/*")
                     }
                 )
                 CaptureMode.PDF -> PdfModeBody(
+                    modifier = Modifier.weight(1f),
                     combineMode = uiState.combineMode,
                     onPickPdf = {
                         pdfPickerLauncher.launch(arrayOf("application/pdf"))
@@ -254,15 +222,6 @@ fun CaptureScreen(
                 isActive = uiState.combineMode,
                 onToggle = viewModel::toggleCombineMode,
             )
-
-            // T-13 combine: indicador de archivos pendientes (solo visible
-            // cuando hay al menos 2 archivos en el buffer).
-            if (uiState.combineMode && uiState.pendingFileCount > 0) {
-                CombinePendingBanner(
-                    count = uiState.pendingFileCount,
-                    onCombine = viewModel::combineAndUpload,
-                )
-            }
         }
     }
 
@@ -387,258 +346,71 @@ fun CaptureScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CameraModeBody(
-    onProcessFile: (File) -> Unit
+    modifier: Modifier = Modifier,
+    onProcessFiles: (List<File>) -> Unit
 ) {
+    val activity = LocalContext.current as Activity
     val context = LocalContext.current
-    val cameraPermissionState by rememberCameraPermissionState()
-    val requestPermission = rememberCameraPermissionRequest()
-    val cameraController = rememberCameraCaptureController()
-    val cameraState by cameraController.cameraState
-
-    // Flash: 0=OFF, 1=ON, 2=AUTO. Default OFF.
-    var flashMode by remember { mutableIntStateOf(androidx.camera.core.ImageCapture.FLASH_MODE_OFF) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(360.dp)
-            .padding(horizontal = 24.dp, vertical = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.Black)
-    ) {
-        when (val perm = cameraPermissionState) {
-            CameraPermissionState.Granted -> {
-                when (val state = cameraState) {
-                    is CameraState.Ready -> {
-                        CameraPreview(
-                            controller = cameraController,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        // Overlay: rectángulo guía + controles
-                        CameraGuideOverlay()
-                        CameraControls(
-                            hasFlash = state.hasFlash,
-                            flashMode = flashMode,
-                            onFlashChange = {
-                                flashMode = it
-                                cameraController.setFlashMode(it)
-                            },
-                            onSwitchLens = { cameraController.switchLens() },
-                            onCapture = {
-                                val outputFile = File(
-                                    context.cacheDir,
-                                    "khipu_camera_${System.currentTimeMillis()}.jpg"
-                                )
-                                cameraController.captureToFile(
-                                    outputFile = outputFile,
-                                    onSuccess = { file -> onProcessFile(file) },
-                                    onError = { e ->
-                                        Log.e("CameraModeBody", "Capture failed", e)
-                                    }
-                                )
-                            }
-                        )
-                    }
-                    is CameraState.Initializing -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = Color.White)
-                        }
-                    }
-                    is CameraState.Error -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                text = state.message,
-                                color = Color.White,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-            }
-            CameraPermissionState.Denied -> {
-                CameraPermissionRationale(
-                    onAllow = { requestPermission() }
-                )
-            }
-            CameraPermissionState.PermanentlyDenied -> {
-                CameraPermissionPermanentlyDenied(
-                    onOpenSettings = { openAppSettings(context) }
-                )
-            }
-            CameraPermissionState.NotRequested -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Toca el botón para activar la cámara",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+    
+    val scannerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val scanResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
+            val files = scanResult?.pages?.mapNotNull { page ->
+                uriToFile(context, page.imageUri, ".jpg")
+            } ?: emptyList()
+            if (files.isNotEmpty()) {
+                onProcessFiles(files)
             }
         }
     }
-}
 
-@Composable
-private fun CameraGuideOverlay() {
-    // Rectángulo guía: indica al usuario dónde poner el apunte
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(48.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .border(
-                    width = 2.dp,
-                    color = Color.White.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-        )
-    }
-}
-
-@Composable
-private fun CameraControls(
-    hasFlash: Boolean,
-    flashMode: Int,
-    onFlashChange: (Int) -> Unit,
-    onSwitchLens: () -> Unit,
-    onCapture: () -> Unit
-) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Top-right: flash + switch lens
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (hasFlash) {
-                IconButton(
-                    onClick = {
-                        // Ciclar OFF → ON → AUTO → OFF
-                        val next = when (flashMode) {
-                            androidx.camera.core.ImageCapture.FLASH_MODE_OFF ->
-                                androidx.camera.core.ImageCapture.FLASH_MODE_ON
-                            androidx.camera.core.ImageCapture.FLASH_MODE_ON ->
-                                androidx.camera.core.ImageCapture.FLASH_MODE_AUTO
-                            else -> androidx.camera.core.ImageCapture.FLASH_MODE_OFF
-                        }
-                        onFlashChange(next)
-                    },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = when (flashMode) {
-                            androidx.camera.core.ImageCapture.FLASH_MODE_ON -> Icons.Default.FlashOn
-                            androidx.camera.core.ImageCapture.FLASH_MODE_AUTO -> Icons.Default.FlashAuto
-                            else -> Icons.Default.FlashOff
-                        },
-                        contentDescription = "Flash",
-                        tint = Color.White
-                    )
-                }
-            }
-            IconButton(
-                onClick = onSwitchLens,
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "Usa el escáner inteligente para tomar tus apuntes.\nRecortará los bordes automáticamente.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = {
+                    val options = GmsDocumentScannerOptions.Builder()
+                        .setGalleryImportAllowed(false)
+                        .setPageLimit(30)
+                        .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+                        .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+                        .build()
+                    val scanner = GmsDocumentScanning.getClient(options)
+                    scanner.getStartScanIntent(activity).addOnSuccessListener { intentSender ->
+                        scannerLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
+                    }.addOnFailureListener { e ->
+                        Log.e("CameraModeBody", "Scanner failed to start", e)
+                    }
+                },
+                modifier = Modifier.size(height = 56.dp, width = 240.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Cameraswitch,
-                    contentDescription = "Cambiar cámara",
-                    tint = Color.White
-                )
-            }
-        }
-
-        // Bottom-center: botón de captura grande
-        IconButton(
-            onClick = onCapture,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp)
-                .size(72.dp)
-                .background(Color.White, CircleShape)
-                .border(4.dp, Color.White.copy(alpha = 0.4f), CircleShape)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape)
-            )
-        }
-    }
-}
-
-@Composable
-private fun CameraPermissionRationale(onAllow: () -> Unit) {
-    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.CameraAlt,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = Color.White
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "Khipu necesita acceso a la cámara para capturar tus apuntes.",
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(Modifier.height(16.dp))
-            Button(onClick = onAllow) {
-                Text("Permitir cámara")
+                Icon(Icons.Default.DocumentScanner, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Escanear", style = MaterialTheme.typography.titleMedium)
             }
         }
     }
-}
-
-@Composable
-private fun CameraPermissionPermanentlyDenied(onOpenSettings: () -> Unit) {
-    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.Block,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = Color.White
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "Has denegado el permiso de cámara. Khipu no puede capturar apuntes sin él.",
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(Modifier.height(16.dp))
-            Button(onClick = onOpenSettings) {
-                Text("Abrir configuración")
-            }
-        }
-    }
-}
-
-private fun openAppSettings(context: Context) {
-    val intent = android.content.Intent(
-        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-        android.net.Uri.fromParts("package", context.packageName, null)
-    )
-    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-    context.startActivity(intent)
 }
 
 // ── Cuerpos de los otros modos (reutilizan la UI previa) ────────────────────
 
 @Composable
-private fun UploadModeBody(combineMode: Boolean, onPickImage: () -> Unit) {
+private fun UploadModeBody(modifier: Modifier = Modifier, combineMode: Boolean, onPickImage: () -> Unit) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(24.dp),
         contentAlignment = Alignment.Center
@@ -660,9 +432,9 @@ private fun UploadModeBody(combineMode: Boolean, onPickImage: () -> Unit) {
 }
 
 @Composable
-private fun PdfModeBody(combineMode: Boolean, onPickPdf: () -> Unit) {
+private fun PdfModeBody(modifier: Modifier = Modifier, combineMode: Boolean, onPickPdf: () -> Unit) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(24.dp),
         contentAlignment = Alignment.Center
@@ -867,55 +639,6 @@ private fun CombineToggleRow(
     }
 }
 
-@Composable
-private fun CombinePendingBanner(
-    count: Int,
-    onCombine: () -> Unit,
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Default.Layers,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "$count archivo(s) listo(s) para combinar",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    text = "Se procesarán como una sola nota.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            FilledTonalButton(
-                onClick = onCombine,
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Text("Combinar", fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
 
 
 // ── Usage banner ────────────────────────────────────────────────────────────

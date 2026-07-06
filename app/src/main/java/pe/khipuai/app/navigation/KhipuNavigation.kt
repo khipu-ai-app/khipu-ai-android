@@ -326,13 +326,7 @@ fun KhipuNavigation(
                     }
 
                     targetRoute?.let { route ->
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                        navController.navigate(route)
                     }
                 },
                 onNavigateToSubscription = { reason ->

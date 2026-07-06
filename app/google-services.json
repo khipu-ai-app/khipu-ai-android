@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1013222499074",
+    "project_id": "project-f5e397bf-b0a5-4c8e-826",
+    "storage_bucket": "project-f5e397bf-b0a5-4c8e-826.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1013222499074:android:e75c8cdeb6a2134c28181b",
+        "android_client_info": {
+          "package_name": "pe.khipuai.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDIIctqBV_qe3LtofA_HXk8IR-FfpBT4-I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

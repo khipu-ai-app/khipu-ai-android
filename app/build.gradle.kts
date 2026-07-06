@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
@@ -110,10 +112,13 @@ dependencies {
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
-    implementation(libs.androidx.camera.view)
+    implementation("androidx.camera:camera-extensions:1.3.1")
+    
+    // ML Kit Document Scanner (T-05)
+    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
 
-    // ML Kit
-    implementation(libs.mlkit.text.recognition)
+    // Supabase (T-06 / T-14)
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.4.2")
 
     // Coil
     implementation(libs.coil.compose)
@@ -122,6 +127,7 @@ dependencies {
     implementation("com.android.billingclient:billing-ktx:6.1.0")
     implementation(platform("com.google.firebase:firebase-bom:32.7.1"))
     implementation("com.google.firebase:firebase-crashlytics-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     // T-09: Google Sign-In con CredentialManager
     implementation(libs.androidx.credentials)

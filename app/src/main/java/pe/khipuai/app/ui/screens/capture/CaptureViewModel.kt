@@ -43,9 +43,7 @@ data class CaptureUiState(
     val capturesUsed: Int = 0,
     val capturesLimit: Int = 5,
     val isPro: Boolean = false,
-    val combineMode: Boolean = false,
-    val pendingFiles: List<File> = emptyList(),
-    val pendingFileCount: Int = 0,
+    val combineMode: Boolean = true,
     val duplicateDialog: DuplicateDialogState? = null,
 )
 
@@ -155,24 +153,48 @@ class CaptureViewModel @Inject constructor(
     // ─── Combine ──────────────────────────────────────────────────────────
 
     fun toggleCombineMode() {
-        val newMode = !_uiState.value.combineMode
         _uiState.value = _uiState.value.copy(
-            combineMode = newMode,
-            pendingFiles = if (!newMode) emptyList() else _uiState.value.pendingFiles,
-            pendingFileCount = if (!newMode) 0 else _uiState.value.pendingFileCount,
+            combineMode = !_uiState.value.combineMode
         )
     }
 
-    fun addFileToCombineBuffer(file: File) {
-        val current = _uiState.value
-        _uiState.value = current.copy(
-            pendingFiles = current.pendingFiles + file,
-            pendingFileCount = current.pendingFileCount + 1,
-        )
+    fun processFiles(files: List<File>) {
+        if (files.isEmpty()) return
+        if (files.size == 1) {
+            val file = files.first()
+            val mimeType = getMimeType(file)
+            val mode = if (mimeType == "application/pdf") CaptureMode.PDF else CaptureMode.CAMERA
+            uploadInternal(file, mimeType, mode, forceUpload = false) { id ->
+                if (id != null) _uploadedEvents.trySend(id)
+            }
+            return
+        }
+
+        if (_uiState.value.combineMode) {
+            combineAndUpload(files)
+        } else {
+            files.forEach { file ->
+                val mimeType = getMimeType(file)
+                val mode = if (mimeType == "application/pdf") CaptureMode.PDF else CaptureMode.CAMERA
+                uploadInternal(file, mimeType, mode, forceUpload = false) { id ->
+                    if (id != null && file == files.last()) {
+                        _uploadedEvents.trySend(id)
+                    }
+                }
+            }
+        }
     }
 
-    fun combineAndUpload() {
-        val files = _uiState.value.pendingFiles
+    private fun getMimeType(file: File): String {
+        return when {
+            file.name.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+            file.name.endsWith(".png", ignoreCase = true) -> "image/png"
+            file.name.endsWith(".webp", ignoreCase = true) -> "image/webp"
+            else -> "image/jpeg"
+        }
+    }
+
+    private fun combineAndUpload(files: List<File>) {
         if (files.size < 2) {
             _uiState.value = _uiState.value.copy(errorMessage = "Necesitas al menos 2 archivos.")
             return
@@ -183,20 +205,11 @@ class CaptureViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            val mimeTypes = files.map { file ->
-                when {
-                    file.name.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
-                    file.name.endsWith(".png", ignoreCase = true) -> "image/png"
-                    file.name.endsWith(".webp", ignoreCase = true) -> "image/webp"
-                    else -> "image/jpeg"
-                }
-            }
+            val mimeTypes = files.map { getMimeType(it) }
             val courseId = _uiState.value.selectedDestinationId
             uploadRepository.combineFiles(files, mimeTypes, courseId)
                 .onSuccess { response ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false, pendingFiles = emptyList(), pendingFileCount = 0,
-                    )
+                    _uiState.value = _uiState.value.copy(isLoading = false)
                     loadUsage()
                     _combineUploadedEvents.trySend(response.noteId)
                 }
