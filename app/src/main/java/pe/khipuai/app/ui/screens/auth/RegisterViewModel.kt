@@ -77,7 +77,7 @@ class RegisterViewModel @Inject constructor(
      * "login con Google" (los usuarios nuevos de Google se crean
      * automáticamente en el backend en `POST /auth/google`).
      */
-    fun signInWithGoogle(context: Context, onResult: (Boolean) -> Unit) {
+    fun signInWithGoogle(context: Context, onResult: (success: Boolean, needsOnboarding: Boolean) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             val webClientId = getApplication<Application>()
@@ -87,45 +87,47 @@ class RegisterViewModel @Inject constructor(
                 is GoogleSignInResult.Success -> {
                     authRepository.loginWithGoogle(result.idToken)
                         .onSuccess {
+                            val profileResult = authRepository.getMyProfile()
+                            val needsOnboarding = profileResult.getOrNull()?.university.isNullOrBlank()
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 isRegistered = true,
                                 errorMessage = null
                             )
-                            onResult(true)
+                            onResult(true, needsOnboarding)
                         }
                         .onFailure { exception ->
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
                             )
-                            onResult(false)
+                            onResult(false, false)
                         }
                 }
                 GoogleSignInResult.UserCancelled -> {
                     _uiState.value = _uiState.value.copy(isLoading = false)
-                    onResult(false)
+                    onResult(false, false)
                 }
                 GoogleSignInResult.NoCredentials -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "No tienes ninguna cuenta de Google configurada en este dispositivo."
                     )
-                    onResult(false)
+                    onResult(false, false)
                 }
                 GoogleSignInResult.MalformedCredential -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "No se pudo leer la credencial de Google. Intenta de nuevo."
                     )
-                    onResult(false)
+                    onResult(false, false)
                 }
                 is GoogleSignInResult.Failed -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "No se pudo iniciar sesión con Google. Intenta con email y contraseña."
                     )
-                    onResult(false)
+                    onResult(false, false)
                 }
             }
         }

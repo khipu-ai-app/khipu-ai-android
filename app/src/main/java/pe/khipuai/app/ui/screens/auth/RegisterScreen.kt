@@ -31,6 +31,7 @@ import pe.khipuai.app.ui.components.KhipuLogo
 fun RegisterScreen(
     onNavigateBack: () -> Unit,
     onNavigateToHome: () -> Unit,
+    onNavigateToOnboarding: () -> Unit,
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -267,7 +268,7 @@ fun RegisterScreen(
         Button(
             onClick = {
                 viewModel.register(name, email, password, confirmPassword) { success ->
-                    if (success) onNavigateToHome()
+                    if (success) onNavigateToOnboarding()
                 }
             },
             modifier = Modifier
@@ -324,9 +325,10 @@ fun RegisterScreen(
             onClick = {
                 // T-09: el ViewModel orquesta el flujo de CredentialManager
                 // internamente. En register, "Iniciar con Google" = login
-                // con Google (usuarios nuevos se crean en el backend).
-                viewModel.signInWithGoogle(context) { success ->
-                    if (success) onNavigateToHome()
+                viewModel.signInWithGoogle(context) { success, needsOnboarding ->
+                    if (success) {
+                        if (needsOnboarding) onNavigateToOnboarding() else onNavigateToHome()
+                    }
                 }
             },
             enabled = !uiState.isLoading

@@ -122,6 +122,11 @@ fun KhipuNavigation(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
+                onNavigateToOnboarding = {
+                    navController.navigate(Screen.Onboarding.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
                 onNavigateToForgotPassword = {
                     navController.navigate(Screen.ForgotPassword.route)
                 }
@@ -138,6 +143,11 @@ fun KhipuNavigation(
             RegisterScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onNavigateToOnboarding = {
                     navController.navigate(Screen.Onboarding.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }

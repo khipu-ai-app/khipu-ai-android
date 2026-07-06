@@ -43,18 +43,18 @@ class LoginViewModel @Inject constructor(
         _uiState.update { it.copy(password = password, errorMessage = null) }
     }
 
-    fun login(onResult: (Boolean) -> Unit) {
+    fun login(onResult: (success: Boolean, needsOnboarding: Boolean) -> Unit) {
         val email = _uiState.value.email
         val password = _uiState.value.password
         if (email.isBlank() || password.isBlank()) {
             _uiState.value = _uiState.value.copy(errorMessage = "Por favor completa todos los campos")
-            onResult(false)
+            onResult(false, false)
             return
         }
 
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             _uiState.value = _uiState.value.copy(errorMessage = "Por favor ingresa un email válido")
-            onResult(false)
+            onResult(false, false)
             return
         }
 
@@ -63,15 +63,17 @@ class LoginViewModel @Inject constructor(
 
             authRepository.loginWithEmail(email, password)
                 .onSuccess {
+                    val profileResult = authRepository.getMyProfile()
+                    val needsOnboarding = profileResult.getOrNull()?.university.isNullOrBlank()
                     _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true, errorMessage = null)
-                    onResult(true)
+                    onResult(true, needsOnboarding)
                 }
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception, custom401 = "Usuario o contraseña incorrectos.").message
                     )
-                    onResult(false)
+                    onResult(false, false)
                 }
         }
     }
@@ -84,7 +86,7 @@ class LoginViewModel @Inject constructor(
      * específicos del sheet (cancel, no credentials) se traducen a
      * mensajes en español para el usuario.
      */
-    fun signInWithGoogle(context: Context, onResult: (Boolean) -> Unit) {
+    fun signInWithGoogle(context: Context, onResult: (success: Boolean, needsOnboarding: Boolean) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             val webClientId = getApplication<Application>()
@@ -94,46 +96,48 @@ class LoginViewModel @Inject constructor(
                 is GoogleSignInResult.Success -> {
                     authRepository.loginWithGoogle(result.idToken)
                         .onSuccess {
+                            val profileResult = authRepository.getMyProfile()
+                            val needsOnboarding = profileResult.getOrNull()?.university.isNullOrBlank()
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 isLoggedIn = true,
                                 errorMessage = null
                             )
-                            onResult(true)
+                            onResult(true, needsOnboarding)
                         }
                         .onFailure { exception ->
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(exception).message
                             )
-                            onResult(false)
+                            onResult(false, false)
                         }
                 }
                 GoogleSignInResult.UserCancelled -> {
                     // El usuario canceló voluntariamente: no mostramos error.
                     _uiState.value = _uiState.value.copy(isLoading = false)
-                    onResult(false)
+                    onResult(false, false)
                 }
                 GoogleSignInResult.NoCredentials -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "No tienes ninguna cuenta de Google configurada en este dispositivo."
                     )
-                    onResult(false)
+                    onResult(false, false)
                 }
                 GoogleSignInResult.MalformedCredential -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "No se pudo leer la credencial de Google. Intenta de nuevo."
                     )
-                    onResult(false)
+                    onResult(false, false)
                 }
                 is GoogleSignInResult.Failed -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "No se pudo iniciar sesión con Google. Intenta con email y contraseña."
                     )
-                    onResult(false)
+                    onResult(false, false)
                 }
             }
         }
@@ -146,7 +150,7 @@ class LoginViewModel @Inject constructor(
     // DEV-ONLY: usado por los botones de quick login del LoginScreen para
     // acceder como free@khipuai.app o pro@khipuai.app sin tipear credenciales.
     // La password está hardcoded en el seed del backend (KhipuTest1234).
-    fun quickLogin(email: String, password: String = "KhipuTest1234", onResult: (Boolean) -> Unit) {
+    fun quickLogin(email: String, password: String = "KhipuTest1234", onResult: (Boolean, Boolean) -> Unit) {
         _uiState.value = _uiState.value.copy(email = email, password = password)
         login(onResult)
     }

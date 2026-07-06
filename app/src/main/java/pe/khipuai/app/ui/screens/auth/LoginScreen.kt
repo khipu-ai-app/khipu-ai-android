@@ -33,6 +33,7 @@ import pe.khipuai.app.ui.components.KhipuLogo
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToHome: () -> Unit,
+    onNavigateToOnboarding: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
@@ -179,8 +180,10 @@ fun LoginScreen(
         // Botón de iniciar sesión
         Button(
             onClick = {
-                viewModel.login { success ->
-                    if (success) onNavigateToHome()
+                viewModel.login { success, needsOnboarding ->
+                    if (success) {
+                        if (needsOnboarding) onNavigateToOnboarding() else onNavigateToHome()
+                    }
                 }
             },
             modifier = Modifier
@@ -235,11 +238,10 @@ fun LoginScreen(
         // Botón de Google
         GoogleSignInButton(
             onClick = {
-                // T-09: el ViewModel ahora orquesta el flujo de CredentialManager
-                // internamente y nos entrega el idToken real. Nosotros solo
-                // decidimos qué hacer con el resultado (navegar a Home).
-                viewModel.signInWithGoogle(context) { success ->
-                    if (success) onNavigateToHome()
+                viewModel.signInWithGoogle(context) { success, needsOnboarding ->
+                    if (success) {
+                        if (needsOnboarding) onNavigateToOnboarding() else onNavigateToHome()
+                    }
                 }
             },
             enabled = !uiState.isLoading
