@@ -146,21 +146,7 @@ class PlannerViewModel @Inject constructor(
         viewModelScope.launch(exceptionHandler) {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            // T-16: sincronizar el cache de colores de cursos antes de
-            // procesar la agenda, para que el `block.color` se resuelva
-            // con el color real del curso.
-            launch {
-                courseRepository.fetchMyCourses()
-                courseRepository.observeAll().collect { courses ->
-                    courseColorByName = courses.associate { it.name to parseCourseColor(it.color) }
-                    // Re-renderizar con los colores actualizados
-                    if (lastNetworkConcepts.isNotEmpty()) {
-                        _uiState.value = _uiState.value.copy(
-                            studyBlocks = mapConceptsToBlocks(lastNetworkConcepts)
-                        )
-                    }
-                }
-            }
+
 
             // Cargar perfil en paralelo o silenciosamente
             launch {
@@ -253,6 +239,18 @@ class PlannerViewModel @Inject constructor(
     }
 
     init {
-        loadRemotePlanner()
+        // T-16: sincronizar el cache de colores de cursos en background de forma continua
+        viewModelScope.launch {
+            courseRepository.fetchMyCourses()
+            courseRepository.observeAll().collect { courses ->
+                courseColorByName = courses.associate { it.name to parseCourseColor(it.color) }
+                // Re-renderizar con los colores actualizados si ya tenemos la agenda
+                if (lastNetworkConcepts.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        studyBlocks = mapConceptsToBlocks(lastNetworkConcepts)
+                    )
+                }
+            }
+        }
     }
 }
