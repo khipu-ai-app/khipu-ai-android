@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="../logo.png" alt="Khipu AI Logo" width="200"/>
+  <img src="./logo.png" alt="Khipu AI Logo" width="200"/>
   <h1>Khipu AI - Aplicación Móvil (Android)</h1>
   <p><strong>Tu tutor personal universitario potenciado con Inteligencia Artificial</strong></p>
 </div>
