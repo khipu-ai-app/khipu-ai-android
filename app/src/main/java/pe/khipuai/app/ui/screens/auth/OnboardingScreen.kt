@@ -59,6 +59,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
+                .imePadding()
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {

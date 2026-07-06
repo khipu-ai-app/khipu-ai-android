@@ -82,6 +82,7 @@ fun CreateCourseScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding()
                 .padding(horizontal = 24.dp)
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(0.dp)
