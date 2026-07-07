@@ -3,25 +3,45 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color-light: #f8fafc;
+            --bg-color-light: radial-gradient(circle at center, #ffffff 0%, #f1f5f9 100%);
             --text-color-light: #1e293b;
-            --label-color-light: #334155;
-            --label-shadow-light: rgba(255, 255, 255, 0.9);
-            --link-color-light: rgba(0, 0, 0, 0.15);
+            --label-color-light: #0f172a;
+            --label-shadow-light: rgba(255, 255, 255, 0.95);
+            --link-color-light: rgba(148, 163, 184, 0.6);
             --link-label-light: #64748b;
-            --link-label-shadow-light: rgba(255, 255, 255, 0.9);
-            --bg-color-dark: #121212;
-            --text-color-dark: #ffffff;
-            --label-color-dark: #e2e8f0;
+            --link-label-shadow-light: rgba(255, 255, 255, 0.95);
+            
+            --bg-color-dark: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
+            --text-color-dark: #f8fafc;
+            --label-color-dark: #f8fafc;
             --label-shadow-dark: rgba(0, 0, 0, 0.9);
             --link-color-dark: rgba(255, 255, 255, 0.2);
             --link-label-dark: #9ca3af;
-            --link-label-shadow-dark: rgba(0, 0, 0, 0.8);
+            --link-label-shadow-dark: rgba(0, 0, 0, 0.9);
         }
-        body.light { --bg-color: var(--bg-color-light); --text-color: var(--text-color-light); --label-color: var(--label-color-light); --label-shadow: var(--label-shadow-light); --link-color: var(--link-color-light); --link-label: var(--link-label-light); --link-label-shadow: var(--link-label-shadow-light); }
-        body.dark { --bg-color: var(--bg-color-dark); --text-color: var(--text-color-dark); --label-color: var(--label-color-dark); --label-shadow: var(--label-shadow-dark); --link-color: var(--link-color-dark); --link-label: var(--link-label-dark); --link-label-shadow: var(--link-label-shadow-dark); }
+        
+        body.light { 
+            --bg-color: var(--bg-color-light); 
+            --text-color: var(--text-color-light); 
+            --label-color: var(--label-color-light); 
+            --label-shadow: var(--label-shadow-light); 
+            --link-color: var(--link-color-light); 
+            --link-label: var(--link-label-light); 
+            --link-label-shadow: var(--link-label-shadow-light); 
+        }
+        
+        body.dark { 
+            --bg-color: var(--bg-color-dark); 
+            --text-color: var(--text-color-dark); 
+            --label-color: var(--label-color-dark); 
+            --label-shadow: var(--label-shadow-dark); 
+            --link-color: var(--link-color-dark); 
+            --link-label: var(--link-label-dark); 
+            --link-label-shadow: var(--link-label-shadow-dark); 
+        }
 
         body {
             margin: 0;
@@ -35,60 +55,70 @@
             width: 100vw;
             height: 100vh;
         }
+        
         svg {
             width: 100vw;
             height: 100vh;
             display: block;
-            background: var(--bg-color);
         }
+        
         .node {
             cursor: pointer;
-            transition: r 0.3s ease, filter 0.3s ease;
+            transition: r 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
         }
+        
         .node:hover {
-            filter: brightness(1.3) contrast(1.1);
+            filter: brightness(1.25) contrast(1.15) drop-shadow(0 0 12px rgba(255,255,255,0.4));
         }
+        
         .link {
-            stroke-width: 1.5px;
-            stroke-dasharray: 4 4;
-            animation: dash 15s linear infinite;
+            fill: none;
+            stroke-width: 2px;
+            stroke-linecap: round;
+            opacity: 0.7;
+            transition: stroke-width 0.3s ease, opacity 0.3s ease;
         }
-        @keyframes dash {
-            to {
-                stroke-dashoffset: -40;
-            }
-        }
+        
         .label {
-            font-size: 11px;
-            font-weight: 500;
+            font-size: 13px;
+            font-weight: 600;
             fill: var(--label-color);
-            text-shadow: 0 2px 4px var(--label-shadow);
+            text-shadow: 0 1px 3px var(--label-shadow), 0 0 8px var(--label-shadow);
             pointer-events: none;
-            transition: fill 0.2s;
+            transition: fill 0.2s, font-size 0.3s ease, opacity 0.3s ease;
         }
+        
         .link-labels text {
-            font-size: 8px;
+            font-size: 10px;
+            font-weight: 500;
             fill: var(--link-label);
             text-shadow: 0 1px 2px var(--link-label-shadow);
+            opacity: 0.9;
+            pointer-events: none;
             text-anchor: middle;
+            transition: opacity 0.3s ease;
         }
-        .glow {
-            filter: drop-shadow(0px 0px 8px var(--glow-color));
+        
+        .nodes g {
+            transition: opacity 0.4s ease, filter 0.4s ease;
+        }
+        
+        .links path {
+            transition: opacity 0.4s ease;
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="./d3.v7.min.js"></script>
 </head>
-<body>
-<svg id="graph"></svg>
+<body class="light">
+<script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
-    const svg = d3.select("#graph");
-    const width = window.innerWidth || document.documentElement.clientWidth;
-    const height = window.innerHeight || document.documentElement.clientHeight;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
-    svg.attr("width", width).attr("height", height);
+    const svg = d3.select("body").append("svg")
+        .attr("width", width)
+        .attr("height", height);
 
-    let g = svg.append("g");
+    const g = svg.append("g");
 
     const zoom = d3.zoom()
         .scaleExtent([0.2, 4])
@@ -97,78 +127,71 @@
         });
     svg.call(zoom);
 
+    // Tweaked forces for a more spacious, elegant layout
     let simulation = d3.forceSimulation()
-        .force("link", d3.forceLink().id(d => d.id).distance(120))
-        .force("charge", d3.forceManyBody().strength(-250))
+        .force("link", d3.forceLink().id(d => d.id).distance(160))
+        .force("charge", d3.forceManyBody().strength(-500))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(45));
+        .force("collision", d3.forceCollide().radius(65));
 
     window.addEventListener('resize', () => {
         const w = window.innerWidth;
         const h = window.innerHeight;
         svg.attr("width", w).attr("height", h);
         simulation.force("center", d3.forceCenter(w / 2, h / 2));
+        simulation.alpha(0.3).restart();
     });
 
-    let nodeGroupGlobal = null;
-    let linkGlobal = null;
-    let linkLabelGlobal = null;
-    let isConnectedGlobal = null;
     let selectedNode = null;
+    let isConnectedGlobal = null;
+    let linkGlobal = null;
+    let nodeGroupGlobal = null;
+    let linkLabelGlobal = null;
 
-    /**
-     * Centra y resalta un nodo por su nombre (llamado desde Android vía evaluateJavascript).
-     * Devuelve true si encontró el nodo, false si no existe en el grafo actual.
-     */
-    function highlightNode(conceptName) {
+    window.highlightNode = function(conceptName) {
         if (!conceptName) return false;
-        return searchNode(conceptName);
+        return window.searchNode(conceptName, true);
     }
 
-    function searchNode(query) {
+    window.searchNode = function(query, exact = false) {
+        if (!nodeGroupGlobal || !isConnectedGlobal) return false;
+        
         if (!query || query.trim() === "") {
             if (selectedNode) {
                 selectedNode = null;
-                if (nodeGroupGlobal) nodeGroupGlobal.style("opacity", 1).style("filter", "");
-                if (linkGlobal) linkGlobal.style("opacity", 1);
+                nodeGroupGlobal.style("opacity", 1).style("filter", "");
+                linkGlobal.style("opacity", 1);
                 if (linkLabelGlobal) linkLabelGlobal.style("opacity", 1);
             }
             return false;
         }
-        
+
         const q = query.toLowerCase();
-        let foundNode = null;
+        let targetData = null;
         
-        if (nodeGroupGlobal) {
-            nodeGroupGlobal.each(function(d) {
-                if (!foundNode && d.label && d.label.toLowerCase().includes(q)) {
-                    foundNode = d;
+        nodeGroupGlobal.each(function(d) {
+            if (!targetData && d.label) {
+                const label = d.label.toLowerCase();
+                if (exact ? label === q : label.includes(q)) {
+                    targetData = d;
                 }
-            });
-        }
+            }
+        });
         
-        if (foundNode) {
-            selectedNode = foundNode;
+        if (targetData) {
+            selectedNode = targetData;
+            nodeGroupGlobal.style("opacity", o => isConnectedGlobal(targetData, o) ? 1 : 0.08)
+                           .style("filter", o => o.id === targetData.id ? "brightness(1.4)" : "grayscale(0.8)");
+            linkGlobal.style("opacity", o => (o.source.id === targetData.id || o.target.id === targetData.id) ? 1 : 0.05);
+            if (linkLabelGlobal) linkLabelGlobal.style("opacity", o => (o.source.id === targetData.id || o.target.id === targetData.id) ? 1 : 0.05);
             
-            if (nodeGroupGlobal) {
-                nodeGroupGlobal.style("opacity", o => isConnectedGlobal(foundNode, o) ? 1 : 0.1)
-                         .style("filter", o => o.id === foundNode.id ? "brightness(1.5)" : "");
-            }
-            if (linkGlobal) {
-                linkGlobal.style("opacity", o => (o.source.id === foundNode.id || o.target.id === foundNode.id) ? 1 : 0.05);
-            }
-            if (linkLabelGlobal) {
-                linkLabelGlobal.style("opacity", o => (o.source.id === foundNode.id || o.target.id === foundNode.id) ? 1 : 0.05);
-            }
-            
-            const scale = 1.5;
-            const x = width / 2 - foundNode.x * scale;
-            const y = height / 2 - foundNode.y * scale;
-            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(scale));
-            
-            if (window.AndroidBridge && typeof window.AndroidBridge.onConceptSelected === 'function') {
-                window.AndroidBridge.onConceptSelected(foundNode.id);
-            }
+            const scale = 1.3;
+            const x = -targetData.x * scale + width / 2;
+            const y = -targetData.y * scale + height / 2;
+            svg.transition().duration(800).ease(d3.easeCubicOut).call(
+                zoom.transform, 
+                d3.zoomIdentity.translate(x, y).scale(scale)
+            );
             return true;
         }
         return false;
@@ -182,41 +205,61 @@
         if (isDark !== undefined) setTheme(isDark);
         let decodedNodes = nodesJsonStr;
         let decodedEdges = edgesJsonStr;
+        
         try {
             if (nodesJsonStr && !nodesJsonStr.trim().startsWith('[')) {
                 decodedNodes = decodeURIComponent(escape(window.atob(nodesJsonStr)));
             }
         } catch(e) {
-            console.error("Error decoding nodes Base64:", e);
+            console.error("Error decoding nodes:", e);
         }
+        
         try {
             if (edgesJsonStr && !edgesJsonStr.trim().startsWith('[')) {
                 decodedEdges = decodeURIComponent(escape(window.atob(edgesJsonStr)));
             }
         } catch(e) {
-            console.error("Error decoding edges Base64:", e);
+            console.error("Error decoding edges:", e);
         }
+        
         updateGraphData(decodedNodes, decodedEdges);
     }
 
     function updateGraphData(nodesJsonStr, edgesJsonStr) {
-        if (simulation) {
-            simulation.stop();
-        }
+        if (simulation) simulation.stop();
         g.selectAll("*").remove();
 
         const defs = g.append("defs");
+        
+        // Premium glassmorphic gradients
+        const gradients = [
+            { id: "grad-course", colors: ["#d946ef", "#9333ea"] },
+            { id: "grad-note", colors: ["#3b82f6", "#1d4ed8"] },
+            { id: "grad-concept-done", colors: ["#10b981", "#047857"] },
+            { id: "grad-concept-pending", colors: ["#f43f5e", "#be123c"] }
+        ];
+
+        gradients.forEach(grad => {
+            const linearGradient = defs.append("linearGradient")
+                .attr("id", grad.id)
+                .attr("x1", "0%").attr("y1", "0%")
+                .attr("x2", "100%").attr("y2", "100%");
+            linearGradient.append("stop").attr("offset", "0%").attr("stop-color", grad.colors[0]);
+            linearGradient.append("stop").attr("offset", "100%").attr("stop-color", grad.colors[1]);
+        });
+
+        // Arrow marker for directed edges
         defs.append("marker")
             .attr("id", "arrow")
             .attr("viewBox", "0 -5 10 10")
-            .attr("refX", 22)
+            .attr("refX", 32)
             .attr("refY", 0)
-            .attr("markerWidth", 6)
-            .attr("markerHeight", 6)
+            .attr("markerWidth", 5)
+            .attr("markerHeight", 5)
             .attr("orient", "auto")
             .append("path")
             .attr("d", "M0,-5L10,0L0,5")
-            .attr("fill", "rgba(59, 130, 246, 0.6)");
+            .attr("fill", "rgba(59, 130, 246, 0.7)");
 
         const nodesRaw = JSON.parse(nodesJsonStr);
         const linksRaw = JSON.parse(edgesJsonStr);
@@ -225,18 +268,12 @@
         const courseNode = nodes.find(n => n.type === "course");
 
         let links = linksRaw.filter(l => l.type !== "HAS_NOTE" && l.type !== "MENTIONS");
-
         const targetIds = new Set(links.filter(l => l.type === 'RELATED_TO').map(l => l.target));
 
         if (courseNode) {
             nodes.forEach(n => {
-                // Solo conectar conceptos "raíz" (que no son dependencias de otros) al nodo del curso central
                 if (n.type === "concept" && !targetIds.has(n.id)) {
-                    links.push({
-                        source: n.id,
-                        target: courseNode.id,
-                        type: "BELONGS_TO"
-                    });
+                    links.push({ source: n.id, target: courseNode.id, type: "BELONGS_TO" });
                 }
             });
         }
@@ -252,24 +289,25 @@
         }
         isConnectedGlobal = isConnected;
 
+        // Background click to reset selection
         svg.on("click", () => {
             if (selectedNode) {
                 selectedNode = null;
-                nodeGroup.style("opacity", 1).style("filter", "");
-                link.style("opacity", 1);
-                if (linkLabel) linkLabel.style("opacity", 1);
+                nodeGroupGlobal.style("opacity", 1).style("filter", "");
+                linkGlobal.style("opacity", 1);
+                if (linkLabelGlobal) linkLabelGlobal.style("opacity", 1);
             }
         });
 
+        // Curved paths for links
         const link = g.append("g")
             .attr("class", "links")
-            .selectAll("line")
+            .selectAll("path")
             .data(links)
-            .enter().append("line")
+            .enter().append("path")
             .attr("class", "link")
             .style("stroke", d => {
-                if (d.type === "MENTIONS") return "rgba(147, 51, 234, 0.4)";
-                if (d.type === "BELONGS_TO") return "rgba(168, 85, 247, 0.2)";
+                if (d.type === "BELONGS_TO") return "rgba(168, 85, 247, 0.35)";
                 if (d.type === "RELATED_TO") return "rgba(59, 130, 246, 0.6)";
                 return "var(--link-color)";
             })
@@ -303,8 +341,8 @@
                     if (linkLabelGlobal) linkLabelGlobal.style("opacity", 1);
                 } else {
                     selectedNode = d;
-                    nodeGroup.style("opacity", o => isConnected(d, o) ? 1 : 0.1)
-                             .style("filter", o => o.id === d.id ? "brightness(1.5)" : "");
+                    nodeGroup.style("opacity", o => isConnected(d, o) ? 1 : 0.08)
+                             .style("filter", o => o.id === d.id ? "brightness(1.3)" : "grayscale(0.6)");
                     link.style("opacity", o => (o.source.id === d.id || o.target.id === d.id) ? 1 : 0.05);
                     if (linkLabelGlobal) linkLabelGlobal.style("opacity", o => (o.source.id === d.id || o.target.id === d.id) ? 1 : 0.05);
                 }
@@ -315,40 +353,44 @@
             });
         nodeGroupGlobal = nodeGroup;
 
+        // Node base - SVG filter drop shadow isn't used directly to keep it performant
+        // but we add a glow effect via stroke and opacity
         nodeGroup.append("circle")
-            .attr("class", "node glow")
-            .attr("r", d => {
-                if (d.type === "course") return 26;
-                if (d.type === "note") return 20;
-                return 16;
+            .attr("class", "node-glow")
+            .attr("r", d => d.type === "course" ? 42 : (d.type === "note" ? 34 : 26))
+            .style("fill", "transparent")
+            .style("stroke", d => {
+                if (d.type === "course") return "rgba(168, 85, 247, 0.25)";
+                if (d.type === "note") return "rgba(59, 130, 246, 0.25)";
+                return d.review_pending ? "rgba(239, 68, 68, 0.25)" : "rgba(16, 185, 129, 0.25)";
             })
-            .style("fill", d => {
-                if (d.type === "course") return "#a855f7";
-                if (d.type === "note") return "#3b82f6";
-                return d.review_pending ? "#ef4444" : "#10b981";
-            })
-            .style("--glow-color", d => {
-                if (d.type === "course") return "rgba(168, 85, 247, 0.6)";
-                if (d.type === "note") return "rgba(59, 130, 246, 0.6)";
-                return d.review_pending ? "rgba(239, 68, 68, 0.6)" : "rgba(16, 185, 129, 0.6)";
-            });
+            .style("stroke-width", "8px")
+            .style("opacity", 0.5);
 
+        // Main colored glass pill
         nodeGroup.append("circle")
-            .attr("r", d => {
-                if (d.type === "course") return 10;
-                if (d.type === "note") return 6;
-                return 4;
+            .attr("class", "node")
+            .attr("r", d => d.type === "course" ? 34 : (d.type === "note" ? 28 : 22))
+            .style("fill", d => {
+                if (d.type === "course") return "url(#grad-course)";
+                if (d.type === "note") return "url(#grad-note)";
+                return d.review_pending ? "url(#grad-concept-pending)" : "url(#grad-concept-done)";
             })
-            .style("fill", "#ffffff")
-            .style("opacity", 0.9);
+            .style("stroke", "rgba(255, 255, 255, 0.3)")
+            .style("stroke-width", "1.5px");
+
+        // Inner reflective highlight (glass effect)
+        nodeGroup.append("circle")
+            .attr("r", d => d.type === "course" ? 30 : (d.type === "note" ? 24 : 18))
+            .attr("cx", -3)
+            .attr("cy", -3)
+            .style("fill", "transparent")
+            .style("stroke", "rgba(255, 255, 255, 0.5)")
+            .style("stroke-width", "1px");
 
         nodeGroup.append("text")
             .attr("class", "label")
-            .attr("dy", d => {
-                if (d.type === "course") return 40;
-                if (d.type === "note") return 32;
-                return 28;
-            })
+            .attr("dy", d => d.type === "course" ? 54 : (d.type === "note" ? 46 : 40))
             .attr("text-anchor", "middle")
             .text(d => d.label);
 
@@ -357,20 +399,24 @@
         simulation.alpha(1).restart();
 
         simulation.on("tick", () => {
-            link
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
+            // Arcs for edges
+            link.attr("d", d => {
+                const dx = d.target.x - d.source.x;
+                const dy = d.target.y - d.source.y;
+                // dr is the radius of the arc. 0 means straight line.
+                // Large dr = slight curve. 
+                const dr = Math.sqrt(dx * dx + dy * dy) * 1.5; 
+                if (dr === 0) return `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`;
+                return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+            });
 
             if (linkLabel) {
                 linkLabel
                     .attr("x", d => (d.source.x + d.target.x) / 2)
-                    .attr("y", d => (d.source.y + d.target.y) / 2);
+                    .attr("y", d => (d.source.y + d.target.y) / 2 - 10);
             }
 
-            nodeGroup
-                .attr("transform", d => `translate(${d.x}, ${d.y})`);
+            nodeGroup.attr("transform", d => `translate(${d.x}, ${d.y})`);
         });
     }
 

@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,7 +35,7 @@ fun MapsScreen(
     highlightConcept: String? = null,
     onNoteClick: (String) -> Unit = {},
     onStartReview: (conceptName: String) -> Unit = {},
-    onAskTutor: (conceptName: String) -> Unit = {},
+    onAskTutor: (conceptName: String, courseId: String?) -> Unit = { _, _ -> },
     viewModel: MapsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -80,59 +81,17 @@ fun MapsScreen(
             BottomNavigationBar(selectedTab = 3, onTabSelected = onNavigateToTab)
         }
     ) { paddingValues ->
+        val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Filtros de curso y retención
-                FilterSection(
-                    selectedCourse = uiState.selectedCourseName,
-                    courses = uiState.courses,
-                    selectedDifficulty = uiState.selectedDifficulty,
-                    onCourseChange = viewModel::updateCourse,
-                    onDifficultyChange = viewModel::updateDifficulty
-                )
-
-                // Buscador de nodos
-                var searchQuery by remember { mutableStateOf("") }
-                
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { 
-                        searchQuery = it
-                        webViewRef.value?.evaluateJavascript("searchNode('$it')", null)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    placeholder = { Text("Buscar concepto...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = { 
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { 
-                                searchQuery = ""
-                                webViewRef.value?.evaluateJavascript("searchNode('')", null)
-                            }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Limpiar")
-                            }
-                        }
-                    },
-                    shape = RoundedCornerShape(24.dp),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                    )
-                )
-
-                // Área principal del grafo
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
+            // Área principal del grafo
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
                     // La WebView siempre está compuesta para no recrearla en cada recomposición.
                     // Se muestra/oculta con alpha según el estado de carga.
                     AndroidView(
@@ -171,7 +130,7 @@ fun MapsScreen(
                                             val nodesB64 = Base64.encodeToString(nodes.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
                                             val edgesB64 = Base64.encodeToString(edges.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
                                             view?.evaluateJavascript(
-                                                "loadGraph('$nodesB64', '$edgesB64')",
+                                                "loadGraph('$nodesB64', '$edgesB64', $isDark)",
                                                 null
                                             )
                                             // Si la navegación vino con un concepto a resaltar,
@@ -188,6 +147,13 @@ fun MapsScreen(
 
                                 loadUrl("file:///android_asset/mindmap.html")
                                 webViewRef.value = this
+                            }
+                        },
+                        update = { view ->
+                            // Cuando cambia isDark o hay recomposición y la página ya cargó,
+                            // actualizamos el tema inyectando JS.
+                            if (pageLoaded.value) {
+                                view.evaluateJavascript("setTheme($isDark)", null)
                             }
                         },
                         modifier = Modifier.fillMaxSize()
@@ -246,6 +212,63 @@ fun MapsScreen(
                         }
                     }
                 }
+
+            // Filtros y buscador flotantes superpuestos en la parte superior
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Filtro de curso adaptado (peso 1)
+                FilterSection(
+                    selectedCourse = uiState.selectedCourseName,
+                    courses = uiState.courses,
+                    onCourseChange = viewModel::updateCourse,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Buscador de nodos
+                var searchQuery by remember { mutableStateOf("") }
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    tonalElevation = 4.dp,
+                    shadowElevation = 2.dp
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { 
+                            searchQuery = it
+                            webViewRef.value?.evaluateJavascript("searchNode('$it')", null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Buscar...", style = MaterialTheme.typography.bodyMedium) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                        trailingIcon = { 
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { 
+                                    searchQuery = ""
+                                    webViewRef.value?.evaluateJavascript("searchNode('')", null)
+                                }, modifier = Modifier.size(20.dp)) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Limpiar")
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(24.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        ),
+                        textStyle = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
 
             // BottomSheet nativo de Compose para el concepto seleccionado
@@ -257,7 +280,7 @@ fun MapsScreen(
                     onDismiss = { viewModel.selectConcept(null) },
                     onGoToNote = { noteId -> onNoteClick(noteId) },
                     onStartReview = { onStartReview(concept.title) },
-                    onAskTutor = { onAskTutor(concept.title) }
+                    onAskTutor = { onAskTutor(concept.title, uiState.selectedCourseId.takeIf { it.isNotBlank() && it != "all" }) }
                 )
             }
         }
@@ -269,22 +292,22 @@ fun MapsScreen(
 private fun FilterSection(
     selectedCourse: String,
     courses: List<CourseOption>,
-    selectedDifficulty: String,
     onCourseChange: (String, String) -> Unit,
-    onDifficultyChange: (String) -> Unit
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        var courseExpanded by remember { mutableStateOf(false) }
+    var courseExpanded by remember { mutableStateOf(false) }
 
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        tonalElevation = 4.dp,
+        shadowElevation = 2.dp
+    ) {
         ExposedDropdownMenuBox(
             expanded = courseExpanded,
             onExpandedChange = { courseExpanded = !courseExpanded },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.fillMaxWidth()
         ) {
             OutlinedTextField(
                 value = selectedCourse,
@@ -297,13 +320,17 @@ private fun FilterSection(
                         type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
                         enabled = true
                     ),
-                label = { Text("Curso") },
+                label = null,
+                placeholder = { Text("Curso", style = MaterialTheme.typography.bodyMedium) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = courseExpanded) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.outline,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 ),
-                shape = RoundedCornerShape(12.dp)
+                textStyle = MaterialTheme.typography.bodyMedium,
+                shape = RoundedCornerShape(24.dp)
             )
             ExposedDropdownMenu(
                 expanded = courseExpanded,
@@ -320,51 +347,10 @@ private fun FilterSection(
                 }
             }
         }
-
-        var difficultyExpanded by remember { mutableStateOf(false) }
-
-        ExposedDropdownMenuBox(
-            expanded = difficultyExpanded,
-            onExpandedChange = { difficultyExpanded = !difficultyExpanded },
-            modifier = Modifier.weight(1f)
-        ) {
-            OutlinedTextField(
-                value = selectedDifficulty,
-                onValueChange = { },
-                readOnly = true,
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(
-                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                        enabled = true
-                    ),
-                label = { Text("Retención") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = difficultyExpanded) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.outline,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
-            ExposedDropdownMenu(
-                expanded = difficultyExpanded,
-                onDismissRequest = { difficultyExpanded = false }
-            ) {
-                listOf("Todas", "Básica", "Intermedia", "Avanzada").forEach { diff ->
-                    DropdownMenuItem(
-                        text = { Text(diff) },
-                        onClick = {
-                            onDifficultyChange(diff)
-                            difficultyExpanded = false
-                        }
-                    )
-                }
-            }
-        }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConceptBottomSheet(
     concept: Concept,
@@ -376,22 +362,15 @@ private fun ConceptBottomSheet(
     onAskTutor: () -> Unit
 ) {
     var showNotePicker by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 48.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -507,7 +486,6 @@ private fun ConceptBottomSheet(
                 )
             }
         }
-    }
 
     // Picker de notas cuando el concepto está en varias
     if (showNotePicker && detail != null && detail.notes.size > 1) {
@@ -572,26 +550,7 @@ private fun ConceptActions(
             )
         }
 
-        // 2. Iniciar repaso — siempre visible
-        FilledTonalButton(
-            onClick = onStartReview,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Iniciar repaso", fontWeight = FontWeight.SemiBold)
-        }
-
-        // 3. Preguntar a Khipu — siempre visible
+        // 2. Preguntar a Khipu — siempre visible
         OutlinedButton(
             onClick = onAskTutor,
             modifier = Modifier.fillMaxWidth(),

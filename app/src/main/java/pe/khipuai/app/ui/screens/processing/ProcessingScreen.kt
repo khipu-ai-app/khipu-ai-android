@@ -1,4 +1,4 @@
-﻿package pe.khipuai.app.ui.screens.processing
+package pe.khipuai.app.ui.screens.processing
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.BackHandler
@@ -43,38 +43,10 @@ fun ProcessingScreen(
     }
 
     val onErrorEscapeOnce by rememberUpdatedState(onErrorEscape)
-    var showCancelDialog by remember { mutableStateOf(false) }
-    var showCancelButton by remember { mutableStateOf(true) }
-
-    LaunchedEffect(Unit) {
-        delay(5000)
-        showCancelButton = false
-    }
 
     BackHandler(enabled = !uiState.isComplete && !uiState.isError) {
-        showCancelDialog = true
-    }
-
-    if (showCancelDialog) {
-        AlertDialog(
-            onDismissRequest = { showCancelDialog = false },
-            title = { Text("¿Cancelar el procesamiento?") },
-            text = { Text("El archivo se descartará y no se creará tu apunte.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showCancelDialog = false
-                    viewModel.cancelProcessing()
-                    onErrorEscapeOnce()
-                }) {
-                    Text("Sí, cancelar", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCancelDialog = false }) {
-                    Text("Seguir esperando")
-                }
-            }
-        )
+        // Enviar a segundo plano sin cancelar
+        onErrorEscapeOnce()
     }
 
     Column(
@@ -88,10 +60,10 @@ fun ProcessingScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start
         ) {
-            IconButton(onClick = { showCancelDialog = true }) {
+            IconButton(onClick = onErrorEscapeOnce) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Cancelar procesamiento",
+                    contentDescription = "Ocultar en segundo plano",
                 )
             }
         }
@@ -138,12 +110,18 @@ fun ProcessingScreen(
             )
         }
 
-        if (showCancelButton && !uiState.isComplete && !uiState.isError) {
-            Spacer(modifier = Modifier.height(16.dp))
-            TextButton(onClick = { showCancelDialog = true }) {
-                Text("Cancelar", color = MaterialTheme.colorScheme.error)
-            }
+        if (!uiState.isComplete && !uiState.isError) {
             Spacer(modifier = Modifier.height(24.dp))
+            OutlinedButton(
+                onClick = onErrorEscapeOnce,
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Default.Minimize, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Dejar en segundo plano")
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         } else {
             Spacer(modifier = Modifier.height(40.dp))
         }

@@ -1,4 +1,4 @@
-﻿package pe.khipuai.app.ui.screens.tutor
+package pe.khipuai.app.ui.screens.tutor
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.*
@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,6 +36,7 @@ fun TutorChatScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(uiState.messages.size, uiState.messages.lastOrNull()?.content?.length) {
         if (uiState.messages.isNotEmpty()) {
@@ -158,11 +160,25 @@ fun TutorChatScreen(
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent
                             ),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                imeAction = androidx.compose.ui.text.input.ImeAction.Send
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onSend = {
+                                    if (uiState.inputText.isNotBlank() && !uiState.isStreaming) {
+                                        viewModel.sendMessage()
+                                        keyboardController?.hide()
+                                    }
+                                }
+                            ),
                             maxLines = 4
                         )
 
                         IconButton(
-                            onClick = { viewModel.sendMessage() },
+                            onClick = { 
+                                viewModel.sendMessage()
+                                keyboardController?.hide()
+                            },
                             enabled = uiState.inputText.isNotBlank() && !uiState.isStreaming,
                             modifier = Modifier
                                 .background(

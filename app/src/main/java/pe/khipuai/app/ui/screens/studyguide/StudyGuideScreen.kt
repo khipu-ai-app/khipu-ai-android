@@ -1,4 +1,4 @@
-﻿package pe.khipuai.app.ui.screens.studyguide
+package pe.khipuai.app.ui.screens.studyguide
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.animation.AnimatedContent
@@ -151,6 +151,14 @@ fun StudyGuideScreen(
                                             }
                                         } else Color.Transparent
 
+                                        val textColor = if (uiState.isQuizSubmitted) {
+                                            when {
+                                                isCorrect -> Color(0xFF155724) // Texto Verde Oscuro
+                                                isSelected && !isCorrect -> Color(0xFF721C24) // Texto Rojo Oscuro
+                                                else -> MaterialTheme.colorScheme.onSurface
+                                            }
+                                        } else MaterialTheme.colorScheme.onSurface
+
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -166,7 +174,11 @@ fun StudyGuideScreen(
                                                 onClick = { if (!uiState.isQuizSubmitted) viewModel.selectQuizOption(question.id, oIdx) }
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text(text = option, style = MaterialTheme.typography.bodyMedium)
+                                            Text(
+                                                text = option, 
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = textColor
+                                            )
                                             
                                             if (uiState.isQuizSubmitted) {
                                                 Spacer(modifier = Modifier.weight(1f))

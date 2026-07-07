@@ -15,6 +15,7 @@ data class ForgotPasswordUiState(
     val email: String = "",
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
+    val isResetSuccess: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -40,13 +41,39 @@ class ForgotPasswordViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
         viewModelScope.launch {
-            // TODO: Implement actual API call to reset password.
-            // For now, simulate network delay and return success.
-            delay(1500)
-            _uiState.value = _uiState.value.copy(
-                isLoading = false,
-                isSuccess = true
-            )
+            authRepository.forgotPassword(currentEmail).onSuccess {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSuccess = true
+                )
+            }.onFailure { e ->
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
+                )
+            }
+        }
+    }
+    
+    fun submitNewPassword(code: String, newPassword: String) {
+        val currentEmail = _uiState.value.email
+        if (code.isBlank() || newPassword.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Ingresa el código y la nueva contraseña")
+            return
+        }
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        viewModelScope.launch {
+            authRepository.resetPassword(currentEmail, code, newPassword).onSuccess {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isResetSuccess = true
+                )
+            }.onFailure { e ->
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = pe.khipuai.app.core.network.NetworkErrorMapper.from(e).message
+                )
+            }
         }
     }
     

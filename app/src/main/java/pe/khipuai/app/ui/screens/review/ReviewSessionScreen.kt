@@ -597,7 +597,7 @@ fun FlashcardView(
                     else -> {
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = "No hay definición disponible para este concepto.",
+                            text = "La IA identificó este concepto en tu mapa cognitivo, pero no generó una definición en el glosario principal. Usa el botón 'Preguntar a Khipu' abajo para explorarlo.",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

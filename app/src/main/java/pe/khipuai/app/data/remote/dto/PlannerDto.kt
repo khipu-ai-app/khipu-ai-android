@@ -66,7 +66,14 @@ data class PlannerStatsResponse(
     @SerialName("total_concepts") val totalConcepts: Int,
     @SerialName("dominated_concepts") val dominatedConcepts: Int,
     @SerialName("mastery_percentage") val masteryPercentage: Int,
-    @SerialName("course_distribution") val courseDistribution: List<CourseDistributionItem>
+    @SerialName("course_distribution") val courseDistribution: List<CourseDistributionItem>,
+    @SerialName("today_study_minutes") val todayStudyMinutes: Int = 0,
+    @SerialName("study_goal_minutes") val studyGoalMinutes: Int? = null
+)
+
+@Serializable
+data class StudySessionRequest(
+    @SerialName("minutes") val minutes: Int
 )
 
 // ─── Calendarización manual (POST /planner/manual-schedule) ────────────────

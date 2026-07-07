@@ -42,11 +42,8 @@ fun PlannerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            viewModel.loadRemotePlanner()
-        }
+    LaunchedEffect(Unit) {
+        viewModel.loadRemotePlanner()
     }
 
     val onTaskClick: (Task) -> Unit = { task ->
@@ -153,53 +150,6 @@ fun PlannerScreen(
                     )
                 }
 
-                if (totalCompletedToday > 0) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Completados hoy ($totalCompletedToday)",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                uiState.studyBlocks.forEach { block ->
-                                    val completed = block.tasks.filter { it.isCompleted }
-                                    if (completed.isNotEmpty()) {
-                                        Text(
-                                            text = block.subject,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
-                                        )
-                                        completed.forEach { task ->
-                                            ConceptTaskItem(
-                                                task = task,
-                                                onTap = { onTaskClick(task) }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
                 if (totalDue == 0) {
                     item {
                         Box(
@@ -266,6 +216,54 @@ fun PlannerScreen(
                                 }
                             }
                         )
+                    }
+                }
+
+                if (totalCompletedToday > 0) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Completados hoy ($totalCompletedToday)",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                uiState.studyBlocks.forEach { block ->
+                                    val completed = block.tasks.filter { it.isCompleted }
+                                    if (completed.isNotEmpty()) {
+                                        Text(
+                                            text = block.subject,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+                                        )
+                                        completed.forEach { task ->
+                                            ConceptTaskItem(
+                                                task = task,
+                                                onTap = { onTaskClick(task) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -466,31 +464,33 @@ private fun CourseBreakdownCard(
                     )
                 }
                 Box {
-                    IconButton(
-                        onClick = { menuExpanded = true },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Opciones",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Posponer al mañana") },
-                            onClick = {
-                                menuExpanded = false
-                                onPostpone()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Schedule, contentDescription = null)
-                            }
-                        )
+                    if (pendingCount > 0) {
+                        IconButton(
+                            onClick = { menuExpanded = true },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Opciones",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Posponer al mañana") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onPostpone()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Schedule, contentDescription = null)
+                                }
+                            )
+                        }
                     }
                 }
             }

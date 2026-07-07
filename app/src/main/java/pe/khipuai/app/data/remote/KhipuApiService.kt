@@ -20,6 +20,12 @@ interface KhipuApiService {
     @POST("v1/auth/login")
     suspend fun loginTraditional(@Body request: UserLoginRequest): AuthResponse
 
+    @POST("v1/auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): MessageResponse
+
+    @POST("v1/auth/reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): MessageResponse
+
     @GET("v1/courses/catalog")
     suspend fun getCatalogByProfile(
         @Query("profile_type") profileType: String
@@ -167,6 +173,9 @@ interface KhipuApiService {
     @GET("v1/planner/stats")
     suspend fun getPlannerStats(): PlannerStatsResponse
 
+    @POST("v1/planner/study-session")
+    suspend fun recordStudySession(@Body request: StudySessionRequest)
+
     // T-11: conceptos agendados/completados para una fecha específica.
     @GET("v1/planner/day")
     suspend fun getDayConcepts(@Query("date") date: String): List<DayConceptResponse>
@@ -205,7 +214,7 @@ interface KhipuApiService {
     @PATCH("v1/users/me")
     suspend fun updateMyProfile(@Body request: UserUpdateRequest): UserProfileResponse
 
-    @DELETE("v1/users/me")
+    @HTTP(method = "DELETE", path = "v1/users/me", hasBody = true)
     suspend fun deleteMyAccount(@Body request: UserDeleteRequest)
 
     @DELETE("v1/notes/{note_id}")

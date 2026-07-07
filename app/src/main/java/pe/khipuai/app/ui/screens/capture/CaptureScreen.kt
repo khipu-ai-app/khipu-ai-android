@@ -19,6 +19,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -169,7 +171,8 @@ fun CaptureScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
     // Banner de uso Freemium (T-02) — visible en los 3 modos
@@ -189,20 +192,20 @@ fun CaptureScreen(
             // Cuerpo del modo seleccionado
             when (mode) {
                 CaptureMode.CAMERA -> CameraModeBody(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.heightIn(min = 350.dp),
                     onProcessFiles = { files ->
                         viewModel.processFiles(files)
                     }
                 )
                 CaptureMode.UPLOAD -> UploadModeBody(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.heightIn(min = 250.dp),
                     combineMode = uiState.combineMode,
                     onPickImage = {
                         imagePickerLauncher.launch("image/*")
                     }
                 )
                 CaptureMode.PDF -> PdfModeBody(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.heightIn(min = 250.dp),
                     combineMode = uiState.combineMode,
                     onPickPdf = {
                         pdfPickerLauncher.launch(arrayOf("application/pdf"))

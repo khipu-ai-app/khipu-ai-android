@@ -228,6 +228,8 @@ class ReviewSessionViewModel @Inject constructor(
                                 results = conceptResults.toList(),
                             ),
                         )
+                        // Añadir recompensa de tiempo por terminar el mazo de repaso (5 minutos por defecto)
+                        plannerRepository.recordStudySession(5)
                     } else {
                         _uiState.value = _uiState.value.copy(
                             isSubmitting = false,

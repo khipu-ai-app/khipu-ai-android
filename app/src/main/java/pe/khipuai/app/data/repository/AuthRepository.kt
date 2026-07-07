@@ -50,6 +50,24 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun forgotPassword(email: String): Result<pe.khipuai.app.data.remote.dto.MessageResponse> {
+        return try {
+            val response = apiService.forgotPassword(pe.khipuai.app.data.remote.dto.ForgotPasswordRequest(email))
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resetPassword(email: String, code: String, newPassword: String): Result<pe.khipuai.app.data.remote.dto.MessageResponse> {
+        return try {
+            val response = apiService.resetPassword(pe.khipuai.app.data.remote.dto.ResetPasswordRequest(email, code, newPassword))
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchMyProfile(): Result<UserProfileResponse> {
         return try {
             Result.success(apiService.getMyProfile())

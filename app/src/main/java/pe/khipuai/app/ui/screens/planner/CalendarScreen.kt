@@ -1,4 +1,4 @@
-﻿package pe.khipuai.app.ui.screens.planner
+package pe.khipuai.app.ui.screens.planner
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
@@ -12,6 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -312,6 +315,23 @@ private fun StatsHeader(stats: PlannerStatsResponse) {
                     value = "${stats.dominatedConcepts}/${stats.totalConcepts}",
                     label = "conceptos",
                     color = Color(0xFF1976D2)
+                )
+                StatPill(
+                    icon = Icons.Default.Timer,
+                    value = "${stats.todayStudyMinutes}m",
+                    label = if (stats.studyGoalMinutes != null) "/${stats.studyGoalMinutes}m meta" else "hoy",
+                    color = Color(0xFF388E3C)
+                )
+            }
+
+            if (stats.studyGoalMinutes != null && stats.studyGoalMinutes > 0) {
+                Spacer(modifier = Modifier.height(12.dp))
+                val progress = (stats.todayStudyMinutes.toFloat() / stats.studyGoalMinutes.toFloat()).coerceIn(0f, 1f)
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                    color = Color(0xFF388E3C),
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                 )
             }
 

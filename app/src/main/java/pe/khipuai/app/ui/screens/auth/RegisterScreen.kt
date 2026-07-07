@@ -46,6 +46,7 @@ fun RegisterScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .safeDrawingPadding()
             .padding(24.dp),

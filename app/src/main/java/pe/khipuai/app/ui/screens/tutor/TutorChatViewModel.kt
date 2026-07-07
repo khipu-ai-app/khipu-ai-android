@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pe.khipuai.app.data.repository.TutorRepository
 import pe.khipuai.app.data.repository.TutorStreamEvent
+import pe.khipuai.app.data.repository.PlannerRepository
 import javax.inject.Inject
 
 // Identificador del emisor del mensaje
@@ -46,6 +47,7 @@ data class TutorChatUiState(
 @HiltViewModel
 class TutorChatViewModel @Inject constructor(
     private val tutorRepository: TutorRepository,
+    private val plannerRepository: PlannerRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -132,6 +134,11 @@ class TutorChatViewModel @Inject constructor(
             isStreaming = true,
             errorMessage = null
         ) }
+
+        // Sumar 2 minutos por interacciones de chat
+        viewModelScope.launch {
+            plannerRepository.recordStudySession(2)
+        }
 
         if (isNewSession) {
             // Solo creamos la sesión en el backend cuando el usuario efectivamente

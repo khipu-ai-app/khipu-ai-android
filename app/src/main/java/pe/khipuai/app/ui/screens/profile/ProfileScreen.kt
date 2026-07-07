@@ -86,11 +86,7 @@ fun ProfileScreen(
                     }
                 },
 
-                actions = {
-                    IconButton(onClick = { /* Notifications */ }) {
-                        Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notificaciones", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },

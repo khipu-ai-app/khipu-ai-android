@@ -31,6 +31,8 @@ android {
         release {
             buildConfigField("String", "BASE_URL", "\"https://khipu-ai-backend-1013222499074.us-central1.run.app/\"")
             isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

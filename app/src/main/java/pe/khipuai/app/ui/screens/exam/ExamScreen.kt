@@ -5,6 +5,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -122,7 +124,7 @@ fun ExamScreen(
 
             Card(modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp),
                   colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.padding(20.dp)) {
+                Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
                     Text(q.question, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
                          lineHeight = 22.sp)
                     Spacer(Modifier.height(4.dp))

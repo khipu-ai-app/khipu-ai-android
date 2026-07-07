@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +20,7 @@ import pe.khipuai.app.core.auth.AuthStartupChecker
 import pe.khipuai.app.core.deeplink.DeepLinkBus
 import pe.khipuai.app.core.preferences.ThemePreferences
 import pe.khipuai.app.data.notification.NotificationDeepLinks
+import pe.khipuai.app.data.repository.AuthRepository
 import pe.khipuai.app.navigation.KhipuNavigation
 import pe.khipuai.app.ui.theme.KhipuAITheme
 import pe.khipuai.app.ui.theme.ThemeMode
@@ -26,6 +28,9 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var authRepository: AuthRepository
+
     @Inject
     lateinit var achievementManager: pe.khipuai.app.ui.screens.achievements.AchievementManager
 
@@ -50,6 +55,8 @@ class MainActivity : ComponentActivity() {
         // T-04: si la app se abrió desde una notificación, emitimos el
         // deep link al bus para que KhipuNavigation navegue al destino.
         handleDeepLink(intent)
+        syncFcmToken()
+        
         setContent {
             // T-03: colectamos el ThemeMode persistido. Cuando el usuario
             // cambia la opción en ProfileScreen, el DataStore emite y la
@@ -93,6 +100,24 @@ class MainActivity : ComponentActivity() {
             deepLinkBus.emit(deepLink)
             // Limpiamos el extra para que un process restoration no re-navegue
             intent.removeExtra(NotificationDeepLinks.EXTRA_DEEP_LINK)
+        }
+    }
+
+    private fun syncFcmToken() {
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                android.util.Log.w("FCM", "Fetching FCM registration token failed", task.exception)
+                return@addOnCompleteListener
+            }
+            val token = task.result
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    authRepository.updateMyProfile(pe.khipuai.app.data.remote.dto.UserUpdateRequest(fcmToken = token))
+                    android.util.Log.d("FCM", "FCM token synced on startup")
+                } catch (e: Exception) {
+                    android.util.Log.e("FCM", "Error syncing FCM token on startup", e)
+                }
+            }
         }
     }
 }

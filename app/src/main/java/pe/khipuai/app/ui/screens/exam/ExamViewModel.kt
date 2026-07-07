@@ -10,8 +10,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import pe.khipuai.app.core.network.NetworkErrorMapper
 import pe.khipuai.app.data.remote.dto.*
 import pe.khipuai.app.data.repository.ExamRepository
+import pe.khipuai.app.data.repository.PlannerRepository
 import javax.inject.Inject
 
 data class ExamUiState(
@@ -38,6 +40,7 @@ enum class ExamStep { CONFIG, EXAM, RESULTS }
 @HiltViewModel
 class ExamViewModel @Inject constructor(
     private val examRepository: ExamRepository,
+    private val plannerRepository: PlannerRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -74,7 +77,8 @@ class ExamViewModel @Inject constructor(
                     startTimer()
                 }
                 .onFailure { e ->
-                    _state.value = _state.value.copy(isLoading = false, error = e.message ?: "Error al generar el examen")
+                    val errorMessage = NetworkErrorMapper.from(e).message
+                    _state.value = _state.value.copy(isLoading = false, error = errorMessage)
                 }
         }
     }
@@ -120,9 +124,12 @@ class ExamViewModel @Inject constructor(
             examRepository.submitExam(_state.value.examId ?: "", answers)
                 .onSuccess { result ->
                     _state.value = _state.value.copy(isLoading = false, step = ExamStep.RESULTS, result = result)
+                    // Sumar 10 minutos por simulacro completado
+                    plannerRepository.recordStudySession(10)
                 }
                 .onFailure { e ->
-                    _state.value = _state.value.copy(isLoading = false, error = e.message ?: "Error al enviar el examen")
+                    val errorMessage = NetworkErrorMapper.from(e).message
+                    _state.value = _state.value.copy(isLoading = false, error = errorMessage)
                 }
         }
     }

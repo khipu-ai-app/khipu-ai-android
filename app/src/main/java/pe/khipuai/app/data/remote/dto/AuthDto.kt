@@ -80,3 +80,20 @@ data class UsageResponse(
 data class RefreshTokenRequest(
     @SerialName("access_token") val accessToken: String
 )
+
+@Serializable
+data class ForgotPasswordRequest(
+    @SerialName("email") val email: String
+)
+
+@Serializable
+data class ResetPasswordRequest(
+    @SerialName("email") val email: String,
+    @SerialName("code") val code: String,
+    @SerialName("new_password") val newPassword: String
+)
+
+@Serializable
+data class MessageResponse(
+    @SerialName("message") val message: String
+)

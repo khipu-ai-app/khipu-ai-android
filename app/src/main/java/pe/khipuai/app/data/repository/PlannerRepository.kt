@@ -9,6 +9,7 @@ import pe.khipuai.app.data.remote.dto.PostponeRequest
 import pe.khipuai.app.data.remote.dto.ReviewConceptResponse
 import pe.khipuai.app.data.remote.dto.ReviewRequest
 import pe.khipuai.app.data.remote.dto.ScheduleDayResponse
+import pe.khipuai.app.data.remote.dto.StudySessionRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -61,6 +62,15 @@ class PlannerRepository @Inject constructor(
     suspend fun fetchStats(): Result<PlannerStatsResponse> {
         return try {
             Result.success(apiService.getPlannerStats())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun recordStudySession(minutes: Int): Result<Unit> {
+        return try {
+            apiService.recordStudySession(StudySessionRequest(minutes))
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

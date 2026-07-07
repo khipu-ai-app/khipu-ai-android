@@ -26,7 +26,6 @@ import pe.khipuai.app.ui.screens.planner.CalendarScreen
 import pe.khipuai.app.ui.screens.maps.MapsScreen
 import pe.khipuai.app.ui.screens.profile.ProfileScreen
 import pe.khipuai.app.ui.screens.processing.ProcessingScreen
-import pe.khipuai.app.ui.screens.analysis.AnalysisScreen
 import pe.khipuai.app.ui.screens.search.SearchScreen
 import pe.khipuai.app.ui.screens.statistics.StatisticsScreen
 import pe.khipuai.app.ui.screens.achievements.AchievementsScreen
@@ -76,7 +75,10 @@ fun KhipuNavigation(
                     // LoginScreen actual, destruyéndolo y haciendo perder
                     // lo que el usuario estaba tipeando.
                     val currentRoute = navController.currentDestination?.route
-                    if (currentRoute == Screen.Login.route) return@collect
+                    // If currentDestination is null, the NavGraph hasn't been set yet.
+                    // If we try to navigate now, it throws an IllegalArgumentException.
+                    if (currentRoute == null || currentRoute == Screen.Login.route) return@collect
+                    
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -313,12 +315,17 @@ fun KhipuNavigation(
                     val encoded = java.net.URLEncoder.encode(conceptName, "UTF-8")
                     navController.navigate("review_session/by-concept?conceptName=$encoded")
                 },
-                onAskTutor = { conceptName ->
+                onAskTutor = { conceptName, courseId ->
                     val encoded = java.net.URLEncoder.encode(conceptName, "UTF-8")
-                    // Abrimos el chat global con el concepto como prefill
-                    navController.navigate(
-                        "tutor_history?contextType=general&initialConcepts=$encoded"
-                    )
+                    if (courseId.isNullOrBlank()) {
+                        navController.navigate(
+                            "tutor/new_session?contextType=general&initialConcepts=$encoded"
+                        )
+                    } else {
+                        navController.navigate(
+                            "tutor/new_session?contextType=course&contextId=$courseId&initialConcepts=$encoded"
+                        )
+                    }
                 }
             )
         }
@@ -395,7 +402,7 @@ fun KhipuNavigation(
         ) {
             ProcessingScreen(
                 onProcessingComplete = { noteId ->
-                    navController.navigate("${Screen.Analysis.route}/$noteId") {
+                    navController.navigate("${Screen.NoteDetail.route}/$noteId") {
                         popUpTo(Screen.Capture.route) { inclusive = true }
                     }
                 },
@@ -403,26 +410,6 @@ fun KhipuNavigation(
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
-                }
-            )
-        }
-
-        composable(
-            route = "${Screen.Analysis.route}/{noteId}",
-            arguments = listOf(navArgument("noteId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val noteId = backStackEntry.arguments?.getString("noteId") ?: ""
-            AnalysisScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToStudyGuide = {
-                    navController.navigate("${Screen.StudyGuide.route}/$noteId")
-                },
-                onNavigateToQuizCreation = {
-                    navController.navigate("${Screen.QuizCreation.route}/$noteId")
-                },
-                onConceptClick = { conceptName ->
-                    val encoded = java.net.URLEncoder.encode(conceptName, "UTF-8")
-                    navController.navigate("${Screen.Maps.route}?highlightConcept=$encoded")
                 }
             )
         }
@@ -615,20 +602,20 @@ fun KhipuNavigation(
                     if (courseId.isNullOrBlank()) {
                         // Nota sin curso → chat global con hint de la nota
                         navController.navigate(
-                            "tutor_history?contextType=general" +
+                            "tutor/new_session?contextType=general" +
                             "&noteContext=$encodedNoteId&noteTitle=$encodedNoteTitle"
                         )
                     } else if (!concept.isNullOrBlank()) {
                         // Tapped un chip de concepto → prefill con el concepto
                         val encodedConcept = java.net.URLEncoder.encode(concept, "UTF-8")
                         navController.navigate(
-                            "tutor_history?contextType=course&contextId=$courseId" +
+                            "tutor/new_session?contextType=course&contextId=$courseId" +
                             "&initialConcepts=$encodedConcept"
                         )
                     } else {
                         // Botón "Chat Tutor" general → chat del curso con prefill de la nota
                         navController.navigate(
-                            "tutor_history?contextType=course&contextId=$courseId" +
+                            "tutor/new_session?contextType=course&contextId=$courseId" +
                             "&noteContext=$encodedNoteId&noteTitle=$encodedNoteTitle"
                         )
                     }
@@ -834,16 +821,11 @@ fun KhipuNavigation(
  *
  * Convenciones (definidas en `NotificationDeepLinks`):
  *  - "planner"               → PlannerScreen
- *  - "analysis/{noteId}"     → AnalysisScreen con noteId
  *  - "achievements"          → AchievementsScreen
  */
 private fun handleDeepLink(navController: NavHostController, deepLink: String) {
     val target = when {
         deepLink == "planner" -> Screen.Planner.route
-        deepLink.startsWith("analysis/") -> {
-            val noteId = deepLink.removePrefix("analysis/")
-            "${Screen.Analysis.route}/$noteId"
-        }
         deepLink.startsWith("scheduled/") -> {
             val noteId = deepLink.removePrefix("scheduled/")
             "${Screen.NoteDetail.route}/$noteId"
@@ -898,7 +880,6 @@ sealed class Screen(val route: String) {
     object Maps : Screen("maps")
     object Profile : Screen("profile")
     object Processing : Screen("processing")
-    object Analysis : Screen("analysis")
     object StudyGuide : Screen("study_guide")
     object Onboarding : Screen("onboarding")
     object Tutor : Screen("tutor")

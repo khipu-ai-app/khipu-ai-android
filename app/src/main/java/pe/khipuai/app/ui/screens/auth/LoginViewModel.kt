@@ -64,9 +64,17 @@ class LoginViewModel @Inject constructor(
             authRepository.loginWithEmail(email, password)
                 .onSuccess {
                     val profileResult = authRepository.fetchMyProfile()
-                    val needsOnboarding = profileResult.getOrNull()?.onboardingDone != true
-                    _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true, errorMessage = null)
-                    onResult(true, needsOnboarding)
+                    if (profileResult.isSuccess) {
+                        val needsOnboarding = profileResult.getOrNull()?.onboardingDone != true
+                        _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true, errorMessage = null)
+                        onResult(true, needsOnboarding)
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = "Error al cargar perfil. Por favor intenta de nuevo."
+                        )
+                        onResult(false, false)
+                    }
                 }
                 .onFailure { exception ->
                     _uiState.value = _uiState.value.copy(
@@ -97,13 +105,21 @@ class LoginViewModel @Inject constructor(
                     authRepository.loginWithGoogle(result.idToken)
                         .onSuccess {
                             val profileResult = authRepository.fetchMyProfile()
-                            val needsOnboarding = profileResult.getOrNull()?.onboardingDone != true
-                            _uiState.value = _uiState.value.copy(
-                                isLoading = false,
-                                isLoggedIn = true,
-                                errorMessage = null
-                            )
-                            onResult(true, needsOnboarding)
+                            if (profileResult.isSuccess) {
+                                val needsOnboarding = profileResult.getOrNull()?.onboardingDone != true
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    isLoggedIn = true,
+                                    errorMessage = null
+                                )
+                                onResult(true, needsOnboarding)
+                            } else {
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    errorMessage = "Error al cargar perfil. Por favor intenta de nuevo."
+                                )
+                                onResult(false, false)
+                            }
                         }
                         .onFailure { exception ->
                             _uiState.value = _uiState.value.copy(
